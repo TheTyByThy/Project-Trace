@@ -294,7 +294,20 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
                   </div>
                 </>
               )}
-              {c.colorBy === 'lap' && <div className="muted" style={{ fontSize: 12 }}>Lap colours are set by clicking a lap’s colour square in the sidebar.</div>}
+              {c.colorBy === 'delta' && (
+                <>
+                  <F label={`Gain / loss sensitivity (×${(c.deltaSensitivity ?? 1).toFixed(2)})`}>
+                    <input type="range" min={0.25} max={4} step={0.25} value={c.deltaSensitivity ?? 1} onChange={(e) => up({ deltaSensitivity: Number(e.target.value) })} />
+                  </F>
+                  <F label={`Gain / loss smoothing (${c.deltaSmoothing ?? 32} m)`}>
+                    <input type="range" min={4} max={200} step={4} value={c.deltaSmoothing ?? 32} onChange={(e) => up({ deltaSmoothing: Number(e.target.value) })} />
+                  </F>
+                  <div className="muted" style={{ fontSize: 12 }}>
+                    Higher sensitivity shows small gains and losses in stronger colour. More smoothing shows broader regions instead of every small spike.
+                  </div>
+                </>
+              )}
+              {c.colorBy === 'lap' && <div className="muted" style={{ fontSize: 12 }}>Lap colours are set by right-clicking a lap’s colour square in the sidebar.</div>}
             </G>
             <G title="Display">
               <F label={`Line width (${c.lineWidth}px)`}>
@@ -349,7 +362,7 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
           <div>
             <G title="Corner report">
               <F label="Metric">
-                <Select value={c.metric} options={[['minSpeed', 'Minimum speed'], ['entrySpeed', 'Entry speed'], ['exitSpeed', 'Exit speed'], ['time', 'Time through corner']]} onChange={(v) => up({ metric: v })} />
+                <Select value={c.metric} options={[['time', 'Time through corner'], ['minSpeed', 'Minimum speed'], ['entrySpeed', 'Entry speed'], ['exitSpeed', 'Exit speed']]} onChange={(v) => up({ metric: v })} />
               </F>
               <Check label="Straights between corners" value={c.showStraights !== false} onChange={(v) => up({ showStraights: v })} />
               <Check label="Total time in corners vs on straights" value={c.showTotals !== false} onChange={(v) => up({ showTotals: v })} />

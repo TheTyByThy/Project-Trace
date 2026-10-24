@@ -33,6 +33,10 @@
       {
         "from": "sample-data",
         "to": "sample-data"
+      },
+      {
+        "from": "default-workspaces",
+        "to": "default-workspaces"
       }
     ],
     "win": {

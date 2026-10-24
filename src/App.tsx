@@ -26,13 +26,16 @@ import {
   setUi,
   setWorkingRotation,
   setXMode,
+  setNamePrompt,
   setZoom,
+  syncWorkspacesFromFolder,
   toast,
+  updateComponent,
   updateSettings,
   useStore,
 } from './state/store';
 import { MathEditor } from './ui/MathEditor';
-import { OverlayHosts } from './ui/overlays';
+import { OverlayHosts, promptText } from './ui/overlays';
 import { InspectorPanel, PropertiesModal } from './ui/PropertiesModal';
 import { SessionBrowser } from './ui/SessionBrowser';
 import { SheetView } from './ui/SheetView';
@@ -90,6 +93,8 @@ function useMenuSync() {
   }, []);
 }
 
+let prevWorkspace = '';
+
 function installAutomation() {
   const sheetIndex = (name: string) => activeWorkspace().worksheets.findIndex((w) => w.name === name);
   window.__ptAutomation = {
@@ -127,11 +132,14 @@ function installAutomation() {
       'command-palette',
       'settings',
       'zoom-measure',
+      'lap-report-delta',
+      'shortcuts',
+      'basic-fa26',
       'time-axis',
       'light-theme',
     ],
     runExtra: (name: string) => {
-      setUi({ math: name === 'math-editor', palette: name === 'command-palette', settings: name === 'settings', properties: false, trackProfile: false });
+      setUi({ math: name === 'math-editor', palette: name === 'command-palette', settings: name === 'settings', shortcuts: name === 'shortcuts', properties: false, trackProfile: false });
       const ref = selectedLaps()[0];
       const venue = ref?.session.meta.venue ?? '';
       if (name === 'corners-and-gps') {
@@ -164,10 +172,26 @@ function installAutomation() {
         setActiveSheet(0);
       } else if (name === 'zoom-measure') {
         updateSettings({ refColors: 'channel' });
+        setSmoothing({ enabled: true, seconds: 0.05 });
         setActiveSheet(0);
         setZoom([850, 2000]);
         setMeasure([1180, 1420]);
+      } else if (name === 'lap-report-delta') {
+        setMeasure(null);
+        setZoom(null);
+        const lr = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'lapreport');
+        if (lr) updateComponent(lr.id, { sectorMode: 'delta' });
+      } else if (name === 'shortcuts') {
+        const lr = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'lapreport');
+        if (lr) updateComponent(lr.id, { sectorMode: 'absolute' });
+      } else if (name === 'basic-fa26') {
+        if (useStore.getState().workspaces.some((w) => w.id === 'basic-fa26')) {
+          prevWorkspace = useStore.getState().settings.activeWorkspaceId;
+          setActiveWorkspace('basic-fa26');
+          setActiveSheet(0);
+        }
       } else if (name === 'time-axis') {
+        if (prevWorkspace) setActiveWorkspace(prevWorkspace);
         setMeasure(null);
         setXMode('time');
         setActiveSheet(1);
@@ -207,7 +231,7 @@ function installAutomation() {
       const starter = useStore.getState().workspaces.find((w) => w.id === STARTER_ID)!;
       ok(starter.worksheets.length === starterSheets && activeWorkspace().id !== STARTER_ID, 'editing the Starter creates a personal copy and leaves the Starter intact');
       undo();
-      ok(useStore.getState().workspaces.every((w) => w.id === STARTER_ID || w.id === mine), 'undo removes the copy again');
+      ok(useStore.getState().workspaces.every((w) => w.locked || w.id === mine), 'undo removes the copy again');
       setActiveWorkspace(mine);
       return out;
     },
@@ -226,13 +250,16 @@ export function App() {
   useEffect(() => {
     if (!window.pt) return;
     installAutomation();
+    setNamePrompt(promptText);
     initApp().catch((e) => toast(`Startup failed: ${e.message}`, 'error', 10000));
     const offMenu = pt().onMenu(handleMenuAction);
+    const offWs = pt().onWorkspacesChanged(() => useStore.getState().ready && syncWorkspacesFromFolder());
     const offOpen = pt().onOpenFiles((files) => openFiles(files, 'replace'));
     window.addEventListener('keydown', handleGlobalKey);
     window.addEventListener('error', (e) => useStore.setState((s) => ({ errors: [...s.errors, String(e.message)] })));
     return () => {
       offMenu();
+      offWs();
       offOpen();
       window.removeEventListener('keydown', handleGlobalKey);
     };

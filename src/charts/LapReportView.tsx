@@ -4,6 +4,7 @@
 // Click = make reference, Ctrl/⌘+click = toggle overlay.
 
 import { useMemo } from 'react';
+import { lapTint } from '../core/colors';
 import { formatDelta, formatLapTime, formatValue, prettyTrack } from '../core/format';
 import { fastestLap, segmentTimes, theoreticalBest } from '../core/session';
 import { rangeStats } from '../core/stats';
@@ -49,6 +50,7 @@ export function LapReportView({ config }: { config: LapReportConfig | SelectedLa
   const profiles = useStore((s) => s.settings.trackProfiles);
   const dataVersion = useStore((s) => s.dataVersion);
   const onlySelected = config.type === 'lapreport';
+  const deltaMode = config.type === 'lapreport' && config.sectorMode === 'delta';
   const show = {
     delta: config.showDelta !== false,
     splits: config.showSplits !== false,
@@ -98,15 +100,16 @@ export function LapReportView({ config }: { config: LapReportConfig | SelectedLa
   );
 
   if (!sessions.length) return <div className="empty-state">Open a session to see lap times.</div>;
-  if (onlySelected && !selected.length) return <div className="empty-state">Select a lap to see its times.</div>;
+  if (!selected.length) return <div className="empty-state">Select a lap to see {onlySelected ? 'its times' : 'its stint'}.</div>;
 
   const refRow = (() => {
     for (const t of tables) for (const r of t.rows) if (r.key === refKey) return r;
     return undefined;
   })();
+  // Only stints with a selected lap are shown (the Lap Report further narrows to the selected laps).
   const shown = tables
-    .map((t) => ({ ...t, rows: onlySelected ? t.rows.filter((r) => lapColors.has(r.key)) : t.rows }))
-    .filter((t) => t.rows.length);
+    .filter((t) => t.rows.some((r) => lapColors.has(r.key)))
+    .map((t) => ({ ...t, rows: onlySelected ? t.rows.filter((r) => lapColors.has(r.key)) : t.rows }));
   // Lap report: reference first, then comparisons in selection order.
   if (onlySelected) {
     const order = new Map(selected.map((l, i) => [l.key, i]));
@@ -126,6 +129,16 @@ export function LapReportView({ config }: { config: LapReportConfig | SelectedLa
             </button>
           ))}
         </div>
+        {onlySelected && (
+          <div className="seg" title="Comparison laps' sectors as absolute times or as the difference to the reference lap">
+            <button className={!deltaMode ? 'on' : ''} onClick={() => updateComponent(config.id, { sectorMode: 'absolute' })}>
+              Absolute
+            </button>
+            <button className={deltaMode ? 'on' : ''} onClick={() => updateComponent(config.id, { sectorMode: 'delta' })}>
+              Δ to ref
+            </button>
+          </div>
+        )}
         <span className="grow" />
         <span className="muted" style={{ fontSize: 11 }}>
           <span className="legend-chip pb" /> stint best <span className="legend-chip best" /> best of all open laps
@@ -133,7 +146,7 @@ export function LapReportView({ config }: { config: LapReportConfig | SelectedLa
       </div>
       {shown.map(({ s, splitNames, rows, best, fl, ideal, overallLap, overallSplits }) => (
         <div key={s.id}>
-          {sessions.length > 1 && (
+          {shown.length > 1 && (
             <div className="section-title">
               {prettyTrack(s.meta.venue).track} · {new Date(s.meta.savedAt ?? 0).toLocaleString()}
             </div>
@@ -173,7 +186,7 @@ export function LapReportView({ config }: { config: LapReportConfig | SelectedLa
                     onClick={(e) => selectLap(key, e.ctrlKey || e.metaKey ? 'toggle' : e.shiftKey ? 'reference' : 'replace')}
                   >
                     <td className="l">{sel && <span className="swatch" style={{ background: lapColors.get(key), outline: key === refKey ? '2px solid var(--text)' : undefined }} />}</td>
-                    <td className="l">
+                    <td className="l" style={sel ? { background: lapTint(lapColors.get(key)!) } : undefined}>
                       {lap.number}{' '}
                       {show.tags && lap.kind === 'out' && <span className="tag">out</span>}
                       {show.tags && lap.kind === 'in' && <span className="tag">in</span>}
@@ -188,6 +201,14 @@ export function LapReportView({ config }: { config: LapReportConfig | SelectedLa
                     {show.splits &&
                       splitNames.map((_, i) => {
                         const v = splits[i];
+                        if (deltaMode && refRow && key !== refKey) {
+                          const d = v - refRow.splits[i];
+                          return (
+                            <td key={i} className="num" style={{ color: !Number.isFinite(d) ? undefined : d < 0 ? 'var(--gain)' : d > 0 ? 'var(--loss)' : undefined }}>
+                              {valid(v) && valid(refRow.splits[i]) ? formatDelta(d) : <span className="muted">—</span>}
+                            </td>
+                          );
+                        }
                         return (
                           <td key={i} className={'num' + (lap.invalid ? '' : bestClass(v, best[i], overallSplits[i]))}>
                             {valid(v) ? formatLapTime(v) : <span className="muted">—</span>}

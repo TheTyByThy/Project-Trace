@@ -5,7 +5,7 @@ import { formatDateTime, formatDuration, formatGameClock, formatLapTime, prettyC
 import { fastestLap, theoreticalBest } from '../core/session';
 import { zoneForVenue } from '../core/timezones';
 import { pt } from '../core/bridge';
-import { setNote, updateComponent, useStore } from '../state/store';
+import { sessionsWithSelection, setNote, updateComponent, useStore } from '../state/store';
 import type { DetailsConfig } from '../state/workspace';
 import type { Session } from '../core/types';
 
@@ -90,7 +90,10 @@ function InfoTable({ s }: { s: Session }) {
 }
 
 export function DetailsView({ config }: { config: DetailsConfig }) {
-  const sessions = useStore((s) => s.sessions);
+  const allSessions = useStore((s) => s.sessions);
+  const lapSel = useStore((s) => s.laps);
+  // Only stints with a selected lap (reference or comparison).
+  const sessions = sessionsWithSelection(allSessions, lapSel);
   const notes = useStore((s) => s.notes);
   if (!sessions.length) return <div className="empty-state">Open a session to see its details and setup.</div>;
   const tab = config.tab;

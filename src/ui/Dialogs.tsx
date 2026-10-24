@@ -9,6 +9,10 @@ import { DEFAULT_SETTINGS, setSmoothing, setUi, toast, updateSettings, useStore 
 export function SettingsDialog() {
   const s = useStore((st) => st.settings);
   const info = useStore((st) => st.appInfo);
+  const [wsDir, setWsDir] = useState('');
+  useEffect(() => {
+    pt().workspacesDir().then(setWsDir);
+  }, []);
   const close = () => setUi({ settings: false });
   const seg = <T extends string>(value: T, options: [T, string][], onChange: (v: T) => void) => (
     <div className="seg">
@@ -97,11 +101,21 @@ export function SettingsDialog() {
             </label>,
           )}
           {row(
+            'Workspaces folder',
+            <div className="row">
+              <div className="code-path grow">{wsDir || '…'}</div>
+              <button className="btn" onClick={() => pt().openWorkspacesDir()}>
+                Open
+              </button>
+            </div>,
+            'Every workspace is a .json file here, named after it. Drop in a workspace someone shared and it appears in the Workspace menu.',
+          )}
+          {row(
             'Data folder',
             <div className="row">
               <div className="code-path grow">{info?.userData}</div>
             </div>,
-            'Settings, workspaces, notes and the session cache live here.',
+            'Settings, notes and the session cache live here.',
           )}
         </div>
         <div className="modal-foot">
@@ -199,7 +213,7 @@ export function ShortcutsDialog() {
           <span className="grow" />
           <input className="input" style={{ width: 220 }} placeholder="Search actions…" value={filter} onChange={(e) => setFilter(e.target.value)} />
         </div>
-        <div className="modal-body">
+        <div className="modal-body" style={{ overflowX: 'hidden' }}>
           <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
             Click <b>+ Add</b> and press the keys you want. Click a key to remove it. Each key combo can belong to one action only.
           </div>

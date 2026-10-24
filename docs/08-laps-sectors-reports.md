@@ -45,38 +45,60 @@ Telemetrick's `Last Sector Time` channel only updates once per second, but the v
 - A sector is only shown when the lap covers it fully.
 - **Ideal lap** = sum of the best sectors from valid laps.
 
-## Lap report
+## Lap report and Stint report
+
+Two components show lap and sector times:
+
+| Component | Shows |
+|---|---|
+| **Lap Report** | only the **selected laps** — the reference first, then the comparison laps |
+| **Stint Report** | every lap of each **stint (session) that has a selected lap** — open a second session and it only appears once you select one of its laps |
+
+![Lap report with sectors as Δ to the reference](images/lap-report-delta.png)
 
 | Column | |
 |---|---|
-| swatch | the lap's colour if selected (outlined = reference) |
-| Lap | number and tags |
+| swatch / Lap | the lap's colour if selected (outlined = reference); the lap cell is tinted in the lap's colour |
 | Time | lap time (struck through if invalid, grey if incomplete) |
-| Δ best | gap to the fastest lap |
-| S1…Sn | sector or section times; **purple bar = best in session** |
+| Δ ref / Δ best | Lap Report: gap to the reference · Stint Report: gap to the fastest lap |
+| S1…Sn | sector or section times |
 | V max | maximum speed (in your speed unit) |
 | Fuel | fuel used during the lap |
 
-The last row is the **Ideal** lap. Switch the split columns between **Game sectors**, **Custom sections** (from your track-map splits, see [05](05-track-map.md)) and **None**. With several sessions loaded, each gets its own table.
+**Best times fill the cell**: **green** = the best in that stint, **purple** = the best of every lap open at this track (with one session they are the same, so bests are purple).
+
+**Absolute / Δ to ref** (Lap Report, next to the split buttons): show the comparison laps' sectors as times (default) or as the difference to the reference's sectors, e.g. **+0.321** (red = slower, green = faster).
+
+The Stint Report's last row is the **Ideal** lap. Switch the split columns between **Game sectors**, **Custom sections** (from your splits, see [05](05-track-map.md)) and **None**. Columns (Δ, splits, ideal row, tags, max speed & fuel) can be switched off in Properties.
+
+## Lap colours in side-by-side data
+
+Wherever laps are compared side by side — the Channel Report, Corner Report, graph legends, histogram zone tables, gauges and the GPS track's offset readout — each lap's values sit on a **translucent background in that lap's colour** (blue reference, white first comparison, …), so you can tell the columns apart at a glance.
 
 ## Channel report
 
-A table of statistics for chosen channels for every selected lap (or only the zoomed range).
+A table of statistics for chosen channels for every selected lap (or only the zoomed range), each lap's columns tinted in its colour.
 - Statistics: **min, max, avg, std, start, end**.
 - Add channels with **+ Add channel** or by dragging from the sidebar; remove with ×.
 - Values are in your display units with each channel's decimal places.
+
+## Other stint-level components
+
+The **Lap Trend** and **Session & Setup** components also only show stints that have a selected lap.
 
 ## Corner report
 
 The corner report uses **the corners you define for the track**. Nothing is generated automatically; see [05](05-track-map.md#corners-sections-and-the-track-profile). Until a track has corners, the report explains how to add them and offers two buttons: **Open track profile editor**, and an optional **Suggest from speed minima** that proposes corners at the reference lap's slowest points for you to keep, rename or delete.
 
-Each corner is analysed over a window from halfway to the previous corner to halfway to the next, capped at ±200 m from the apex you set. **Right-click a corner** to rename it, move it to the cursor, or delete it.
+Each corner is analysed over a window from halfway to the previous corner to halfway to the next, capped at ±200 m from the apex you set — or over the **exact range** you give it in advanced mode (track profile → *Advanced: exact start / end distance for each corner*). Everything that isn't inside a corner is a **straight** (named after its neighbours, e.g. *T3 → T4*; the first and last run to the start/finish line). Edit corners in Properties or **Analysis → Track Profile…**.
+
+![Corner report](images/basic-fa26.png)
 
 | Metric | |
 |---|---|
-| Min speed | apex speed |
-| Entry speed | speed at the braking point (the preceding speed peak) |
-| Exit speed | speed at the following speed peak |
-| Time in corner | time from entry to exit |
+| Time in corner (first, default) | time from entry to exit |
+| Min speed | lowest speed in the range |
+| Entry speed | speed at the start of the range |
+| Exit speed | speed at the end of the range |
 
-For each overlay lap the delta to the reference is shown in blue (better) or red (worse), plus a "best − ref" column. **Click a corner** to zoom all graphs to it in distance mode.
+At the top, **Total time** sums each lap's time **in corners** and **on straights**, with the gain/loss against the reference — so you can see at once whether time is lost in the corners or down the straights. Below, each corner and straight is listed with the chosen metric; each lap's column is tinted in its colour, and the delta to the reference is green (better) or red (worse), plus a "best − ref" column. Straights and totals can be hidden in Properties. **Click a row** to zoom all graphs to it in distance mode.

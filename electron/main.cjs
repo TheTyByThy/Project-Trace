@@ -34,7 +34,11 @@ protocol.registerSchemesAsPrivileged([
 
 const userDir = () => app.getPath('userData');
 const settingsFile = () => path.join(userDir(), 'settings.json');
-const workspacesDir = () => path.join(userDir(), 'workspaces');
+// User workspaces are plain, readable files in a visible folder (Documents/Project-Trace/Workspaces)
+// so people can back them up or drop in a workspace someone else shared. Older versions kept them in
+// the hidden userData folder; they are copied across once (see migrateLegacyWorkspaces).
+const legacyWorkspacesDir = () => path.join(userDir(), 'workspaces');
+const workspacesDir = () => (SCREENSHOT_DIR ? path.join(userDir(), 'Workspaces') : path.join(app.getPath('documents'), 'Project-Trace', 'Workspaces'));
 const cacheFile = () => path.join(userDir(), 'session-cache.json');
 const notesFile = () => path.join(userDir(), 'session-notes.json');
 const libraryFile = () => path.join(userDir(), 'worksheet-library.json');
@@ -43,6 +47,13 @@ function sampleDataDir() {
   const packaged = path.join(process.resourcesPath || '', 'sample-data');
   if (app.isPackaged && fs.existsSync(packaged)) return packaged;
   return path.join(__dirname, '..', 'sample-data');
+}
+
+/** Built-in default workspaces shipped with the app (read-only templates, like the Starter). */
+function defaultWorkspacesDir() {
+  const packaged = path.join(process.resourcesPath || '', 'default-workspaces');
+  if (app.isPackaged && fs.existsSync(packaged)) return packaged;
+  return path.join(__dirname, '..', 'default-workspaces');
 }
 
 function defaultTelemetryRoot() {
@@ -211,6 +222,10 @@ function buildMenu() {
           click: () => sendMenu('ws-switch:' + w.id),
         })),
         { type: 'separator' },
+        { label: 'Save Workspace', ...acc('ws-save'), click: () => sendMenu('ws-save') },
+        { label: 'Save Workspace As…', click: () => sendMenu('ws-save-as') },
+        { label: 'Open Workspaces Folder', click: () => sendMenu('ws-open-folder') },
+        { type: 'separator' },
         { label: 'New Workspace from Starter…', click: () => sendMenu('ws-new-starter') },
         { label: 'New Blank Workspace…', click: () => sendMenu('ws-new-blank') },
         { label: 'Duplicate Current Workspace', click: () => sendMenu('ws-duplicate') },
@@ -322,23 +337,14 @@ function registerIpc() {
   ipcMain.handle('settings:get', () => readJson(settingsFile(), null));
   ipcMain.handle('settings:set', (_e, data) => writeJson(settingsFile(), data));
 
-  ipcMain.handle('workspaces:list', async () => {
-    try {
-      const files = (await fsp.readdir(workspacesDir())).filter((f) => f.endsWith('.json'));
-      const out = [];
-      for (const f of files) {
-        const ws = await readJson(path.join(workspacesDir(), f), null);
-        if (ws && ws.id) out.push(ws);
-      }
-      return out;
-    } catch {
-      return [];
-    }
-  });
-  ipcMain.handle('workspaces:save', (_e, ws) => writeJson(path.join(workspacesDir(), safeName(ws.id) + '.json'), ws));
-  ipcMain.handle('workspaces:delete', (_e, id) => {
-    const file = path.join(workspacesDir(), safeName(id) + '.json');
-    return queued(file, () => fsp.rm(file, { force: true }));
+  ipcMain.handle('workspaces:list', () => listWorkspaces());
+  ipcMain.handle('workspaces:save', (_e, ws) => saveWorkspaceFile(ws));
+  ipcMain.handle('workspaces:delete', (_e, id) => deleteWorkspaceFile(id));
+  ipcMain.handle('workspaces:defaults', () => listDefaultWorkspaces());
+  ipcMain.handle('workspaces:dir', () => workspacesDir());
+  ipcMain.handle('workspaces:openDir', async () => {
+    await fsp.mkdir(workspacesDir(), { recursive: true });
+    return shell.openPath(workspacesDir());
   });
 
   ipcMain.handle('cache:get', () => readJson(cacheFile(), {}));
@@ -429,8 +435,125 @@ function registerIpc() {
   ipcMain.handle('app:capture', async () => toArrayBuffer((await mainWindow.webContents.capturePage()).toPNG()));
 }
 
-function safeName(s) {
-  return String(s).replace(/[^a-zA-Z0-9_\-]/g, '_');
+// ---------------------------------------------------------------------------------------------
+// Workspace files
+// ---------------------------------------------------------------------------------------------
+
+/** Workspace id → its file name in the workspaces folder. */
+const wsFiles = new Map();
+
+/** A file name from a workspace name (keeps spaces; drops characters Windows/macOS don't allow). */
+function fileNameFor(name) {
+  const base = String(name || 'Workspace').replace(/[<>:"/\\|?*\x00-\x1f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80) || 'Workspace';
+  return base + '.json';
+}
+
+const isWorkspace = (ws) => ws && typeof ws === 'object' && Array.isArray(ws.worksheets) && ws.kind !== 'project-trace-worksheet';
+const newWsId = () => 'ws' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+/** Copy workspaces from the old hidden folder into the visible one (once; the originals are kept). */
+async function migrateLegacyWorkspaces() {
+  const legacy = legacyWorkspacesDir();
+  const marker = path.join(legacy, '.moved-to-documents');
+  if (SCREENSHOT_DIR || !fs.existsSync(legacy) || fs.existsSync(marker)) return;
+  await fsp.mkdir(workspacesDir(), { recursive: true });
+  const taken = new Set((await fsp.readdir(workspacesDir())).map((f) => f.toLowerCase()));
+  for (const f of (await fsp.readdir(legacy)).filter((x) => x.endsWith('.json'))) {
+    const ws = await readJson(path.join(legacy, f), null);
+    if (!isWorkspace(ws)) continue;
+    let name = fileNameFor(ws.name);
+    for (let i = 2; taken.has(name.toLowerCase()); i++) name = fileNameFor(`${ws.name} ${i}`);
+    taken.add(name.toLowerCase());
+    await writeJson(path.join(workspacesDir(), name), ws);
+  }
+  await fsp.writeFile(marker, `Workspaces now live in ${workspacesDir()}\n`, 'utf8');
+}
+
+async function listWorkspaces() {
+  try {
+    await migrateLegacyWorkspaces();
+    await fsp.mkdir(workspacesDir(), { recursive: true });
+    const files = (await fsp.readdir(workspacesDir())).filter((f) => f.toLowerCase().endsWith('.json'));
+    const out = [];
+    const seen = new Set();
+    wsFiles.clear();
+    for (const f of files) {
+      const file = path.join(workspacesDir(), f);
+      const ws = await readJson(file, null);
+      if (!isWorkspace(ws)) continue;
+      // Files dropped in by hand may lack an id (or copy someone else's): give them their own.
+      let changed = false;
+      if (!ws.id || seen.has(ws.id)) {
+        ws.id = newWsId();
+        changed = true;
+      }
+      if (!ws.name) ws.name = f.replace(/\.json$/i, '');
+      delete ws.locked;
+      seen.add(ws.id);
+      wsFiles.set(ws.id, f);
+      if (changed) await writeJson(file, ws);
+      out.push(ws);
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+async function listDefaultWorkspaces() {
+  const dir = defaultWorkspacesDir();
+  const out = [];
+  try {
+    for (const f of (await fsp.readdir(dir)).filter((x) => x.toLowerCase().endsWith('.json')).sort()) {
+      const ws = await readJson(path.join(dir, f), null);
+      if (isWorkspace(ws)) out.push({ ...ws, id: ws.id || 'default-' + f.replace(/\.json$/i, '').toLowerCase().replace(/\W+/g, '-') });
+    }
+  } catch {
+    /* no bundled defaults */
+  }
+  return out;
+}
+
+/** Save under the workspace's name; a rename moves the file. Returns the file path. */
+async function saveWorkspaceFile(ws) {
+  const dir = workspacesDir();
+  await fsp.mkdir(dir, { recursive: true });
+  const old = wsFiles.get(ws.id);
+  const ownedByOther = (f) => [...wsFiles.entries()].some(([id, name]) => id !== ws.id && name.toLowerCase() === f.toLowerCase());
+  let name = fileNameFor(ws.name);
+  for (let i = 2; ownedByOther(name) || (name !== old && fs.existsSync(path.join(dir, name))); i++) name = fileNameFor(`${ws.name} (${i})`);
+  wsFiles.set(ws.id, name);
+  const { locked, ...data } = ws;
+  await writeJson(path.join(dir, name), data);
+  if (old && old !== name) {
+    const oldFile = path.join(dir, old);
+    await queued(oldFile, () => fsp.rm(oldFile, { force: true }));
+  }
+  return path.join(dir, name);
+}
+
+async function deleteWorkspaceFile(id) {
+  const name = wsFiles.get(id);
+  if (!name) return;
+  wsFiles.delete(id);
+  const file = path.join(workspacesDir(), name);
+  return queued(file, () => fsp.rm(file, { force: true }));
+}
+
+let wsWatcher = null;
+let wsWatchTimer = null;
+/** Tell the renderer when files appear in the workspaces folder (e.g. a workspace someone shared). */
+function watchWorkspacesDir() {
+  try {
+    fs.mkdirSync(workspacesDir(), { recursive: true });
+    wsWatcher = fs.watch(workspacesDir(), { persistent: false }, (_ev, f) => {
+      if (f && !String(f).toLowerCase().endsWith('.json')) return;
+      clearTimeout(wsWatchTimer);
+      wsWatchTimer = setTimeout(() => mainWindow && mainWindow.webContents.send('workspaces:changed'), 800);
+    });
+  } catch {
+    wsWatcher = null;
+  }
 }
 
 async function listDir(dir) {
@@ -598,6 +721,7 @@ if (!gotLock) {
     registerIpc();
     buildMenu();
     createWindow();
+    watchWorkspacesDir();
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();

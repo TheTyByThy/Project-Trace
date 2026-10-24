@@ -123,6 +123,10 @@ export interface TrackMapConfig extends Base {
   showStartFinish?: boolean;
   /** Car position dots at the cursor (default on). */
   showCars?: boolean;
+  /** Gain/loss colouring: higher = smaller differences reach full colour (default 1). */
+  deltaSensitivity?: number;
+  /** Gain/loss colouring: distance the rate of gain/loss is averaged over, in metres (default 32). */
+  deltaSmoothing?: number;
   /** @deprecated rotation now lives in the per-track profile. */
   rotation?: number;
 }
@@ -167,6 +171,8 @@ export interface SelectedLapReportConfig extends Base, LapColumns {
   type: 'lapreport';
   split: 'sectors' | 'sections' | 'none';
   showStats: boolean;
+  /** Comparison laps' sectors as absolute times (default) or as the difference to the reference. */
+  sectorMode?: 'absolute' | 'delta';
 }
 
 export interface ChannelReportConfig extends Base {

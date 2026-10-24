@@ -50,8 +50,13 @@ export interface PtBridge {
   getSettings(): Promise<any>;
   setSettings(s: any): Promise<void>;
   listWorkspaces(): Promise<any[]>;
-  saveWorkspace(ws: any): Promise<void>;
+  /** Writes the workspace to the workspaces folder; resolves to the file path. */
+  saveWorkspace(ws: any): Promise<string>;
   deleteWorkspace(id: string): Promise<void>;
+  /** Read-only default workspaces shipped with the app (default-workspaces/). */
+  defaultWorkspaces(): Promise<any[]>;
+  workspacesDir(): Promise<string>;
+  openWorkspacesDir(): Promise<string>;
   getCache(): Promise<Record<string, any>>;
   setCache(c: Record<string, any>): Promise<void>;
   getNotes(): Promise<Record<string, string>>;
@@ -76,6 +81,8 @@ export interface PtBridge {
   onMenu(cb: (action: string) => void): () => void;
   onOpenFiles(cb: (files: string[]) => void): () => void;
   onDirChanged(cb: (dir: string) => void): () => void;
+  /** Files changed in the workspaces folder (e.g. a shared workspace was dropped in). */
+  onWorkspacesChanged(cb: () => void): () => void;
 }
 
 declare global {

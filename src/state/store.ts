@@ -259,6 +259,12 @@ export function selectedLaps(s: State = get()): SelectedLap[] {
   return out;
 }
 
+/** Sessions (stints) that have a selected lap — stint-level components only show these. */
+export function sessionsWithSelection(sessions: Session[], laps: LapSel[]): Session[] {
+  const ids = new Set(laps.map((l) => parseLapKey(l.key).sessionId));
+  return sessions.filter((s) => ids.has(s.id));
+}
+
 export function refLap(s: State = get()): SelectedLap | undefined {
   return selectedLaps(s)[0];
 }
@@ -324,6 +330,15 @@ export function updateSettings(patch: Partial<Settings>) {
 
 /** Show/hide sector & corner markers on every time/distance graph in the workspace at once. */
 export function setGraphMarkers(patch: { showSectors?: boolean; showCorners?: boolean }) {
+  setMarkersOn(['graph'], patch);
+}
+
+/** Same for graphs, track maps and GPS tracks (the marker shortcuts). */
+export function setMarkersEverywhere(patch: { showSectors?: boolean; showCorners?: boolean }) {
+  setMarkersOn(['graph', 'trackmap', 'gpstrack'], patch);
+}
+
+function setMarkersOn(types: ComponentType[], patch: { showSectors?: boolean; showCorners?: boolean }) {
   updateWorkspace(
     (ws) => ({
       ...ws,
@@ -331,8 +346,8 @@ export function setGraphMarkers(patch: { showSectors?: boolean; showCorners?: bo
         let changed = false;
         const components = { ...sh.components };
         for (const [id, c] of Object.entries(components))
-          if (c.type === 'graph') {
-            components[id] = { ...c, ...patch };
+          if (types.includes(c.type)) {
+            components[id] = { ...c, ...patch } as ComponentConfig;
             changed = true;
           }
         return changed ? { ...sh, components } : sh;
@@ -477,12 +492,32 @@ function starterWorkspace(): Workspace {
   return { ...buildDefaultWorkspace('Starter'), id: STARTER_ID, locked: true, createdAt: 0, updatedAt: 0 };
 }
 
+/** Fill in fields a hand-made or older workspace file may lack. */
+function normalizeWorkspace(w: Workspace): Workspace {
+  return { ...w, version: 1, math: w.math ?? [], constants: w.constants ?? [], channelProps: w.channelProps ?? {}, activeSheet: w.activeSheet ?? 0, createdAt: w.createdAt ?? Date.now(), updatedAt: w.updatedAt ?? Date.now() };
+}
+
+function normalizeBuiltIn(w: Workspace): Workspace {
+  return { ...normalizeWorkspace(w), locked: true, createdAt: 0, updatedAt: 0 };
+}
+
+/** Pick up workspace files that appeared in the workspaces folder (e.g. one someone shared). */
+export async function syncWorkspacesFromFolder() {
+  const list = (await pt().listWorkspaces()) as Workspace[];
+  const known = new Set(get().workspaces.map((w) => w.id));
+  const added = list.filter((w) => w && Array.isArray(w.worksheets) && !known.has(w.id)).map(normalizeWorkspace);
+  if (!added.length) return;
+  set((s) => ({ workspaces: [...s.workspaces, ...added] }));
+  toast(`Added ${added.map((w) => `"${w.name}"`).join(', ')} from your workspaces folder — switch to it in the Workspace menu.`, 'success', 5000);
+}
+
 export async function initApp() {
   const bridge = pt();
-  const [info, rawSettings, list, cache, notes, library] = await Promise.all([
+  const [info, rawSettings, list, defaults, cache, notes, library] = await Promise.all([
     bridge.appInfo(),
     bridge.getSettings(),
     bridge.listWorkspaces(),
+    bridge.defaultWorkspaces(),
     bridge.getCache(),
     bridge.getNotes(),
     bridge.getLibrary(),
@@ -506,16 +541,19 @@ export async function initApp() {
   settings.trackProfiles = profiles;
   if (!settings.telemetryRoot && info.defaultTelemetryRoot) settings.telemetryRoot = info.defaultTelemetryRoot;
 
-  // The Starter workspace is rebuilt from code every launch and never saved, so it's always pristine.
-  let workspaces = (list as Workspace[]).filter((w) => w && Array.isArray(w.worksheets) && !w.locked && w.id !== STARTER_ID);
+  // Built-in defaults: the Starter (rebuilt from code every launch) and the workspaces shipped in
+  // default-workspaces/. They are read-only and never saved, so they're always pristine.
+  const builtIns = [starterWorkspace(), ...(Array.isArray(defaults) ? defaults : []).map(normalizeBuiltIn)];
+  const builtInIds = new Set(builtIns.map((w) => w.id));
+  let workspaces = (list as Workspace[]).filter((w) => w && Array.isArray(w.worksheets) && !builtInIds.has(w.id)).map(normalizeWorkspace);
   if (!workspaces.length) {
     const mine = buildDefaultWorkspace('My Workspace');
     workspaces = [mine];
     bridge.saveWorkspace(mine);
   }
   workspaces.sort((a, b) => a.createdAt - b.createdAt);
-  workspaces = [starterWorkspace(), ...workspaces];
-  if (!workspaces.some((w) => w.id === settings.activeWorkspaceId)) settings.activeWorkspaceId = workspaces[1].id;
+  workspaces = [...builtIns, ...workspaces];
+  if (!workspaces.some((w) => w.id === settings.activeWorkspaceId)) settings.activeWorkspaceId = workspaces[builtIns.length].id;
   document.documentElement.dataset.theme = settings.theme;
   set({
     appInfo: info,
@@ -756,15 +794,15 @@ export function updateWorkspace(fn: (ws: Workspace) => Workspace, opts: EditOpts
       set((s) => ({ workspaces: s.workspaces.map((w) => (w.id === ws.id ? fn(w) : w)) }));
       return;
     }
-    // Copy-on-write: the Starter stays pristine; edits continue in a personal copy.
+    // Copy-on-write: built-in defaults stay pristine; edits continue in a personal copy.
     recordHistory(opts.label ?? 'Edit');
     const now = Date.now();
-    const copy: Workspace = { ...structuredClone(ws), id: uid('ws'), name: uniqueWorkspaceName('My Workspace'), locked: false, createdAt: now, updatedAt: now };
+    const copy: Workspace = { ...structuredClone(ws), id: uid('ws'), name: uniqueWorkspaceName(`My ${ws.name}`), locked: false, createdAt: now, updatedAt: now };
     const edited = fn(copy);
     set((s) => ({ workspaces: [...s.workspaces, edited], settings: { ...s.settings, activeWorkspaceId: edited.id } }));
     saveSettings();
     pt().saveWorkspace(edited);
-    toast(`The Starter workspace is read-only, so your change was saved in a new workspace, "${edited.name}".`, 'info', 6500);
+    toast(`"${ws.name}" is a read-only default, so your change was saved in a new workspace, "${edited.name}".`, 'info', 6500);
     return;
   }
   if (opts.history !== false) recordHistory(opts.label ?? 'Edit');
@@ -937,16 +975,49 @@ export function createWorkspace(kind: 'starter' | 'blank' | 'duplicate', name?: 
   if (kind === 'duplicate') {
     const src = activeWorkspace();
     ws = { ...structuredClone(src), id: uid('ws'), name: uniqueWorkspaceName(name || src.name + ' copy'), locked: false, createdAt: now, updatedAt: now };
+    delete ws.locked;
   } else ws = kind === 'starter' ? buildDefaultWorkspace(uniqueWorkspaceName(name || 'My Workspace')) : buildBlankWorkspace(uniqueWorkspaceName(name || 'Blank workspace'));
   set((s) => ({ workspaces: [...s.workspaces, ws] }));
   pt().saveWorkspace(ws);
   setActiveWorkspace(ws.id);
 }
 
+/** Save the current workspace to its file now (workspaces also save automatically). Defaults → Save as. */
+export async function saveCurrentWorkspace() {
+  const ws = activeWorkspace();
+  if (!ws) return;
+  if (ws.locked) return saveWorkspaceAs();
+  clearTimeout(timers.get('ws:' + ws.id));
+  const file = await pt().saveWorkspace(ws);
+  toast(`Saved "${ws.name}"${file ? ` to ${file}` : ''}`, 'success', 3500);
+}
+
+/** Save a copy of the current workspace under a new name (and switch to it). */
+export async function saveWorkspaceAs(name?: string) {
+  const ws = activeWorkspace();
+  if (!ws) return;
+  const n = name ?? (await promptName('Save workspace as', ws.locked ? `My ${ws.name}` : `${ws.name} copy`));
+  if (!n) return;
+  createWorkspace('duplicate', n);
+  const copy = activeWorkspace();
+  const file = await pt().saveWorkspace(copy);
+  toast(`Saved "${copy.name}"${file ? ` to ${file}` : ''}`, 'success', 3500);
+}
+
+/** In-app name prompt (set by the UI layer, which owns the prompt dialog). */
+let promptName: (title: string, value: string) => Promise<string | null> = async () => null;
+export function setNamePrompt(fn: typeof promptName) {
+  promptName = fn;
+}
+
+export function openWorkspacesFolder() {
+  pt().openWorkspacesDir();
+}
+
 export function renameWorkspace(id: string, name: string) {
   const ws = get().workspaces.find((w) => w.id === id);
   if (!ws) return;
-  if (ws.locked) return toast('The Starter workspace can’t be renamed — duplicate it first.', 'info');
+  if (ws.locked) return toast(`"${ws.name}" is a built-in default and can’t be renamed — use Save as.`, 'info');
   recordHistory('Rename workspace');
   commitWorkspace({ ...ws, name });
 }
@@ -955,7 +1026,7 @@ export function deleteWorkspace(id: string) {
   const { workspaces } = get();
   const ws = workspaces.find((w) => w.id === id);
   if (!ws) return;
-  if (ws.locked) return toast('The Starter workspace is built in and can’t be deleted.', 'info');
+  if (ws.locked) return toast(`"${ws.name}" is a built-in default and can’t be deleted.`, 'info');
   if (workspaces.filter((w) => !w.locked).length <= 1) return toast('You need at least one personal workspace.', 'info');
   recordHistory('Delete workspace');
   set({ workspaces: workspaces.filter((w) => w.id !== id) });

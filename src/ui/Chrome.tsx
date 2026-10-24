@@ -10,11 +10,17 @@ import {
   deleteWorksheet,
   duplicateWorksheet,
   exportWorksheet,
+  exportWorkspace,
+  importWorkspace,
   moveWorksheet,
   openProperties,
+  openWorkspacesFolder,
   renameWorksheet,
   resetSheetToStarter,
+  saveCurrentWorkspace,
   saveSheetToLibrary,
+  saveWorkspaceAs,
+  setActiveWorkspace,
   selectedLaps,
   setActiveSheet,
   setSmoothing,
@@ -24,7 +30,7 @@ import {
   useStore,
 } from '../state/store';
 import { addMenu } from './SheetView';
-import { openMenu, promptText } from './overlays';
+import { openMenu, promptText, type MenuItem } from './overlays';
 import { toggleVarianceAll } from '../actions';
 import { shortcutHint } from '../shortcuts';
 
@@ -50,12 +56,12 @@ function SmoothingControl() {
     window.addEventListener('mousedown', close);
     return () => window.removeEventListener('mousedown', close);
   }, [open]);
-  const label = sm.enabled ? `Smoothing ${sm.seconds < 1 ? (sm.seconds * 1000).toFixed(0) + ' ms' : sm.seconds.toFixed(1) + ' s'}` : 'Smoothing off';
+  const label = sm.enabled ? (sm.seconds < 1 ? (sm.seconds * 1000).toFixed(0) + ' ms' : sm.seconds.toFixed(1) + ' s') : 'off';
   return (
     <div ref={ref} style={{ position: 'relative' }}>
-      <div className="smooth-ctl" title="Display smoothing for graph traces (S)">
+      <div className="smooth-ctl" title="Smoothing: display-only moving average for graph traces (S)">
         <button className={sm.enabled ? 'on' : ''} onClick={() => setSmoothing({ enabled: !sm.enabled })}>
-          〰 {label}
+          〰 Smooth {label}
         </button>
         <button onClick={() => setOpen((o) => !o)} title="Smoothing amount">
           ▾
@@ -136,10 +142,17 @@ export function TopBar() {
         <span className="muted">No session open</span>
       )}
       <span className="grow" />
-      <span className="ws-label" title="Current workspace — switch, save, export or import from the Workspace menu">
+      <button className="btn ghost ws-label" title="Workspaces: switch, save, open the workspaces folder, import or export" onClick={(e) => openMenu(e, workspaceMenuItems())}>
         ▦ {ws?.name}
-        {ws?.locked ? ' (read-only)' : ''}
-      </span>
+        {ws?.locked ? ' (default)' : ''} ▾
+      </button>
+      <button
+        className="btn"
+        onClick={() => saveCurrentWorkspace()}
+        title={ws?.locked ? 'Defaults are read-only — save your own copy' : `Save this workspace to your workspaces folder (${shortcutHint('ws-save', shortcuts) ?? 'Ctrl/⌘+S'})`}
+      >
+        {ws?.locked ? 'Save as…' : 'Save'}
+      </button>
       <div className="seg" title="X axis (D)">
         <button className={xMode === 'time' ? 'on' : ''} onClick={() => setXMode('time')}>
           Time
@@ -172,6 +185,27 @@ export function TopBar() {
       </button>
     </div>
   );
+}
+
+/** Workspace switcher and file actions (top bar). */
+function workspaceMenuItems(): MenuItem[] {
+  const st = useStore.getState();
+  const builtIn = st.workspaces.filter((w) => w.locked);
+  const mine = st.workspaces.filter((w) => !w.locked);
+  const item = (w: (typeof st.workspaces)[number]) => ({ label: w.name, checked: w.id === st.settings.activeWorkspaceId, onClick: () => setActiveWorkspace(w.id) });
+  return [
+    { header: 'Defaults (read-only)' },
+    ...builtIn.map(item),
+    { header: 'My workspaces' },
+    ...mine.map(item),
+    { separator: true },
+    { label: 'Save', onClick: () => saveCurrentWorkspace() },
+    { label: 'Save as…', onClick: () => saveWorkspaceAs() },
+    { label: 'Open workspaces folder', onClick: openWorkspacesFolder },
+    { separator: true },
+    { label: 'Import workspace…', onClick: importWorkspace },
+    { label: 'Export workspace…', onClick: exportWorkspace },
+  ];
 }
 
 export function sheetMenuItems(i: number, startRename: () => void) {

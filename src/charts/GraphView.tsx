@@ -30,7 +30,7 @@ import {
   type SelectedLap,
 } from '../state/store';
 import type { GraphConfig } from '../state/workspace';
-import { openChannelPicker, openMenu, promptText } from '../ui/overlays';
+import { openMenu, promptText } from '../ui/overlays';
 import { chartTheme, drawTrace, fmtTick, lowerBound, prepCanvas, useElementSize, useStoreListener } from './canvas';
 import { channelDps, conv, displayData, lapRange } from './data';
 
@@ -684,16 +684,11 @@ export function GraphView({ config }: { config: GraphConfig }) {
 
   const onContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    const { y } = local(e);
-    const P = paneAtY(y);
-    const pIdx = P && P.kind === 'channels' ? P.index : -1;
     const st = useStore.getState();
     const canMark = st.cursor != null && !!selectedLaps(st)[0] && selectedLaps(st)[0].lap.index !== -1;
-    // Kept deliberately short; everything else lives in Properties (appended by the frame).
+    // Kept deliberately short (channels are added by dragging them from the sidebar); everything else
+    // lives in Properties (appended by the frame).
     openMenu(e, [
-      { label: 'Add channel to this pane…', disabled: pIdx < 0, onClick: () => openChannelPicker(e, (n) => addChannel(n, pIdx)) },
-      { label: 'Add channel in new pane…', onClick: () => openChannelPicker(e, (n) => addChannel(n, 'new')) },
-      { separator: true },
       { label: 'Sector & section lines', checked: config.showSectors, onClick: () => setGraphMarkers({ showSectors: !config.showSectors }) },
       { label: 'Corner lines', checked: config.showCorners, onClick: () => setGraphMarkers({ showCorners: !config.showCorners }) },
       { separator: true },
@@ -802,7 +797,7 @@ function drawLegend(ctx: CanvasRenderingContext2D, T: ReturnType<typeof chartThe
   const measured = shown.map((r) => {
     const lw = ctx.measureText(r.label).width;
     ctx.font = T.mono;
-    const vw = r.values.reduce((a, v) => a + ctx.measureText(v.text + (v.delta ? ' ' + v.delta : '')).width + (v.color ? 22 : 10), 0);
+    const vw = r.values.reduce((a, v) => a + ctx.measureText(v.text + (v.delta ? ' ' + v.delta : '')).width + (v.color ? 18 : 10), 0);
     ctx.font = T.font;
     wMax = Math.max(wMax, lw + vw + 24);
     return { lw };
@@ -822,21 +817,23 @@ function drawLegend(ctx: CanvasRenderingContext2D, T: ReturnType<typeof chartThe
     ctx.fillText(r.label, x0 + 13, y);
     let x = x0 + 13 + measured[i].lw + 10;
     for (const v of r.values) {
-      if (v.color) {
-        ctx.fillStyle = v.color;
-        ctx.fillRect(x, y - 1.5, 12, 3);
-        x += 16;
-      }
       ctx.font = T.mono;
+      // Each lap's value sits on a translucent background in that lap's colour.
+      const tw = ctx.measureText(v.text).width + (v.delta ? ctx.measureText(' ' + v.delta).width : 0);
+      if (v.color) {
+        ctx.fillStyle = withAlpha(v.color, 0.3);
+        ctx.fillRect(x, y - rowH / 2 + 1, tw + 8, rowH - 2);
+        x += 4;
+      }
       ctx.fillStyle = T.text;
       ctx.fillText(v.text, x, y);
-      x += ctx.measureText(v.text).width + 4;
+      x += ctx.measureText(v.text).width;
       if (v.delta) {
         ctx.fillStyle = T.text2;
-        ctx.fillText(v.delta, x, y);
-        x += ctx.measureText(v.delta).width + 4;
+        ctx.fillText(' ' + v.delta, x, y);
+        x += ctx.measureText(' ' + v.delta).width;
       }
-      x += 6;
+      x += v.color ? 10 : 6;
       ctx.font = T.font;
     }
   });

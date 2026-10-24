@@ -150,11 +150,12 @@ export function HistogramView({ config }: { config: HistogramConfig }) {
       ctx.fillStyle = T.text3;
       ctx.fillText('Zone', 10, 14);
       const colW = Math.min(110, (w - 140) / Math.max(1, sets.length));
+      // One column per lap on a translucent background in the lap's colour.
       sets.forEach((s, si) => {
-        ctx.fillStyle = s.l.color;
-        ctx.fillRect(130 + si * colW, 11, 8, 6);
-        ctx.fillStyle = T.text3;
-        ctx.fillText(lapLabel(s.l.lap).replace('Lap ', 'L'), 142 + si * colW, 14);
+        ctx.fillStyle = withAlpha(s.l.color, 0.2);
+        ctx.fillRect(126 + si * colW, 6, colW - 8, 16 + (config.zones.length + 1) * 14);
+        ctx.fillStyle = T.text;
+        ctx.fillText(lapLabel(s.l.lap).replace('Lap ', 'L'), 130 + si * colW, 14);
       });
       for (let z = 0; z <= config.zones.length; z++) {
         const y = 28 + z * 14;

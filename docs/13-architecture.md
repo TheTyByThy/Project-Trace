@@ -53,7 +53,8 @@ src/
                   shared right-click items), PropertiesModal, TrackProfileEditor, SessionBrowser,
                   MathEditor, Dialogs, overlays (menus, channel/colour pickers, prompts)
   workers/parse.worker.ts
-  actions.ts      keyboard shortcuts, menu actions, command palette, CSV export
+  shortcuts.ts    bindable shortcut actions, default keys, key-combo matching (user overrides in settings)
+  actions.ts      shortcut/menu action handlers, command palette, CSV export
 ```
 
 ## Data flow
@@ -93,7 +94,7 @@ Workspaces are updated immutably, so a history entry is just a snapshot of the `
 `buildDefaultWorkspace()` generates the Starter on every launch with id `starter` and `locked: true`; it is never written to disk. `updateWorkspace()` on a locked workspace clones it into a new personal workspace, applies the edit there and switches to it (copy-on-write). View-only changes such as `activeSheet` are applied in memory without copying.
 
 ### Persistence
-Settings, workspaces, the worksheet library, notes and the session cache are JSON files in Electron's `userData` folder. The main process writes them atomically, through a per-file queue with unique temp names; the renderer debounces the saves.
+Personal workspaces are readable JSON files named after the workspace in `Documents/Project-Trace/Workspaces` (main keeps an id → file map; a rename moves the file; the folder is watched so dropped-in files appear). Built-in defaults are the code-generated Starter plus the files in `default-workspaces/` (shipped as an extra resource), loaded read-only with copy-on-write like the Starter. Settings (including shortcut overrides), the worksheet library, notes and the session cache are JSON files in Electron's `userData` folder. The main process writes them atomically, through a per-file queue with unique temp names; the renderer debounces the saves.
 
 ## Security model
 - `contextIsolation: true`, `nodeIntegration: false`.

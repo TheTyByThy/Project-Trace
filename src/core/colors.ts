@@ -143,6 +143,9 @@ export function rampGradientCss(name: RampName, theme: Theme, custom?: string[])
   return `linear-gradient(90deg, ${rampStops(name, theme, custom).join(', ')})`;
 }
 
+/** Translucent cell / label background in a lap's colour (data stays readable on top). */
+export const lapTint = (color: string, a = 0.2) => withAlpha(color, a);
+
 export function withAlpha(color: string, a: number): string {
   if (color.startsWith('#') && color.length === 7) {
     const [r, g, b] = hex(color);

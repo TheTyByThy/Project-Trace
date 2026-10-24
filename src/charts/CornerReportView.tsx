@@ -3,6 +3,7 @@
 // in corners vs on straights (and the gain/loss against the reference). Click a row to zoom to it.
 
 import { cornerMetrics, cornerWindows, suggestCorners, trackSegments, type CornerLapMetrics, type TrackSegment } from '../core/corners';
+import { lapTint } from '../core/colors';
 import { formatValue } from '../core/format';
 import { lapLabel } from '../core/session';
 import { convertUnit } from '../core/units';
@@ -10,10 +11,10 @@ import { selectedLaps, setCursor, setTrackProfile, setUi, setXMode, setZoom, tra
 import type { CornersConfig } from '../state/workspace';
 
 const METRICS: { key: CornersConfig['metric']; label: string; higherIsBetter: boolean; time?: boolean }[] = [
+  { key: 'time', label: 'Time in corner', higherIsBetter: false, time: true },
   { key: 'minSpeed', label: 'Min speed', higherIsBetter: true },
   { key: 'entrySpeed', label: 'Entry speed', higherIsBetter: true },
   { key: 'exitSpeed', label: 'Exit speed', higherIsBetter: true },
-  { key: 'time', label: 'Time in corner', higherIsBetter: false, time: true },
 ];
 
 export function CornerReportView({ config }: { config: CornersConfig }) {
@@ -94,7 +95,7 @@ export function CornerReportView({ config }: { config: CornersConfig }) {
             <tr>
               <th className="l">Total time</th>
               {laps.map((l, i) => (
-                <th key={l.key} style={{ borderLeft: `3px solid ${l.color}` }}>
+                <th key={l.key} style={{ background: lapTint(l.color, 0.32), color: 'var(--text)' }}>
                   L{l.lap.number}
                   {i === 0 ? ' (ref)' : ''}
                 </th>
@@ -115,7 +116,7 @@ export function CornerReportView({ config }: { config: CornersConfig }) {
                 {vals.map((v, i) => {
                   const d = v - vals[0];
                   return (
-                    <td key={i} className="num">
+                    <td key={i} className="num" style={{ background: lapTint(laps[i].color) }}>
                       {formatValue(v, 2)}
                       {i > 0 && Number.isFinite(d) && Math.abs(d) > 0.005 && deltaSpan(d, d < 0, 2)}
                     </td>
@@ -132,7 +133,7 @@ export function CornerReportView({ config }: { config: CornersConfig }) {
             <th className="l">{config.showStraights === false ? 'Corner' : 'Corner / straight'}</th>
             <th>Range</th>
             {laps.map((l, i) => (
-              <th key={l.key} style={{ borderLeft: `3px solid ${l.color}` }}>
+              <th key={l.key} style={{ background: lapTint(l.color, 0.32), color: 'var(--text)' }}>
                 L{l.lap.number}
                 {i === 0 ? ' (ref)' : ''}
               </th>
@@ -166,7 +167,7 @@ export function CornerReportView({ config }: { config: CornersConfig }) {
                   const d = i === 0 ? 0 : v - refV;
                   const better = metric.higherIsBetter ? d > 0 : d < 0;
                   return (
-                    <td key={i} className="num">
+                    <td key={i} className="num" style={{ background: lapTint(laps[i].color) }}>
                       {formatValue(v, metric.time ? 2 : 1)}
                       {i > 0 && Number.isFinite(d) && Math.abs(d) > (metric.time ? 0.005 : 0.05) && deltaSpan(d, better, metric.time ? 2 : 1)}
                     </td>

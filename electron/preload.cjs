@@ -14,6 +14,9 @@ contextBridge.exposeInMainWorld('pt', {
   listWorkspaces: () => ipcRenderer.invoke('workspaces:list'),
   saveWorkspace: (ws) => ipcRenderer.invoke('workspaces:save', ws),
   deleteWorkspace: (id) => ipcRenderer.invoke('workspaces:delete', id),
+  defaultWorkspaces: () => ipcRenderer.invoke('workspaces:defaults'),
+  workspacesDir: () => ipcRenderer.invoke('workspaces:dir'),
+  openWorkspacesDir: () => ipcRenderer.invoke('workspaces:openDir'),
   getCache: () => ipcRenderer.invoke('cache:get'),
   setCache: (c) => ipcRenderer.invoke('cache:set', c),
   getNotes: () => ipcRenderer.invoke('notes:get'),
@@ -38,4 +41,5 @@ contextBridge.exposeInMainWorld('pt', {
   onMenu: on('menu:action'),
   onOpenFiles: on('app:open-files'),
   onDirChanged: on('fs:changed'),
+  onWorkspacesChanged: on('workspaces:changed'),
 });

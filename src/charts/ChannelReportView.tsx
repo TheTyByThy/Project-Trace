@@ -1,6 +1,7 @@
 // Channel report: statistics of chosen channels for each selected lap (whole lap or zoomed range).
 
 import { formatValue } from '../core/format';
+import { lapTint } from '../core/colors';
 import { lapLabel } from '../core/session';
 import { rangeStats } from '../core/stats';
 import { selectedLaps, updateComponent, useStore } from '../state/store';
@@ -41,7 +42,7 @@ export function ChannelReportView({ config }: { config: ChannelReportConfig }) {
             <th className="l">Channel</th>
             {laps.map((l) =>
               config.stats.map((s, i) => (
-                <th key={l.key + s} style={i === 0 ? { borderLeft: `3px solid ${l.color}` } : undefined} title={lapLabel(l.lap)}>
+                <th key={l.key + s} style={{ background: lapTint(l.color, 0.32), color: 'var(--text)' }} title={lapLabel(l.lap)}>
                   {laps.length > 1 && i === 0 ? `L${l.lap.number} ` : ''}
                   {STAT_LABEL[s]}
                 </th>
@@ -61,13 +62,19 @@ export function ChannelReportView({ config }: { config: ChannelReportConfig }) {
                 </td>
                 {laps.map((l) => {
                   const ch = l.session.channels.get(name);
-                  if (!ch) return config.stats.map((s) => <td key={l.key + s} className="muted">n/a</td>);
+                  const bg = { background: lapTint(l.color) };
+                  if (!ch)
+                    return config.stats.map((s) => (
+                      <td key={l.key + s} className="muted" style={bg}>
+                        n/a
+                      </td>
+                    ));
                   const [ta, tb] = lapWindow(l.lap, config.useZoom, zoom, xMode);
                   const st = rangeStats(ch.data, Math.ceil((ta - ch.t0) * ch.rate), Math.floor((tb - ch.t0) * ch.rate));
                   const c = conv(ch);
                   const dps = channelDps(ch);
                   return config.stats.map((s) => (
-                    <td key={l.key + s} className="num">
+                    <td key={l.key + s} className="num" style={bg}>
                       {formatValue(s === 'std' ? st.std * c.k : st[s] * c.k + c.b, dps)}
                     </td>
                   ));

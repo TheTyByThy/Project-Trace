@@ -23,16 +23,20 @@ import {
   insertLibrarySheet,
   openFiles,
   openProperties,
+  openWorkspacesFolder,
   redo,
   renameWorkspace,
   resetView,
   resetSheetToStarter,
   revertWorkspaceToStarter,
+  saveCurrentWorkspace,
   saveSheetToLibrary,
+  saveWorkspaceAs,
   selectedLaps,
   setActiveSheet,
   setActiveWorkspace,
   setCursor,
+  setMarkersEverywhere,
   setSmoothing,
   setUi,
   setXMode,
@@ -65,6 +69,16 @@ export function toggleVarianceAll() {
     { label: 'Toggle variance' },
   );
   if (on && selectedLaps().length < 2) toast('Variance needs at least two laps — Ctrl/⌘+click another lap to overlay it.', 'info');
+}
+
+/** Sector/section or corner lines on every graph, track map and GPS track in the workspace. */
+export function toggleMarkersAll(key: 'showSectors' | 'showCorners') {
+  const ws = activeWorkspace();
+  const all = ws.worksheets.flatMap((sh) => Object.values(sh.components)).filter((c) => c.type === 'graph' || c.type === 'trackmap' || c.type === 'gpstrack');
+  if (!all.length) return;
+  const on = !all.every((c) => (c as GraphConfig)[key]);
+  setMarkersEverywhere({ [key]: on });
+  toast(`${key === 'showSectors' ? 'Sector & split lines' : 'Corner lines'} ${on ? 'on' : 'off'}`, 'info', 1400);
 }
 
 export function toggleSmoothing() {
@@ -129,6 +143,9 @@ export interface Command {
 
 /** What each bindable shortcut (src/shortcuts.ts) does. */
 const SHORTCUT_ACTIONS: Record<string, () => void> = {
+  'ws-save': () => saveCurrentWorkspace(),
+  'toggle-sectors': () => toggleMarkersAll('showSectors'),
+  'toggle-corners': () => toggleMarkersAll('showCorners'),
   'open-browser': () => setUi({ browser: true }),
   'open-files': () => handleMenuAction('open-files'),
   palette: () => setUi({ palette: !useStore.getState().ui.palette }),
@@ -288,6 +305,12 @@ export async function handleMenuAction(action: string) {
     // ---- Workspace menu ----
     case 'ws-switch':
       return setActiveWorkspace(arg);
+    case 'ws-save':
+      return saveCurrentWorkspace();
+    case 'ws-save-as':
+      return saveWorkspaceAs();
+    case 'ws-open-folder':
+      return openWorkspacesFolder();
     case 'ws-new-starter': {
       const n = await promptText('Name the new workspace', 'My Workspace');
       if (n) createWorkspace('starter', n);
@@ -301,7 +324,7 @@ export async function handleMenuAction(action: string) {
     case 'ws-duplicate':
       return createWorkspace('duplicate');
     case 'ws-rename': {
-      if (ws.locked) return toast('The Starter workspace is read-only — duplicate it first.', 'info');
+      if (ws.locked) return toast(`"${ws.name}" is a read-only default — use Save as to make your own copy.`, 'info');
       const n = await promptText('Rename workspace', ws.name);
       if (n) renameWorkspace(ws.id, n);
       return;
@@ -313,7 +336,7 @@ export async function handleMenuAction(action: string) {
     case 'ws-import':
       return importWorkspace();
     case 'ws-delete':
-      if (ws.locked) return toast('The Starter workspace is built in and can’t be deleted.', 'info');
+      if (ws.locked) return toast(`"${ws.name}" is a built-in default and can’t be deleted.`, 'info');
       if (window.confirm(`Delete workspace "${ws.name}"? (Ctrl/⌘+Z can undo this)`)) deleteWorkspace(ws.id);
       return;
     // ---- Worksheet menu ----

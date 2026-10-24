@@ -145,10 +145,18 @@ function GaugeCell({ g }: { g: GaugeDef }) {
         ctx.font = T.font;
         ctx.fillStyle = T.text3;
         ctx.fillText(label, w / 2, h - 10);
+        // Comparison laps' values on a translucent background in their lap colour.
+        ctx.font = T.mono;
         others.forEach((o, i) => {
-          ctx.fillStyle = o.color;
-          ctx.fillText(formatValue(o.v, dps), w / 2 + (i - (others.length - 1) / 2) * 50, 12);
+          const x = w / 2 + (i - (others.length - 1) / 2) * 54;
+          const txt = formatValue(o.v, dps);
+          const tw = ctx.measureText(txt).width + 8;
+          ctx.fillStyle = withAlpha(o.color, 0.3);
+          ctx.fillRect(x - tw / 2, 4, tw, 16);
+          ctx.fillStyle = T.text;
+          ctx.fillText(txt, x, 12);
         });
+        ctx.font = T.font;
       }
     },
     [g],

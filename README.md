@@ -24,7 +24,7 @@ It reads the CSV files Telemetrick writes, and also opens Telemetrick's MoTeC `.
 
 - [Quick start](#quick-start)
 - [What you can do](#what-you-can-do): a tour of every feature
-- [The Starter workspace](#the-starter-workspace)
+- [Default workspaces](#default-workspaces)
 - [Documentation](#documentation): detailed guides per feature
 - [Building installers](#building-installers-exe--dmg)
 - [Project layout](#project-layout)
@@ -140,8 +140,8 @@ No telemetry yet? Click **Bundled sample session** to explore a 6-lap Singapore 
 
 - **Exact lap and sector times** matching the game.
 - **Out, in, partial and invalid laps** flagged.
-- Lap report with purple bests and the **ideal lap**, plus custom **section** times.
-- **Channel report** (min/max/avg/std per lap) and a **corner report** built from your corners.
+- **Lap report** (selected laps; sectors as times or **Δ to the reference**) and **stint report** (every lap of the selected stints, with the **ideal lap**). Bests fill the cell: green = stint best, purple = best of everything open.
+- **Channel report** (min/max/avg/std per lap) and a **corner report** built from your corners — with the straights between them and total time in corners vs straights. Side-by-side lap data is tinted in each lap's colour.
 
 → [Laps & reports guide](docs/08-laps-sectors-reports.md)
 
@@ -152,7 +152,8 @@ Edit any component in the docked **Properties side panel** (toggle with Ctrl/⌘
 
 ### Workspaces, worksheets, undo
 - **Workspace** and **Worksheet** menus in the menu bar (next to File, Edit, Analysis):
-  - switch workspaces, create them from the Starter, duplicate, rename, export and import;
+  - switch workspaces, **Save** / **Save as** (Ctrl/⌘+S), create them from the Starter, duplicate, rename, export and import;
+  - every workspace is a readable `.json` in **Documents/Project-Trace/Workspaces** — drop in someone else's to use their views;
   - **save worksheets to your library** and insert them anywhere, or export and import single worksheets;
   - **reset a worksheet** to its Starter version.
 - **Undo / redo everything** (Ctrl/⌘+Z, Ctrl/⌘+Y): deleted components, panes, channels, worksheets, layout changes, corners, workspace deletions…
@@ -168,19 +169,21 @@ Edit any component in the docked **Properties side panel** (toggle with Ctrl/⌘
 Four-corner tyre and brake panel, driver inputs (pedals, wheel, gear), dial/bar/digital gauges, and the full **car setup sheet** with side-by-side comparison and notes. → [Instruments guide](docs/09-instruments.md)
 
 ### Quality of life
-- Command palette (Ctrl/⌘+K) and full [keyboard shortcuts](docs/10-keyboard-and-mouse.md) (J, W, S, D, F3, F…).
+- Command palette (Ctrl/⌘+K) and full [keyboard shortcuts](docs/10-keyboard-and-mouse.md) (J, W, S, C, D, F3, F…), all **rebindable** in the shortcut editor (F1).
 - Units: km/h · mph · m/s, °C · °F, psi · bar · kPa. Dark and light themes.
 - Export the visible range to CSV, save screenshots, drag & drop files.
 - **Opens MoTeC `.ld` logs** as well as Telemetrick CSV, MoTeC CSV and generic CSV.
 
 ---
 
-## The Starter workspace
+## Default workspaces
 
-Project-Trace ships with a built-in, **read-only Starter workspace**, the layout you see on first launch. Your own workspace (**My Workspace**) starts as a copy of it. If you ever want the original back:
+Project-Trace ships with two built-in, **read-only default workspaces**: the **Starter** (the layout you see on first launch, described below) and **Basic FA26**, a compact Formula Alpha 2026 layout (Overview, Driver, PU, Tyres, Stint Analysis, Session & Setup). Your own workspace (**My Workspace**) starts as a copy of the Starter. If you edit a default, your change is saved into a new personal copy, so the defaults never change. To get the original back:
 
 - **Workspace → Revert Current Workspace to Starter**, or **Worksheet → Reset Worksheet to Starter Version** for one tab;
-- or simply switch to **Starter** in the Workspace menu. If you edit the Starter, your change is saved into a new personal copy, so the Starter itself never changes.
+- or simply switch to a default in the workspace menu (top bar or menu bar).
+
+Your workspaces are files in **Documents/Project-Trace/Workspaces** — see [03 · Workspaces & layout](docs/03-workspaces-and-layout.md#the-workspaces-folder).
 
 | Worksheet | What's on it |
 |---|---|
@@ -192,7 +195,7 @@ Project-Trace ships with a built-in, **read-only Starter workspace**, the layout
 | **Suspension** | Ride heights, damper travel, roll, pitch, rake · damper-velocity histograms · ride FFT |
 | **Aero** | Downforce, drag, balance, ride heights · downforce-vs-speed fit · balance vs ride height |
 | **Engine & ERS** | RPM, gear, KERS, boost, power · gauges · RPM × throttle map · gear usage |
-| **Lap Analysis** | Lap report · lap-time trend · lap statistics · corner report |
+| **Lap Analysis** | Stint report · lap-time trend · lap statistics · corner report |
 | **Session & Setup** | Details / setup / notes · elevation map · fuel by lap |
 
 ---
@@ -203,14 +206,14 @@ Project-Trace ships with a built-in, **read-only Starter workspace**, the layout
 |---|---|
 | [01 · Getting started](docs/01-getting-started.md) | Installation on Windows/macOS, first run, opening sessions |
 | [02 · Session browser](docs/02-session-browser.md) | Folders, track sorting, the session table, in-game time zones |
-| [03 · Workspaces & layout](docs/03-workspaces-and-layout.md) | Starter workspace, menus, library, Properties pop-out, undo |
+| [03 · Workspaces & layout](docs/03-workspaces-and-layout.md) | Default workspaces, the workspaces folder, saving, menus, library, layout snapping, Properties pop-out, undo |
 | [04 · Time/distance graph](docs/04-time-distance-graph.md) | Panes, lap colours, J, Δ legends, cursor, zoom, smoothing |
 | [05 · Track Map & GPS Track](docs/05-track-map.md) | Colouring, line comparison, rotation dial, corners & sections |
 | [06 · XY charts](docs/06-xy-charts.md) | Scatter (axis ranges), histogram, mixture map, FFT, lap trend |
 | [07 · Math channels](docs/07-math-channels.md) | Syntax, every function, constants, the default library |
-| [08 · Laps, sectors & reports](docs/08-laps-sectors-reports.md) | Lap detection, lap colours, sectors, corner report |
+| [08 · Laps, sectors & reports](docs/08-laps-sectors-reports.md) | Lap detection, lap colours, sectors, lap & stint reports, corner report |
 | [09 · Instruments](docs/09-instruments.md) | Gauges, driver inputs, tyres & brakes, session & setup |
-| [10 · Keyboard & mouse](docs/10-keyboard-and-mouse.md) | Every shortcut |
+| [10 · Keyboard & mouse](docs/10-keyboard-and-mouse.md) | Every shortcut and the shortcut editor |
 | [11 · Supported file formats](docs/11-file-formats.md) | Telemetrick CSV, MoTeC .ld/.ldx, MoTeC CSV, generic CSV |
 | [12 · Settings & data](docs/12-settings-and-data.md) | Units, themes, smoothing, where everything is stored |
 | [13 · Architecture (developers)](docs/13-architecture.md) | Code structure, data flow, tests, adding components |

@@ -249,16 +249,16 @@ export function GpsTrackView({ config }: { config: GpsTrackConfig }) {
     }
     if (rows.length && config.showOffsets !== false) {
       ctx.font = T.font;
-      const bw = Math.max(...rows.map((r) => ctx.measureText(r.text).width)) + 30;
+      const bw = Math.max(...rows.map((r) => ctx.measureText(r.text).width)) + 18;
       ctx.fillStyle = withAlpha(T.surface, 0.85);
       ctx.fillRect(8, 8, bw, rows.length * 16 + 8);
       rows.forEach((r, i) => {
-        ctx.fillStyle = r.color;
-        ctx.fillRect(14, 16 + i * 16 - 1.5, 12, 3);
+        ctx.fillStyle = withAlpha(r.color, 0.3);
+        ctx.fillRect(12, 9 + i * 16, ctx.measureText(r.text).width + 10, 14);
         ctx.fillStyle = T.text;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.fillText(r.text, 32, 16 + i * 16);
+        ctx.fillText(r.text, 17, 16 + i * 16);
       });
     }
   }, [size, config.showOffsets]);

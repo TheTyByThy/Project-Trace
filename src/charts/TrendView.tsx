@@ -2,12 +2,12 @@
 // is a series; invalid laps are drawn hollow. Click a point to make that lap the reference; drag a
 // rectangle to zoom; the y-axis range can be fixed in the Properties.
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { CATEGORICAL } from '../core/colors';
 import { formatLapTime, formatValue, prettyTrack } from '../core/format';
 import { rangeStats } from '../core/stats';
 import { lapKey, type Lap, type Session } from '../core/types';
-import { selectLap, useStore } from '../state/store';
+import { selectLap, sessionsWithSelection, useStore } from '../state/store';
 import type { TrendConfig } from '../state/workspace';
 import { drawAxes, drawMarker, makeAxes, padRange, type Axes } from './axes';
 import { BoxZoomLayer, type View } from './BoxZoom';
@@ -32,8 +32,10 @@ export function TrendView({ config }: { config: TrendConfig }) {
   const axesRef = useRef<Axes | null>(null);
   const viewRef = useRef<View | null>(null);
   const hitsRef = useRef<{ x: number; y: number; key: string }[]>([]);
-  const sessions = useStore((s) => s.sessions);
+  const allSessions = useStore((s) => s.sessions);
   const lapSel = useStore((s) => s.laps);
+  // Only stints with a selected lap (reference or comparison).
+  const sessions = useMemo(() => sessionsWithSelection(allSessions, lapSel), [allSessions, lapSel]);
   const refKey = useStore((s) => s.refKey);
   const dataVersion = useStore((s) => s.dataVersion);
   const theme = useStore((s) => s.settings.theme);

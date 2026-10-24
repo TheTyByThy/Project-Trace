@@ -35,7 +35,7 @@ Like MoTeC:
 
 ## Legends: values and deltas
 
-Each pane's legend lists its channels with their value at the cursor for every lap. For overlay laps it also shows the **Δ to the reference lap**, e.g. `Ground Speed [km/h] ━ 236.1  ━ 237.0 Δ+0.9`. While measuring a range (Shift-drag) the legend shows **min / avg / max / Δ** over the range instead.
+Each pane's legend lists its channels with their value at the cursor for every lap. Each lap's value sits on a **translucent background in that lap's colour** (blue reference, white first comparison…). For overlay laps it also shows the **Δ to the reference lap**, e.g. `Ground Speed [km/h]  236.1   237.0 Δ+0.9`. While measuring a range (Shift-drag) the legend shows **min / avg / max / Δ** over the range instead.
 
 ## X axis: time or distance
 
@@ -89,15 +89,17 @@ The variance pane shows **overlay lap time − reference lap time** along the la
 
 ## Markers, corners and sections
 
-- **Sector lines** (S2, S3…) and your **custom section** splits: *Sector & section lines*.
-- **Corner markers** show the corners you've defined for the track: *Corner markers*.
-- **Right-click the graph → Add corner at cursor… / Add section split at cursor…** to define them right where the cursor is. They're saved to the track profile (see [05](05-track-map.md#corners-sections-and-the-track-profile)).
+- **Sector lines** (S2, S3…, purple) and your **splits** (green): *Sector & section lines*.
+- **Corner lines** (orange) show the corners you've defined for the track: *Corner lines*. Corners with an exact range (advanced mode) also get a faint band over that range.
+- Lines are coloured at low opacity; their labels sit along the **top** of the graph (in the variance pane when it's shown). There are no other vertical grid lines.
+- Turning lines on or off — right-click, Properties, or the shortcuts **C** (corners) and **Shift + S** (sectors & splits) — applies to **every graph** in the workspace (the shortcuts also switch the track maps and GPS tracks).
+- **Right-click the graph → Add corner at cursor… / Add split at cursor…** to define them right where the cursor is. They're saved to the track profile (see [05](05-track-map.md#corners-sections-and-the-track-profile)).
+
+The graph's right-click menu is deliberately short: the two line toggles, *Add corner* / *Add split*, then **Properties…**, **Maximise** and **Remove component**. Everything else (variance, y-range, pane scales, legends, grid, line widths) is in Properties.
 
 ## Adding and editing channels
 
 - Drag from the **Channels** sidebar onto a pane (near the bottom edge, or hold Shift, for a new pane).
-- Right-click the graph → **Add channel to this pane… / Add channel in new pane…**.
-- Right-click a channel name in a legend → **Channel properties…**, remove, move to its own pane, quick colours.
 - **Properties** gives the full pane-and-channel table (see [03](03-workspaces-and-layout.md#the-properties-pop-out)).
 
 ## Exporting

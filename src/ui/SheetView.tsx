@@ -152,22 +152,50 @@ function ComponentFrame({ config, maximized, onMaximize }: { config: ComponentCo
   );
 }
 
+/** Distance (px) within which a divider snaps to line up with another divider. */
+const SNAP_PX = 10;
+
 function SplitView({ node, sheet, maximized, setMax }: { node: Extract<LayoutNode, { kind: 'split' }>; sheet: Worksheet; maximized: string | null; setMax: (id: string | null) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const [live, setLive] = useState<number[] | null>(null);
   const sizes = live ?? node.sizes;
+  const [snapped, setSnapped] = useState<number | null>(null);
   const startDrag = (i: number, e: React.PointerEvent) => {
     e.preventDefault();
     const el = ref.current!;
+    const handle = e.currentTarget as HTMLElement;
+    const row = node.dir === 'row';
     const r = el.getBoundingClientRect();
-    const total = node.dir === 'row' ? r.width : r.height;
-    const start = node.dir === 'row' ? e.clientX : e.clientY;
+    const total = row ? r.width : r.height;
+    const start = row ? e.clientX : e.clientY;
     const base = node.sizes.slice();
+    const sum = base.reduce((a, b) => a + b, 0) || 1;
+    // Space shared by the children (the handles themselves don't grow).
+    const handlePx = row ? handle.offsetWidth : handle.offsetHeight;
+    const avail = Math.max(1, total - handlePx * (node.children.length - 1));
+    const centre = (h: Element) => {
+      const hr = h.getBoundingClientRect();
+      return row ? hr.left + hr.width / 2 : hr.top + hr.height / 2;
+    };
+    const h0 = centre(handle);
+    // Snap targets: dividers running the same way elsewhere on the sheet (e.g. the other column of a
+    // 2×2 grid), but not ones inside this split, which move with it.
+    const targets = [...document.querySelectorAll(`.split-handle[data-dir="${node.dir}"]`)].filter((h) => !el.contains(h)).map(centre);
     let latest = base;
     const move = (ev: PointerEvent) => {
-      const d = ((node.dir === 'row' ? ev.clientX : ev.clientY) - start) / total;
-      const a = Math.max(0.06, base[i] + d);
-      const b = Math.max(0.06, base[i] + base[i + 1] - a);
+      let px = (row ? ev.clientX : ev.clientY) - start;
+      let snap = false;
+      if (!ev.altKey) {
+        const nearest = targets.reduce((best, t) => (Math.abs(t - (h0 + px)) < Math.abs(best - (h0 + px)) ? t : best), Infinity);
+        if (Math.abs(nearest - (h0 + px)) <= SNAP_PX) {
+          px = nearest - h0;
+          snap = true;
+        }
+      }
+      setSnapped(snap ? i : null);
+      const d = (px / avail) * sum;
+      const a = Math.max(0.06 * sum, base[i] + d);
+      const b = Math.max(0.06 * sum, base[i] + base[i + 1] - a);
       latest = base.slice();
       latest[i] = a;
       latest[i + 1] = b;
@@ -178,6 +206,7 @@ function SplitView({ node, sheet, maximized, setMax }: { node: Extract<LayoutNod
       window.removeEventListener('pointerup', up);
       setSplitSizes(node.id, latest);
       setLive(null);
+      setSnapped(null);
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
@@ -187,7 +216,14 @@ function SplitView({ node, sheet, maximized, setMax }: { node: Extract<LayoutNod
       {node.children.map((c, i) => (
         <SplitChild key={c.id} grow={sizes[i]}>
           <NodeView node={c} sheet={sheet} maximized={maximized} setMax={setMax} />
-          {i < node.children.length - 1 && <div className={'split-handle' + (live ? ' dragging' : '')} onPointerDown={(e) => startDrag(i, e)} />}
+          {i < node.children.length - 1 && (
+            <div
+              className={'split-handle' + (live ? ' dragging' : '') + (live && snapped === i ? ' snapped' : '')}
+              data-dir={node.dir}
+              title="Drag to resize · snaps to line up with other dividers (hold Alt/⌥ to move freely)"
+              onPointerDown={(e) => startDrag(i, e)}
+            />
+          )}
         </SplitChild>
       ))}
     </div>

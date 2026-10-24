@@ -158,13 +158,16 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
       const vr = computeVariance(ref.lap, cmp.lap, 2);
       const m = vr.dist.length;
       const rate = new Float64Array(m);
+      // Rate of gain/loss (s per m), averaged over the chosen distance (variance is sampled every 2 m).
+      const half = Math.max(1, Math.round((config.deltaSmoothing ?? 32) / 4));
       for (let k = 0; k < m; k++) {
-        const a = Math.max(0, k - 8);
-        const b = Math.min(m - 1, k + 8);
+        const a = Math.max(0, k - half);
+        const b = Math.min(m - 1, k + half);
         rate[k] = (vr.delta[b] - vr.delta[a]) / Math.max(1e-6, vr.dist[b] - vr.dist[a]);
       }
+      // Full colour at the 95th percentile of |rate|, scaled by the sensitivity setting.
       const abs = Array.from(rate, Math.abs).sort((a, b) => a - b);
-      const lim = Math.max(1e-5, abs[Math.floor(abs.length * 0.95)] || 1e-4);
+      const lim = Math.max(1e-6, (abs[Math.floor(abs.length * 0.95)] || 1e-4) / Math.max(0.05, config.deltaSensitivity ?? 1));
       colorValues = new Float64Array(n);
       for (let i = 0; i < n; i++) colorValues[i] = m ? interp(vr.dist, rate, lapDistAt(ref.lap, path.t[i])) : 0;
       lo = -lim;
