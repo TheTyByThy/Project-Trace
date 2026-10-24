@@ -11,6 +11,7 @@ import { selectedLaps, updateComponent, useStore } from '../state/store';
 import type { HistogramConfig } from '../state/workspace';
 import { openChannelPicker, openMenu, promptText } from '../ui/overlays';
 import { drawAxes, makeAxes, type Axes } from './axes';
+import { BoxZoomLayer, type View } from './BoxZoom';
 import { chartTheme, prepCanvas, useElementSize, useStoreListener } from './canvas';
 import { channelDps, conv, findChannel, lapWindow } from './data';
 
@@ -26,6 +27,7 @@ export function HistogramView({ config }: { config: HistogramConfig }) {
   const baseRef = useRef<HTMLCanvasElement>(null);
   const overRef = useRef<HTMLCanvasElement>(null);
   const axesRef = useRef<Axes | null>(null);
+  const viewRef = useRef<View | null>(null);
   const sessions = useStore((s) => s.sessions);
   const lapSel = useStore((s) => s.laps);
   const refKey = useStore((s) => s.refKey);
@@ -74,8 +76,9 @@ export function HistogramView({ config }: { config: HistogramConfig }) {
       }
       sets.push({ l, vals });
     }
-    const lo = config.min ?? mn;
-    const hi = config.max ?? mx;
+    // Box-zoom re-bins the zoomed x-range for more detail.
+    const lo = viewRef.current?.x0 ?? config.min ?? mn;
+    const hi = viewRef.current?.x1 ?? config.max ?? mx;
     const nb = Math.max(1, config.bins);
     const bw = (hi - lo) / nb || 1;
     const hists = sets.map((s) => {
@@ -100,12 +103,17 @@ export function HistogramView({ config }: { config: HistogramConfig }) {
       }
       return { pct, zones: zones.map((c) => (total ? (100 * c) / total : 0)), mean: total ? sum / total : NaN };
     });
-    const yMax = Math.max(1, ...hists.flatMap((hh) => hh.pct)) * 1.1;
+    const yMax = viewRef.current ? viewRef.current.y1 : Math.max(1, ...hists.flatMap((hh) => hh.pct)) * 1.1;
+    const yMin = viewRef.current ? Math.max(0, viewRef.current.y0) : 0;
     const tableH = config.zones.length ? 16 + 14 * (config.zones.length + 1) : 0;
     const rect = { x: 50, y: 10 + tableH, w: Math.max(10, w - 50 - 12), h: Math.max(10, h - 10 - 40 - tableH) };
-    const A = makeAxes(rect, lo, hi, 0, yMax);
+    const A = makeAxes(rect, lo, hi, yMin, yMax);
     axesRef.current = A;
-    drawAxes(ctx, T, A, lo, hi, 0, yMax, `${config.channel}${cv.unit ? ` [${cv.unit}]` : ''}`, config.cumulative ? 'cumulative % time' : '% time');
+    drawAxes(ctx, T, A, lo, hi, yMin, yMax, `${config.channel}${cv.unit ? ` [${cv.unit}]` : ''}`, config.cumulative ? 'cumulative % time' : '% time');
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rect.x, rect.y, rect.w, rect.h);
+    ctx.clip();
     const group = sets.length;
     const slotW = (A.px(lo + bw) - A.px(lo)) / Math.max(1, group);
     hists.forEach((hh, si) => {
@@ -115,7 +123,7 @@ export function HistogramView({ config }: { config: HistogramConfig }) {
         const y = A.py(hh.pct[b]);
         const bwPx = Math.max(1, slotW - 2);
         ctx.fillStyle = withAlpha(color, 0.85);
-        ctx.fillRect(x, y, bwPx, A.py(0) - y);
+        ctx.fillRect(x, y, bwPx, A.py(yMin) - y);
       }
       // mean marker
       if (Number.isFinite(hh.mean)) {
@@ -128,6 +136,7 @@ export function HistogramView({ config }: { config: HistogramConfig }) {
         ctx.setLineDash([]);
       }
     });
+    ctx.restore();
     // zones
     if (config.zones.length) {
       ctx.strokeStyle = T.text2;
@@ -206,11 +215,18 @@ export function HistogramView({ config }: { config: HistogramConfig }) {
       }}
     >
       <canvas ref={baseRef} />
-      <canvas
-        ref={overRef}
+      <canvas ref={overRef} />
+      <BoxZoomLayer
+        axesRef={axesRef}
+        onView={(v) => {
+          viewRef.current = v;
+          drawBase();
+          drawOverlay();
+        }}
         onContextMenu={(e) => {
           e.preventDefault();
           openMenu(e, [
+            { label: 'Reset zoom', shortcut: 'double-click', onClick: () => ((viewRef.current = null), drawBase(), drawOverlay()) },
             { label: `Channel: ${config.channel}…`, onClick: () => openChannelPicker(e, (n) => updateComponent(config.id, { channel: n, min: undefined, max: undefined })) },
             {
               label: 'Zone boundaries…',

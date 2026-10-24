@@ -4,10 +4,10 @@
 import { Component, useRef, useState, type ReactNode } from 'react';
 import { COMPONENT_CATALOG } from '../state/components';
 import type { DropZone } from '../state/layout';
-import { activeSheet, addComponent, moveComponentTo, removeComponentById, setSplitSizes, setUi, useStore } from '../state/store';
+import { activeSheet, addComponent, moveComponentTo, openProperties, removeComponentById, setSplitSizes, useStore } from '../state/store';
 import type { ComponentConfig, LayoutNode, Worksheet } from '../state/workspace';
 import { defaultTitle, VIEWS } from '../charts/registry';
-import { openMenu } from './overlays';
+import { openMenu, useOverlay, type MenuItem } from './overlays';
 
 class ErrorBoundary extends Component<{ children: ReactNode; label: string }, { error: Error | null }> {
   state = { error: null as Error | null };
@@ -69,6 +69,14 @@ function ComponentFrame({ config, maximized, onMaximize }: { config: ComponentCo
   const ref = useRef<HTMLDivElement>(null);
   const View = VIEWS[config.type];
   const meta = COMPONENT_CATALOG.find((m) => m.type === config.type);
+  const title = config.title || defaultTitle(config);
+  // Items every component offers on right-click (appended to the component's own menu).
+  const frameItems = (): MenuItem[] => [
+    { header: title },
+    { label: 'Properties…', onClick: () => openProperties(config.id) },
+    { label: maximized ? 'Restore' : 'Maximise', shortcut: 'double-click header', onClick: onMaximize },
+    { label: 'Remove component', onClick: () => removeComponentById(config.id) },
+  ];
   return (
     <div
       ref={ref}
@@ -102,9 +110,9 @@ function ComponentFrame({ config, maximized, onMaximize }: { config: ComponentCo
         onDoubleClick={onMaximize}
         onContextMenu={(e) => {
           e.preventDefault();
+          e.stopPropagation();
           openMenu(e, [
-            { label: 'Properties', onClick: () => (useStore.setState({ activeComponentId: config.id }), setUi({ inspector: true })) },
-            { label: maximized ? 'Restore' : 'Maximise', shortcut: 'double-click', onClick: onMaximize },
+            ...frameItems(),
             { separator: true },
             ...(['right', 'bottom'] as const).map((z) => ({
               label: `Split ${z === 'right' ? 'right' : 'below'} with…`,
@@ -112,8 +120,6 @@ function ComponentFrame({ config, maximized, onMaximize }: { config: ComponentCo
                 openMenu(e, COMPONENT_CATALOG.map((it) => ({ label: `${it.icon}  ${it.label}`, onClick: () => addComponent(it.type, config.id, z) }))),
             })),
             { label: 'Replace with…', onClick: () => openMenu(e, COMPONENT_CATALOG.map((it) => ({ label: `${it.icon}  ${it.label}`, onClick: () => addComponent(it.type, config.id, 'center') }))) },
-            { separator: true },
-            { label: 'Remove component', onClick: () => removeComponentById(config.id) },
           ]);
         }}
       >
@@ -121,7 +127,7 @@ function ComponentFrame({ config, maximized, onMaximize }: { config: ComponentCo
           {meta?.icon}
         </span>
         <span className="title">{config.title || defaultTitle(config)}</span>
-        <button className="btn icon ghost" title="Properties" onClick={() => (useStore.setState({ activeComponentId: config.id }), setUi({ inspector: true }))}>
+        <button className="btn icon ghost" title="Properties" onClick={() => openProperties(config.id)}>
           ⚙
         </button>
         <button className="btn icon ghost" title="Add component beside" onClick={(e) => addMenu(e, config.id)}>
@@ -134,7 +140,18 @@ function ComponentFrame({ config, maximized, onMaximize }: { config: ComponentCo
           ✕
         </button>
       </div>
-      <div className="frame-body">
+      <div
+        className="frame-body"
+        onContextMenu={(e) => {
+          const t = e.target as HTMLElement;
+          if (t.closest('input, textarea, select')) return;
+          e.preventDefault();
+          // If the component opened its own menu for this click, append the common items to it.
+          const m = useOverlay.getState().menu;
+          if (m && m.x === e.clientX && m.y === e.clientY) useOverlay.setState({ menu: { ...m, items: [...m.items, { separator: true }, ...frameItems()] } });
+          else openMenu(e, frameItems());
+        }}
+      >
         <ErrorBoundary label={config.type}>{View ? <View config={config} /> : null}</ErrorBoundary>
       </div>
       {zone && (

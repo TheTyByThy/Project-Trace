@@ -2,7 +2,7 @@
 
 <h1 align="center">Project-Trace</h1>
 
-<p align="center"><b>MoTeC-style telemetry analysis for Assetto Corsa, built for Telemetrick CSV exports.</b><br>
+<p align="center"><b>MoTeC-style telemetry analysis for Assetto Corsa, built for Telemetrick CSV exports (and MoTeC .ld logs).</b><br>
 Runs on <b>Windows</b> and <b>macOS</b>. Free, offline, no account.</p>
 
 ![Overview worksheet](docs/images/overview.png)
@@ -10,11 +10,11 @@ Runs on <b>Windows</b> and <b>macOS</b>. Free, offline, no account.</p>
 Project-Trace is a desktop data-analysis tool modelled on MoTeC i2 Pro. Point it at your Telemetrick export folder, pick a track, pick a session, and you get MoTeC's core tools:
 
 - time/distance graphs with lap overlays and time variance
-- track maps from car coordinates
+- track maps and GPS racing-line comparison
 - scatter plots, histograms and mixture maps
 - math channels
 - reports and gauges
-- fully customisable workspaces
+- fully customisable workspaces with undo/redo
 
 It reads the CSV files Telemetrick writes, and also opens Telemetrick's MoTeC `.ld` logs, so your whole history is usable, not just recent CSV exports.
 
@@ -24,7 +24,7 @@ It reads the CSV files Telemetrick writes, and also opens Telemetrick's MoTeC `.
 
 - [Quick start](#quick-start)
 - [What you can do](#what-you-can-do): a tour of every feature
-- [The default workspace](#the-default-workspace)
+- [The Starter workspace](#the-starter-workspace)
 - [Documentation](#documentation): detailed guides per feature
 - [Building installers](#building-installers-exe--dmg)
 - [Project layout](#project-layout)
@@ -44,7 +44,7 @@ Download the **LTS** version from <https://nodejs.org> and install it with the d
 |---|---|
 | Double-click **`Start Project-Trace (Windows).bat`** | Double-click **`Start Project-Trace (macOS).command`**. The first time, *right-click → Open* to get past Gatekeeper. If macOS says it isn't executable, run `bash start-mac.sh` in Terminal from this folder. |
 
-The first launch installs everything automatically (about a minute, needs internet). After that it starts in a few seconds.
+The first launch installs everything automatically (about a minute, needs internet). After that it starts in a few seconds. If you copy the folder between a PC and a Mac, the launcher notices that the installed components belong to the other system and reinstalls them.
 
 > Developers can also use `npm install` then `npm start` (or `npm run dev` for hot reload).
 
@@ -60,7 +60,7 @@ Documents\Assetto Corsa\apps\telemetrick\exported\           ← all drivers
                 24102026-152530-…-singapore_2020-layout_f1_2026.csv
 ```
 
-If Telemetrick's default folder exists, Project-Trace detects it and offers **Use detected folder**. Click a track card, then double-click a session to open it. Project-Trace remembers where you were, so next time you land straight on your track list.
+Click a track card, then double-click a session to open it. Project-Trace remembers where you were, so next time you land straight on your track list.
 
 No telemetry yet? Click **Bundled sample session** to explore a 6-lap Singapore run in the Formula Alpha 2026.
 
@@ -71,125 +71,129 @@ No telemetry yet? Click **Bundled sample session** to explore a 6-lap Singapore 
 ### Session browser: find the right run fast
 ![Session browser — tracks](docs/images/session-browser-tracks.png)
 
-- **Track cards**, most recently driven first, with prettified names (`singapore_2020-layout_f1_2026` → **Singapore 2020 · F1 2026**), session counts and "last driven" times.
-- **Session table** for each track, showing:
+- **Track cards** with tidied names (`singapore_2020-layout_f1_2026` → **Singapore 2020 · F1 2026**). **Sort them** by last driven, name, number of sessions or oldest first.
+- **Session table** per track, showing:
   - when the file was **saved**;
   - the **in-game time of day**, converted to the circuit's local time zone;
   - driver, car and livery;
-  - complete laps and **best lap** (with lap number);
-  - **best valid lap** (once a session has been opened);
-  - duration, air/track temperature and file size.
-- A **details pane** with every lap time, the weather, starting fuel and a per-track time-zone override.
-- **Live folder watching**: new exports appear automatically while you drive.
-- Select several sessions to open them **overlaid for comparison**, or drag CSV files straight onto the window.
+  - complete laps, **best lap** and **best valid lap**;
+  - duration, air/track temperature and size.
+- **Compare as many sessions as you like**: tick sessions across folders (your stints, another driver's), then **Add to open**. Selections survive browsing, double-click adds by default, and an *Open now* list shows what's loaded.
+- A details pane with every lap time, plus **live folder watching**.
 
 → [Session browser guide](docs/02-session-browser.md)
 
 ### Time / distance graphs: the heart of MoTeC
 ![Zoom and range measurement](docs/images/zoom-measure.png)
 
-- Stacked **panes** that share the x-axis. Channels with the same unit share a scale ("tiled"); switch any pane to independent scales ("overlapped").
-- **Lap overlays** in stable, colour-blind-safe colours with dash patterns. The **reference lap** (★) is drawn on top.
-- **Time variance** pane (F3): where you gain and lose time against the reference.
-- **Time ⇄ Distance** x-axis (D). Laps align on track position using the game's lap distance.
-- Click for the **cursor** (live values in every legend), drag to **zoom**, Shift-drag to **measure** a range (min / avg / max / Δ for every channel), scroll to zoom, right-drag to pan.
-- **Sector lines**, custom **section** markers and auto-detected **corner** markers.
-- **Drag channels** from the sidebar onto any pane, drag pane borders to resize, and right-click for every option.
+- Stacked **panes** that share the x-axis. Drag the border between any two panes to give the important ones more height.
+- **Lap colouring like MoTeC**: every overlay lap is solid in **its own lap colour**. The **reference lap** shows per-channel colours or its lap colour (press **J**). Click a lap's colour square to pick **any colour** for it.
+- Every legend shows each lap's value **and its Δ to the reference** at the cursor.
+- Three cursor modes (Settings): **classic** (click = cursor, drag = zoom), **scrub** (drag moves the cursor, double-click-drag zooms) or **follow mouse**. Shift-drag measures a range (min/avg/max/Δ). **W** zooms to the whole lap.
+- **Time variance** pane (F3), **Time ⇄ Distance** axis (D), sector lines, and your own corner and section markers.
+- **Smoothing** toggle in the top bar (off = raw data), with an adjustable amount.
 
 → [Graph guide](docs/04-time-distance-graph.md)
 
-### Track map: built from your car's coordinates
-![Driver worksheet with gain/loss track map](docs/images/driver.png)
+### Track Map and GPS Track
+| Track Map: colour by speed, inputs or time gained/lost | GPS Track: compare the lines you drove |
+|---|---|
+| ![Driver worksheet](docs/images/driver.png) | ![GPS track](docs/images/gps-track.png) |
 
-- Drawn from `Car Coord X/Y`, or projected from GPS latitude/longitude in other CSVs.
-- **Colour by any channel** (speed, throttle, brake, gear, elevation…), **by lap**, or by **time gained/lost** against the reference.
-- **Corners detected automatically** (T1, T2…) and renameable. S/F, sector and custom section markers.
-- Cursor dots for every overlaid lap. **Click the map to jump the cursor there.** Zoom, pan, rotate and mirror (saved per track).
-- Highlights the zoomed range of the graphs.
+- **Track Map**: colour the circuit by any channel, with preset or **custom colours**, by lap, or by **time gained/lost** against the reference.
+- **GPS Track**:
+  - thin racing lines for every selected lap in their lap colours;
+  - automatically frames whatever you've zoomed into on the graphs, so zoom into a corner and compare the lines;
+  - a metric scale bar, a track band and follow-cursor;
+  - live **"Lap 3: 0.8 m left of ref"** line-offset readouts.
+- **Rotation dial** on both maps: drag the ring to spin the map, then **Save** it as the track's default or **Reset** to the saved rotation.
+- **Corners are yours**: put the cursor on an apex, right-click → **Add corner at cursor…**. Corners are saved to the track and appear on graphs, maps and the corner report.
 
-→ [Track map guide](docs/05-track-map.md)
+→ [Track Map & GPS Track guide](docs/05-track-map.md)
 
 ### XY charts
-| Scatter (with fits) | Histograms & mixture maps |
+| Scatter (with fits) | Histograms & FFT |
 |---|---|
 | ![Aero](docs/images/aero.png) | ![Suspension](docs/images/suspension.png) |
 
-- **Scatter / XY plots**: any channel against any other. Colour by lap or by a third channel. Linear/quadratic/cubic **fits with R²**, MoTeC-style **X-interval averages**, a **gate** channel ("only while braking"), and an equal-aspect **G-G diagram** with friction circles.
-- **Histograms**: % of time per bin for every lap, with **zone breakdowns** (e.g. damper velocity fast/slow bump/rebound).
-- **Mixture maps**: 2-D histograms (RPM × throttle) showing % of time or the mean/min/max of a third channel.
-- **FFT**: frequency spectrum for ride and damper analysis.
-- **Lap trend**: any statistic per lap across the session (lap time, tyre temperature, fuel…).
+- **Scatter / XY**:
+  - colour by lap or a third channel;
+  - linear, quadratic or cubic **fits with R²**;
+  - X-interval averages and a gate channel;
+  - **fixed X/Y axis ranges** in the Properties, and a G-G diagram mode.
+- **Histograms** with zone breakdowns (damper velocities), **mixture maps**, **FFT** and **lap trend** (with a settable y-axis).
+- **Drag a rectangle to zoom** on scatter, lap trend, histogram and FFT charts; double-click to reset.
 
 → [XY charts guide](docs/06-xy-charts.md)
 
 ### Math channels, just like MoTeC
 ![Math editor](docs/images/math-editor.png)
 
-- MoTeC-compatible syntax: `'Ground Speed' [m/s]`, `choose(cond, a, b)`, `derivative()`, `integrate(x, cond)`, `smooth()`, `stat_mean()`, `sgn()`, `sqr()`… **60 functions** in all.
-- Live validation (the error position is highlighted), a preview sparkline with min/avg/max on the reference lap, a click-to-insert function reference and channel list, and user **constants**.
-- **30 ready-made channels**: combined G, damper velocities, tyre temperature average and spread, rake, aero balance, coasting, throttle/brake overlap, lock-ups, wheelspin, fuel per lap…
-- Math channels can use other math channels. They're saved in the workspace and recomputed for every open session.
+- MoTeC-compatible syntax: `'Ground Speed' [m/s]`, `choose()`, `derivative()`, `integrate(x, cond)`, `smooth()`, `stat_mean()`… **60 functions** in all.
+- Live validation with an error caret, a preview on the reference lap, and a click-to-insert function reference.
+- **30 ready-made channels**: damper velocities, aero balance, coasting, lock-ups and more.
 
 → [Math channel guide](docs/07-math-channels.md)
 
 ### Laps, sectors & reports
 ![Lap analysis](docs/images/lap-analysis.png)
 
-- **Exact lap times** from the export's beacons, and **exact sector times** reconstructed from the game's sector timer, with sector split points located on track.
-- **Out, in, partial and invalid laps** flagged (from AC's `Lap Invalidated`). Fastest valid lap is chosen automatically.
-- **Lap report**: lap and sector times, purple session-best sectors, the **ideal lap**, Δ to best, max speed and fuel used.
-- **Custom sections**: drop split points anywhere on the track map and get section times for every lap.
-- **Channel report** (min/max/avg/std per lap), **corner report** (min, entry and exit speed or time per corner, with deltas to the reference; click a corner to zoom to it).
+- **Exact lap and sector times** matching the game.
+- **Out, in, partial and invalid laps** flagged.
+- Lap report with purple bests and the **ideal lap**, plus custom **section** times.
+- **Channel report** (min/max/avg/std per lap) and a **corner report** built from your corners.
 
 → [Laps & reports guide](docs/08-laps-sectors-reports.md)
+
+### Properties: everything in one pop-out
+![Properties pop-out](docs/images/properties-graph.png)
+
+Edit any component in the docked **Properties side panel** (toggle with Ctrl/⌘+I), or right-click it → **Properties…** (or **☰ Properties** in the top bar) for a large centred pop-out with a switcher for every component on the worksheet. Graphs list each pane's channels in detail (colour, unit, rate, range), and each channel has a **Properties…** button and a right-click menu for colour (palette or any custom colour), fixed range, decimals and unit. Right-clicking any component also offers **Remove component** directly.
+
+### Workspaces, worksheets, undo
+- **Workspace** and **Worksheet** menus in the menu bar (next to File, Edit, Analysis):
+  - switch workspaces, create them from the Starter, duplicate, rename, export and import;
+  - **save worksheets to your library** and insert them anywhere, or export and import single worksheets;
+  - **reset a worksheet** to its Starter version.
+- **Undo / redo everything** (Ctrl/⌘+Z, Ctrl/⌘+Y): deleted components, panes, channels, worksheets, layout changes, corners, workspace deletions…
+- Drag component headers to dock anywhere, drag gaps to resize, double-click to maximise. Everything saves automatically.
+
+→ [Workspaces guide](docs/03-workspaces-and-layout.md)
 
 ### Instruments
 | Tyres & brakes | Gauges, mixture map, histogram |
 |---|---|
 | ![Tyres](docs/images/tyres.png) | ![Engine](docs/images/engine-ers.png) |
 
-- **Tyres & brakes**: a four-corner panel with inner/middle/outer and core temperatures, pressures, brake disc temperature, load and slip, at the cursor or as lap mean/max.
-- **Driver inputs**: pedal bars, a rotating steering wheel, gear, speed and RPM, with a ghost of the compare lap.
-- **Gauges**: dial, bar and digital gauges driven by the cursor.
-- **Session & setup**: every session detail, the **full car setup sheet** (side by side with differences highlighted when comparing sessions) and **notes** saved per session.
-
-→ [Instruments guide](docs/09-instruments.md)
-
-### Custom workspaces, worksheets & layouts
-- A **workspace** holds **worksheets** (tabs); each worksheet is a free layout of **components**.
-- Add any of 14 component types and **drag headers to dock** them anywhere (edges split, centre swaps). Drag gaps to resize, double-click to maximise.
-- Rename, duplicate, reorder and delete worksheets. Create, duplicate, **export and import** workspaces to share with friends.
-- Every change saves automatically.
-
-→ [Workspaces guide](docs/03-workspaces-and-layout.md)
+Four-corner tyre and brake panel, driver inputs (pedals, wheel, gear), dial/bar/digital gauges, and the full **car setup sheet** with side-by-side comparison and notes. → [Instruments guide](docs/09-instruments.md)
 
 ### Quality of life
-- **Command palette** (Ctrl/⌘ + K) and a full set of [keyboard shortcuts](docs/10-keyboard-and-mouse.md).
-- **Units**: km/h · mph · m/s, °C · °F, psi · bar · kPa, metres · km · miles.
-- **Dark and light themes** with colour-blind-validated palettes.
-- **Export** the visible range to CSV (Ctrl/⌘ + E) and save **screenshots** (Ctrl/⌘ + Shift + S).
-- **Opens MoTeC `.ld` logs** (Telemetrick writes one beside every export) as well as MoTeC CSV and generic CSV.
-- **Multi-session comparison**: overlay laps from different files, compare setups, and see trends per session.
+- Command palette (Ctrl/⌘+K) and full [keyboard shortcuts](docs/10-keyboard-and-mouse.md) (J, W, S, D, F3, F…).
+- Units: km/h · mph · m/s, °C · °F, psi · bar · kPa. Dark and light themes.
+- Export the visible range to CSV, save screenshots, drag & drop files.
+- **Opens MoTeC `.ld` logs** as well as Telemetrick CSV, MoTeC CSV and generic CSV.
 
 ---
 
-## The default workspace
+## The Starter workspace
 
-Project-Trace ships with a **Formula — Default** workspace with nine worksheets:
+Project-Trace ships with a built-in, **read-only Starter workspace**, the layout you see on first launch. Your own workspace (**My Workspace**) starts as a copy of it. If you ever want the original back:
+
+- **Workspace → Revert Current Workspace to Starter**, or **Worksheet → Reset Worksheet to Starter Version** for one tab;
+- or simply switch to **Starter** in the Workspace menu. If you edit the Starter, your change is saved into a new personal copy, so the Starter itself never changes.
 
 | Worksheet | What's on it |
 |---|---|
 | **Overview** | Speed, throttle/brake, gear, steering, RPM + variance · speed-coloured track map · lap times |
-| **Driver** | Inputs + steering rate + coasting/overlap · **gain/loss track map** · driver inputs · G-G diagram · corner report |
-| **Tyres** | Tyre temperatures, pressures, slip angle/ratio, load · tyres & brakes panel · temperature by lap · tyre summary |
-| **Brakes** | Speed, brake, brake temps, lock-up/wheelspin, decel · brake-pressure track map · brake vs decel scatter · brake temp report |
-| **Suspension** | Ride heights, damper travel, roll, pitch, rake · four damper-velocity histograms · ride-frequency FFT |
-| **Aero** | Downforce F/R, drag, aero balance, ride heights · downforce-vs-speed (quadratic fit) · balance vs front ride height |
-| **Engine & ERS** | RPM, gear, KERS charge/deploy, boost, power · gauges · RPM × throttle mixture map · gear usage |
+| **Driver** | Inputs, steering rate, coasting/overlap · gain/loss track map · driver inputs · G-G · corner report |
+| **Racing Lines** | **GPS Track** · line-related channels (speed, steering, pedals, lateral G) · corner report |
+| **Tyres** | Temperatures, pressures, slip, load · tyres & brakes panel · temperature trend · tyre summary |
+| **Brakes** | Speed, brake, temps, lock-up/wheelspin · brake-pressure map · brake vs decel scatter |
+| **Suspension** | Ride heights, damper travel, roll, pitch, rake · damper-velocity histograms · ride FFT |
+| **Aero** | Downforce, drag, balance, ride heights · downforce-vs-speed fit · balance vs ride height |
+| **Engine & ERS** | RPM, gear, KERS, boost, power · gauges · RPM × throttle map · gear usage |
 | **Lap Analysis** | Lap report · lap-time trend · lap statistics · corner report |
-| **Session & Setup** | Session details / full setup / notes · elevation-coloured track map · fuel by lap |
-
-Make it your own: everything is editable, and **▦ Workspace → New from default template** always gives you a fresh copy.
+| **Session & Setup** | Details / setup / notes · elevation map · fuel by lap |
 
 ---
 
@@ -198,17 +202,17 @@ Make it your own: everything is editable, and **▦ Workspace → New from defau
 | Guide | |
 |---|---|
 | [01 · Getting started](docs/01-getting-started.md) | Installation on Windows/macOS, first run, opening sessions |
-| [02 · Session browser](docs/02-session-browser.md) | Folders, the session table, in-game time zones, comparison |
-| [03 · Workspaces & layout](docs/03-workspaces-and-layout.md) | Workspaces, worksheets, components, docking, sharing |
-| [04 · Time/distance graph](docs/04-time-distance-graph.md) | Panes, scales, overlays, variance, cursor, zoom, measure |
-| [05 · Track map](docs/05-track-map.md) | Colouring, gain/loss, corners, sections, rotation |
-| [06 · XY charts](docs/06-xy-charts.md) | Scatter, histogram, mixture map, FFT, lap trend |
+| [02 · Session browser](docs/02-session-browser.md) | Folders, track sorting, the session table, in-game time zones |
+| [03 · Workspaces & layout](docs/03-workspaces-and-layout.md) | Starter workspace, menus, library, Properties pop-out, undo |
+| [04 · Time/distance graph](docs/04-time-distance-graph.md) | Panes, lap colours, J, Δ legends, cursor, zoom, smoothing |
+| [05 · Track Map & GPS Track](docs/05-track-map.md) | Colouring, line comparison, rotation dial, corners & sections |
+| [06 · XY charts](docs/06-xy-charts.md) | Scatter (axis ranges), histogram, mixture map, FFT, lap trend |
 | [07 · Math channels](docs/07-math-channels.md) | Syntax, every function, constants, the default library |
-| [08 · Laps, sectors & reports](docs/08-laps-sectors-reports.md) | Lap detection, validity, sectors, ideal lap, reports |
+| [08 · Laps, sectors & reports](docs/08-laps-sectors-reports.md) | Lap detection, lap colours, sectors, corner report |
 | [09 · Instruments](docs/09-instruments.md) | Gauges, driver inputs, tyres & brakes, session & setup |
 | [10 · Keyboard & mouse](docs/10-keyboard-and-mouse.md) | Every shortcut |
 | [11 · Supported file formats](docs/11-file-formats.md) | Telemetrick CSV, MoTeC .ld/.ldx, MoTeC CSV, generic CSV |
-| [12 · Settings & data](docs/12-settings-and-data.md) | Units, themes, where settings and workspaces are stored |
+| [12 · Settings & data](docs/12-settings-and-data.md) | Units, themes, smoothing, where everything is stored |
 | [13 · Architecture (developers)](docs/13-architecture.md) | Code structure, data flow, tests, adding components |
 
 ---
@@ -223,7 +227,7 @@ npm run dist:win    # on Windows → release/Project-Trace Setup 1.0.0.exe + por
 npm run dist:mac    # on a Mac   → release/Project-Trace-1.0.0.dmg + .zip
 ```
 
-macOS installers must be built on a Mac. The included GitHub Actions workflow (`.github/workflows/build.yml`) builds both automatically: push the repo to GitHub, open **Actions → Build installers → Run workflow**, and download the installers from the run's artifacts. Builds are unsigned, so on macOS right-click → **Open** the first time.
+macOS installers must be built on a Mac. The included GitHub Actions workflow (`.github/workflows/build.yml`) builds both: push the repo to GitHub, open **Actions → Build installers → Run workflow**, and download the installers from the run's artifacts. Builds are unsigned, so on macOS right-click → **Open** the first time.
 
 ---
 
@@ -233,20 +237,20 @@ macOS installers must be built on a Mac. The included GitHub Actions workflow (`
 Project-Trace/
 ├─ Start Project-Trace (Windows).bat   ← double-click launchers
 ├─ Start Project-Trace (macOS).command
-├─ electron/          main process (window, file access, menus) + preload bridge
+├─ electron/          main process (window, files, native menus) + preload bridge
 ├─ src/
-│  ├─ core/           parsers (CSV, .ld), session/lap model, math engine, units, stats
-│  ├─ state/          app store, workspaces, layout tree, default workspace & math
-│  ├─ charts/         every component (canvas-rendered charts, reports, instruments)
-│  ├─ ui/             app shell: browser, sidebar, inspector, math editor, dialogs
+│  ├─ core/           parsers (CSV, .ld), session/lap model, math engine, corners, units, stats
+│  ├─ state/          app store (incl. undo/redo), workspaces, layout tree, Starter workspace & math
+│  ├─ charts/         every component (graphs, track map, GPS track, scatter, reports, instruments)
+│  ├─ ui/             app shell: browser, sidebar, Properties pop-out, track profile, math editor
 │  └─ workers/        background CSV/.ld parsing
 ├─ tests/             parser, math engine and .ld↔CSV cross-check tests
 ├─ sample-data/       a real Telemetrick export to try
 ├─ docs/              these guides + screenshots
-└─ scripts/           launcher, dev server, screenshot automation, icon generator
+└─ scripts/           launchers, install check, dev server, screenshot automation, icon
 ```
 
-Useful commands: `npm test` (unit tests), `npm run typecheck`, `npm run dev` (hot reload), `npm run screenshots` (captures every worksheet to `screenshots-out/`).
+Useful commands: `npm test`, `npm run typecheck`, `npm run dev` (hot reload), and `npm run screenshots`. The last one captures every worksheet and runs end-to-end undo checks.
 
 ---
 
@@ -255,12 +259,12 @@ Useful commands: `npm test` (unit tests), `npm run typecheck`, `npm run dev` (ho
 | Problem | Fix |
 |---|---|
 | "Node.js is not installed" | Install the LTS version from nodejs.org, then run the launcher again. |
-| macOS: "cannot be opened because it is from an unidentified developer" | Right-click the `.command` file (or the app) → **Open** → **Open**. |
-| macOS: launcher opens in a text editor / isn't executable | In Terminal: `cd` into the folder and run `bash start-mac.sh` (or `chmod +x "Start Project-Trace (macOS).command"`). |
-| Window doesn't appear when started from a VS Code terminal | Use `npm start` (not `electron .`); it clears VS Code's `ELECTRON_RUN_AS_NODE` variable. |
-| A track folder shows no sessions | Project-Trace lists `.csv` and `.ld` files. Check Telemetrick is exporting into that folder. |
-| The in-game time looks off by some hours | Pick the right zone for that track in the Session Browser's details pane, or set **Settings → In-game clock → Raw UTC**. |
-| The track map is mirrored or rotated | Right-click the map → **Mirror** / **Rotate 90°** (saved per track). |
+| macOS: "unidentified developer" | Right-click the `.command` file (or the app) → **Open** → **Open**. |
+| macOS: launcher isn't executable / opens in a text editor | In Terminal: `cd` into the folder and run `bash start-mac.sh`. |
+| Window doesn't appear when started from a VS Code terminal | Use `npm start` (not `electron .`); it clears VS Code's `ELECTRON_RUN_AS_NODE`. |
+| I deleted something by accident | **Ctrl/⌘+Z** (Edit → Undo). For a whole tab: **Worksheet → Reset Worksheet to Starter Version**. |
+| The in-game time looks off by some hours | Pick the right zone for that track in the Session Browser's details pane, or **Settings → In-game clock → Raw UTC**. |
+| The track map is rotated or mirrored | Drag the dial ring, then **Save**; mirror via right-click → **Mirror** (both saved per track). |
 | A math channel says "n/a" | The session doesn't contain one of its input channels (normal for non-AC data). |
 
 ---

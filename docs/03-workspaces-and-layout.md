@@ -3,54 +3,85 @@
 Project-Trace follows MoTeC i2's organisation:
 
 ```
-Workspace  ── e.g. "Formula — Default"
- ├─ Worksheets (tabs) ── Overview · Driver · Tyres · …
+Workspace  ── e.g. "My Workspace"
+ ├─ Worksheets (tabs) ── Overview · Driver · Racing Lines · …
  │   └─ Components laid out in resizable splits ── graphs, track maps, reports…
  ├─ Math channels + constants
  └─ Channel display properties (colours, fixed ranges, decimals, units)
 ```
 
-Everything you change is **saved automatically** (a fraction of a second after you stop editing).
+Everything you change is **saved automatically**, and almost everything can be **undone**.
 
-## Workspaces
+## The Starter workspace
 
-Use the **▦ workspace button** in the top bar:
+Project-Trace has a built-in **Starter** workspace: the layout you see the first time you open the app. It is **read-only** and rebuilt fresh on every launch, so it can never be lost or broken.
 
-| Action | What it does |
+- On first launch you get **My Workspace**, a copy of the Starter that is yours to change.
+- Switch to the Starter at any time from the **Workspace** menu to see the original layout.
+- If you edit the Starter, the change goes into a new personal workspace (you get a short notice), and the Starter stays untouched.
+- To bring a workspace back to the original: **Workspace → Revert Current Workspace to Starter**. For one tab: **Worksheet → Reset Worksheet to Starter Version**, or right-click the tab → **Reset to Starter version**. Both can be undone.
+
+## Undo and redo
+
+**Ctrl/⌘ + Z** undoes and **Ctrl/⌘ + Y** (or Ctrl/⌘ + Shift + Z) redoes. These are also in the **Edit** menu, and a short notice says what was undone. The history covers:
+
+- adding, removing, moving, docking and resizing components;
+- adding, deleting, renaming, duplicating, resetting and reordering worksheets;
+- graph panes and channels: adding, removing, moving, pane heights and scales;
+- component properties, channel properties and math channels;
+- track profiles: corners, sections, saved rotation, mirror;
+- creating, deleting, renaming and importing workspaces.
+
+Continuous edits (like dragging a divider) become a single undo step. Inside a text box, Ctrl/⌘ + Z undoes your typing as usual. Viewing changes such as switching tabs, zooming or moving the cursor are not undo steps.
+
+## Workspace menu (menu bar)
+
+| Item | What it does |
 |---|---|
-| *Workspace list* | Switch workspace. Math channels are recomputed for the open sessions. |
-| **New from default template** | A fresh copy of the 9-sheet *Formula — Default* workspace. |
-| **New blank workspace** | One sheet with a graph and a track map. |
-| **Duplicate current** | Copy to experiment safely. |
-| **Rename current…** | |
-| **Export current to file…** | Saves a `.ptw.json` file you can share or back up. |
-| **Import from file…** | Loads a shared workspace (added alongside yours, never overwriting). |
-| **Delete current** | Asks first; you always keep at least one. |
+| *workspace list* | Switch workspace (the Starter is marked *built-in, read-only*). Math channels are recomputed. |
+| **New Workspace from Starter…** | A fresh copy of the Starter. |
+| **New Blank Workspace…** | One sheet with a graph and a track map. |
+| **Duplicate Current Workspace** | Copy to experiment safely. |
+| **Rename Current Workspace…** | |
+| **Revert Current Workspace to Starter** | Replaces its worksheets and math with the Starter's (undoable). |
+| **Export Workspace…** / **Import Workspace…** | Share a `.ptw.json` file. Imports are added alongside yours. |
+| **Delete Current Workspace…** | Asks first; undoable. |
 
-Workspaces are plain JSON. Share one with a friend and they get your sheets, layouts and math channels.
+The current workspace's name is shown in the top bar.
 
-## Worksheets (tabs)
+## Worksheet menu (menu bar)
 
-- **Click** a tab or press **1–9** to switch.
-- **＋** adds a worksheet.
-- **Double-click** a tab to rename it.
-- **Drag** tabs to reorder them.
-- **Right-click** for Rename / Duplicate / Move left / Move right / Delete.
+| Item | What it does |
+|---|---|
+| **New / Duplicate / Rename / Delete Worksheet** | |
+| **Reset Worksheet to Starter Version** | Restores the Starter layout of the tab with the same name. |
+| **Save Worksheet to Library…** | Keeps a named copy in your personal worksheet library (shared by all workspaces). |
+| **Insert Saved Worksheet ▸** | Adds a library worksheet as a new tab in the current workspace. |
+| **Remove from Library ▸** | |
+| **Export Worksheet…** / **Import Worksheet…** | Share one tab as a `.ptsheet.json` file. |
+
+Tabs themselves:
+- **click** a tab or press **1–9** to switch;
+- **double-click** to rename;
+- **drag** to reorder;
+- **right-click** for Rename, Duplicate, Reset to Starter, Save to library, Export, Move, Delete;
+- **＋** adds a tab.
 
 ## Components
 
-There are 14 component types:
+There are 15 component types:
 
 | Component | Purpose |
 |---|---|
 | Time / Distance Graph | Multi-channel traces with lap overlays, variance, cursor and zoom |
-| Track Map | Track outline coloured by channel, lap or gain/loss |
-| Scatter / XY Plot | Channel vs channel with fits and interval averages |
+| Track Map | Track coloured by channel, lap or time gained/lost |
+| GPS Track | Thin racing lines per lap for comparing lines |
+| Scatter / XY Plot | Channel vs channel with fits, interval averages, axis ranges |
 | Histogram | Distribution with zone breakdowns |
 | Mixture Map | 2-D histogram (% time or a third channel) |
 | Lap Report | Lap & sector/section times, ideal lap |
 | Channel Report | Min/max/avg/std per lap |
-| Corner Report | Per-corner speeds/times vs reference |
+| Corner Report | Per-corner speeds/times vs reference (your corners) |
 | Lap Trend | A statistic per lap across the session |
 | Gauges | Dial/bar/digital at the cursor |
 | Driver Inputs | Pedals, wheel, gear, speed, RPM |
@@ -58,48 +89,50 @@ There are 14 component types:
 | Frequency (FFT) | Spectrum of a channel |
 | Session & Setup | Details, full setup sheet, notes |
 
-### Adding
-- **＋ Component** (right end of the tab bar) adds to the current worksheet.
-- **＋** on a component's header adds a new component **beside** it.
-- With nothing selected, the **Properties** panel lists every type; click one to add it.
-- Right-click a header → **Split right with… / Split below with… / Replace with…**.
-- The command palette (**Ctrl/⌘ + K**) has "Add component: …" for every type.
+### Adding, removing, arranging
+- **＋ Component** (right end of the tab bar) adds to the current worksheet; **＋** on a header adds beside that component.
+- **Right-click anywhere in a component** for its own options, then **Properties…**, **Maximise** and **Remove component**.
+- **Dock**: drag a component's **header** onto another component. Edges split; the centre swaps.
+- **Resize**: drag the gaps between components. **Maximise**: double-click the header.
 
-### Arranging
-- **Resize**: drag the thin gaps between components.
-- **Dock**: drag a component's **header** onto another component. A blue zone shows where it will land:
-  - **left / right / top / bottom edge** splits that component and places yours there;
-  - the **centre** swaps the two.
-- **Maximise**: double-click the header (or □). Double-click again to restore.
-- **Remove**: ✕ on the header.
+## The Properties pop-out
 
-### Configuring
-Click a component (or ⚙ on its header) to show its settings in the **Properties** panel on the right (toggle with **Ctrl/⌘ + I**). Every component also has a **right-click menu** with the most common options, and most accept **channels dragged from the sidebar**:
+![Properties](images/properties-graph.png)
 
-| Drop a channel on… | Effect |
+Properties are available in two forms that show the same settings:
+
+- the **Properties side panel** on the right, toggled with **Ctrl/⌘ + I** (or *View → Toggle Properties Panel*). It follows whichever component you click; drag its edge to resize it, and **⤢ Pop out** opens the large window;
+- the **large centred pop-out**, opened by **right-clicking any component → Properties…** or the **☰ Properties** button in the top bar.
+
+In the pop-out:
+- the drop-down at the top switches to any other component on the worksheet;
+- the title box renames the component;
+- **Remove component** deletes it (undoable).
+
+What's inside depends on the component:
+
+| Component | Highlights |
 |---|---|
-| a graph pane | adds it to that pane (drop near the bottom or hold Shift for a new pane) |
-| a track map | colours the map by it |
-| a histogram | shows its distribution |
-| a channel report | adds a row |
-| gauges | adds a digital gauge |
+| Graph | Display options plus a **panes & channels** section: each pane lists its channels with **colour swatch**, unit, sample rate and range, a **Properties…** button and a right-click menu (colour, move to another pane, remove). Pane scale, height, order and shared y-range are here too. |
+| Scatter | **Axes & scales**: fixed X and Y min/max (blank = automatic) and equal aspect, plus channels, colour, gate, fit, interval averages. |
+| Lap Trend | Statistic and **Y-axis min/max**. |
+| Track Map | Colouring, including **custom low/high colours**, display options, and the **track profile** (rotation, corners, sections). |
+| GPS Track | Line width, framing, follow-cursor, track band, plus the track profile. |
+| Corner Report | Metric, plus the track profile. |
 
 ## Channel properties
 
-Right-click a channel in a graph legend or in the Channels list → **Channel properties…**:
-- **Colour** — pick from the palette or any custom colour (or *Auto*).
-- **Fixed min / max** — lock the y-range (in display units).
-- **Decimal places**.
-- **Display unit override** — e.g. show one speed channel in mph.
+![Scatter properties](images/properties-scatter.png)
 
-These are stored per workspace.
+Open from a graph legend (right-click a channel name), the Channels sidebar, or the graph Properties' channel table:
+- **Colour**: palette swatches, a **Custom…** colour picker or a hex value, or *Auto*. This colour is used by the reference lap when it shows channel colours (see [04](04-time-distance-graph.md#lap-colours)).
+- **Fixed min / max** (display units), **decimal places**, **display unit override**.
+
+Stored per workspace.
 
 ## The sidebar
 
-The left sidebar (toggle with **Ctrl/⌘ + B**, drag its edge to resize) has two tabs:
+The left sidebar (toggle with **Ctrl/⌘ + B**; drag its edge to resize) has two tabs:
 
-- **Sessions & laps**: each loaded session with its laps. See [08 · Laps](08-laps-sectors-reports.md) for selection rules.
-- **Channels**: every channel grouped by category, with its live value at the cursor:
-  - Driver Inputs, Speed & Position, Lap & Timing, Engine, Hybrid/ERS, Tyres, Brakes, Suspension, Chassis, Aero, Environment, Session & Sim, Derived, Math;
-  - search box and "Hide constant channels";
-  - double-click a channel to add it to the selected graph; drag it onto any component.
+- **Sessions & laps**: each session's laps. **Click a selected lap's colour square to change its colour.** See [08](08-laps-sectors-reports.md).
+- **Channels**: every channel by category with its live value at the cursor. Drag onto components, double-click to add to a graph, right-click for properties.

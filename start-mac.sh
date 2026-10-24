@@ -18,11 +18,8 @@ if ! command -v node >/dev/null 2>&1; then
   exit 1
 fi
 
-if [ ! -d node_modules/electron ]; then
-  echo ""
-  echo "  First run: installing Project-Trace (about a minute, needs internet)..."
-  npm install || { read -r -p "Installation failed — press Enter to close."; exit 1; }
-fi
+# Installs (or re-installs, if the folder was copied from Windows) the dependencies for this Mac.
+node scripts/ensure-install.mjs || { read -r -p "Installation failed — press Enter to close."; exit 1; }
 
 echo "  Starting Project-Trace..."
 npm start

@@ -4,7 +4,6 @@ import { useMemo, useState } from 'react';
 import { xToTime } from '../core/axis';
 import { CATEGORIES } from '../core/channelMeta';
 import { sampleAt } from '../core/channel';
-import { lapColor } from '../core/colors';
 import { formatDelta, formatLapTime, formatValue, prettyCar, prettyTrack } from '../core/format';
 import { fastestLap } from '../core/session';
 import { lapKey, type Session } from '../core/types';
@@ -17,6 +16,8 @@ import {
   refLap,
   selectLap,
   selectWholeSession,
+  selectedLaps,
+  setLapColor,
   setUi,
   updateComponent,
   updateSettings,
@@ -24,12 +25,13 @@ import {
 } from '../state/store';
 import type { GraphConfig } from '../state/workspace';
 import { channelDps, conv } from '../charts/data';
-import { openChannelProps, openMenu } from './overlays';
+import { openChannelProps, openColorPicker, openMenu } from './overlays';
 
 function SessionCard({ s }: { s: Session }) {
   const lapSel = useStore((st) => st.laps);
   const refKey = useStore((st) => st.refKey);
-  const theme = useStore((st) => st.settings.theme);
+  useStore((st) => st.settings.theme);
+  const colorOf = new Map(selectedLaps().map((l) => [l.key, l.color]));
   const fl = fastestLap(s);
   const tr = prettyTrack(s.meta.venue);
   const wholeKey = lapKey({ sessionId: s.id, lapIndex: -1 });
@@ -39,7 +41,7 @@ function SessionCard({ s }: { s: Session }) {
         <div className="row">
           <div className="grow" style={{ minWidth: 0 }}>
             <div className="t" title={s.meta.venue}>
-              {tr.track}
+              {s.meta.driver || tr.track} <span className="muted" style={{ fontWeight: 400 }}>· {tr.track}</span>
             </div>
             <div className="muted" style={{ fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={s.fileName}>
               {prettyCar(s.meta.vehicle)} · {s.meta.driver}
@@ -69,16 +71,24 @@ function SessionCard({ s }: { s: Session }) {
                 { label: 'Show only this lap', onClick: () => selectLap(key, 'replace') },
                 { label: sel ? 'Remove overlay' : 'Add as overlay', onClick: () => selectLap(key, 'toggle') },
                 { label: 'Set as reference', onClick: () => selectLap(key, 'reference') },
+                { separator: true },
+                {
+                  label: 'Lap colour…',
+                  disabled: !sel,
+                  onClick: () => openColorPicker(e, colorOf.get(key), (c) => setLapColor(key, c), { allowAuto: true, title: `Lap ${lap.number} colour` }),
+                },
               ]);
             }}
             title="Click: show this lap · Ctrl/⌘+click: overlay · Shift+click: set as reference"
           >
             <span
               className="lap-check"
-              style={sel ? { background: lapColor(sel.slot, theme), borderColor: lapColor(sel.slot, theme) } : undefined}
+              style={sel ? { background: colorOf.get(key), borderColor: colorOf.get(key), cursor: 'pointer' } : undefined}
+              title={sel ? 'Click to change this lap’s colour' : 'Add as overlay'}
               onClick={(e) => {
                 e.stopPropagation();
-                selectLap(key, 'toggle');
+                if (sel) openColorPicker(e, colorOf.get(key), (c) => setLapColor(key, c), { allowAuto: true, title: `Lap ${lap.number} colour` });
+                else selectLap(key, 'toggle');
               }}
             />
             <span

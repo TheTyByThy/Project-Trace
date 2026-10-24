@@ -1,42 +1,46 @@
 // Time / Distance graph — the core MoTeC-style component.
 //  • Panes stacked vertically share the x-axis; channels with the same unit share a y-scale.
-//  • Every selected lap is overlaid; the reference lap is drawn last and solid.
+//  • Every selected lap is overlaid in its lap colour; the reference lap is drawn last and uses
+//    per-channel colours or its lap colour (toggle with J).
 //  • Optional time-variance pane (Δ vs reference) at the top.
-//  • Click = cursor, drag = zoom, Shift+drag = measure range, wheel = zoom, right/middle-drag = pan,
-//    double-click = reset zoom. Drag channels in from the sidebar to add them.
+//  • Click / drag = move the cursor, double-click-and-drag = zoom, Shift+drag = measure,
+//    wheel = zoom, right/middle-drag = pan, drag a pane border = resize panes.
 
 import { useCallback, useEffect, useRef } from 'react';
 import { computeVariance, lapSeries, varianceAt, xToTime } from '../core/axis';
-import { CATEGORICAL, channelColors, LAP_DASHES, withAlpha } from '../core/colors';
-import { detectCorners } from '../core/corners';
+import { CATEGORICAL, channelColors, withAlpha } from '../core/colors';
 import { formatAxisDistance, formatAxisTime, formatDelta, formatValue } from '../core/format';
-import { crossingTime } from '../core/session';
+import { crossingTime, lapDistAt } from '../core/session';
 import { rangeStats, niceTicks } from '../core/stats';
-import type { ChannelInfo } from '../core/types';
+import type { ChannelInfo, Samples } from '../core/types';
 import { pane as newPane } from '../state/components';
 import {
   activeWorkspace,
+  addCorner,
   selectedLaps,
   setChannelProps,
   setCursor,
   setMeasure,
+  setTrackProfile,
   setZoom,
   trackProfile,
   updateComponent,
   useStore,
   viewRange,
+  zoomToLap,
   type SelectedLap,
 } from '../state/store';
 import type { GraphConfig, GraphPane } from '../state/workspace';
-import { openChannelPicker, openChannelProps, openMenu } from '../ui/overlays';
+import { openChannelPicker, openChannelProps, openMenu, promptText } from '../ui/overlays';
 import { chartTheme, drawTrace, fmtTick, lowerBound, prepCanvas, useElementSize, useStoreListener } from './canvas';
-import { channelDps, conv, lapRange } from './data';
+import { channelDps, conv, displayData, lapRange } from './data';
 
 const LEFT = 54;
 const RIGHT = 10;
 const TOP = 4;
 const BOTTOM = 22;
-const VARIANCE_WEIGHT = 0.55;
+const DEFAULT_VARIANCE_WEIGHT = 0.55;
+const DOUBLE_CLICK_MS = 380;
 
 interface TraceInfo {
   name: string;
@@ -56,8 +60,6 @@ interface PaneLayout {
   top: number;
   bottom: number;
   traces: TraceInfo[];
-  colorByLap: boolean;
-  shared: boolean;
   vMin: number;
   vMax: number;
   legendRows: { y: number; h: number; name: string }[];
@@ -84,21 +86,32 @@ function visibleRange(sel: SelectedLap, ch: ChannelInfo, v0: number, v1: number,
   return st.count ? [st.min, st.max] : null;
 }
 
+/** Interpolated (or held, for discrete channels) value at session time t. */
+function valueAt(ch: ChannelInfo, data: Samples, t: number): number {
+  const f = (t - ch.t0) * ch.rate;
+  if (ch.discrete) return data[Math.max(0, Math.min(ch.n - 1, Math.floor(f + 1e-6)))];
+  const i0 = Math.max(0, Math.min(ch.n - 2, Math.floor(f)));
+  const fr = Math.max(0, Math.min(1, f - i0));
+  return data[i0] + (data[i0 + 1] - data[i0]) * fr;
+}
+
 export function GraphView({ config }: { config: GraphConfig }) {
   const [wrapRef, size] = useElementSize<HTMLDivElement>();
   const baseRef = useRef<HTMLCanvasElement>(null);
   const overRef = useRef<HTMLCanvasElement>(null);
   const layoutRef = useRef<Layout | null>(null);
   const dragRef = useRef<{
-    mode: 'select' | 'measure' | 'pan' | 'resize';
+    mode: 'scrub' | 'select' | 'measure' | 'pan' | 'resize';
     startPx: number;
     curPx: number;
     startY: number;
     moved: boolean;
     zoom0: [number, number];
-    paneIdx?: number;
+    sep?: number;
     weights?: number[];
   } | null>(null);
+  const lastUpRef = useRef({ t: 0, x: 0 });
+  const hoverSepRef = useRef(-1);
   const dropRef = useRef<{ pane: number; newPane: boolean } | null>(null);
 
   const sessions = useStore((s) => s.sessions);
@@ -108,9 +121,17 @@ export function GraphView({ config }: { config: GraphConfig }) {
   const zoom = useStore((s) => s.zoom);
   const dataVersion = useStore((s) => s.dataVersion);
   const theme = useStore((s) => s.settings.theme);
-  const overlayStyle = useStore((s) => s.settings.overlayStyle);
+  const refColors = useStore((s) => s.settings.refColors);
   const distUnit = useStore((s) => s.settings.units.distance);
+  const profiles = useStore((s) => s.settings.trackProfiles);
   const channelPropsAll = useStore((s) => activeWorkspace(s)?.channelProps);
+
+  const showVar = (laps: SelectedLap[]) => config.showVariance && laps.length > 1;
+  /** Weights for every pane, top to bottom (variance first when shown). */
+  const allWeights = (laps: SelectedLap[]) => [
+    ...(showVar(laps) ? [config.varianceWeight ?? DEFAULT_VARIANCE_WEIGHT] : []),
+    ...config.panes.map((p) => p.weight),
+  ];
 
   // ------------------------------------------------------------------ base layer
   const drawBase = useCallback(() => {
@@ -122,26 +143,25 @@ export function GraphView({ config }: { config: GraphConfig }) {
     const laps = selectedLaps(st);
     const [v0, v1] = viewRange(st);
     const ref = laps[0];
-    const panesCfg = config.panes;
-    const showVar = config.showVariance && laps.length > 1;
-    const totalW = panesCfg.reduce((a, p) => a + p.weight, 0) + (showVar ? VARIANCE_WEIGHT : 0);
+    const weights = allWeights(laps);
+    const totalW = weights.reduce((a, b) => a + b, 0);
     const plotH = h - TOP - BOTTOM;
     const L: Layout = { w, h, v0, v1, panes: [], laps };
     let y = TOP;
-    const mkPane = (kind: PaneLayout['kind'], index: number, weight: number): PaneLayout => {
-      const ph = (weight / Math.max(0.0001, totalW)) * plotH;
-      const p: PaneLayout = { kind, index, top: y, bottom: y + ph, traces: [], colorByLap: false, shared: true, vMin: 0, vMax: 1, legendRows: [] };
+    let wi = 0;
+    const mkPane = (kind: PaneLayout['kind'], index: number): PaneLayout => {
+      const ph = (weights[wi++] / Math.max(0.0001, totalW)) * plotH;
+      const p: PaneLayout = { kind, index, top: y, bottom: y + ph, traces: [], vMin: 0, vMax: 1, legendRows: [] };
       y += ph;
       return p;
     };
-    if (showVar) L.panes.push(mkPane('variance', -1, VARIANCE_WEIGHT));
-    panesCfg.forEach((p, i) => L.panes.push(mkPane('channels', i, p.weight)));
+    if (showVar(laps)) L.panes.push(mkPane('variance', -1));
+    config.panes.forEach((_, i) => L.panes.push(mkPane('channels', i)));
     layoutRef.current = L;
 
     const px = (x: number) => pxOf(L, x);
     const plotL = LEFT;
     const plotR = w - RIGHT;
-
     ctx.font = T.font;
     ctx.textBaseline = 'middle';
 
@@ -165,25 +185,20 @@ export function GraphView({ config }: { config: GraphConfig }) {
     ctx.stroke();
     ctx.fillStyle = T.text3;
     ctx.textAlign = 'center';
-    for (const t of xTicks) {
-      const label = xMode === 'time' ? formatAxisTime(t, xStep) : formatAxisDistance(t, xStep, distUnit);
-      ctx.fillText(label, px(t), h - BOTTOM / 2);
-    }
+    for (const t of xTicks) ctx.fillText(xMode === 'time' ? formatAxisTime(t, xStep) : formatAxisDistance(t, xStep, distUnit), px(t), h - BOTTOM / 2);
     ctx.textAlign = 'right';
     ctx.fillText(xMode === 'time' ? (ref.lap.index === -1 ? 'session time' : 'lap time') : distUnit, plotL - 6, h - BOTTOM / 2);
 
     // ---- sector / section / corner markers ----
     if (ref.lap.index !== -1) {
+      const prof = trackProfile(ref.session.meta.venue);
       const markers: { x: number; label: string; strong: boolean }[] = [];
       const toX = (d: number) => (xMode === 'distance' ? d : crossingTime(ref.lap, d) - ref.lap.start);
       if (config.showSectors) {
         ref.session.sectorSplits.forEach((d, i) => markers.push({ x: toX(d), label: `S${i + 2}`, strong: true }));
-        trackProfile(ref.session.meta.venue).sections.forEach((s) => markers.push({ x: toX(s.dist), label: s.name, strong: false }));
+        prof.sections.forEach((s) => markers.push({ x: toX(s.dist), label: s.name, strong: false }));
       }
-      if (config.showCorners) {
-        const names = trackProfile(ref.session.meta.venue).cornerNames;
-        detectCorners(ref.session, ref.lap).forEach((c) => markers.push({ x: toX(c.apex), label: names[c.name] || c.name, strong: false }));
-      }
+      if (config.showCorners) prof.corners.forEach((c) => markers.push({ x: toX(c.dist), label: c.name, strong: false }));
       for (const m of markers) {
         if (!Number.isFinite(m.x) || m.x < v0 || m.x > v1) continue;
         const X = Math.round(px(m.x)) + 0.5;
@@ -203,7 +218,6 @@ export function GraphView({ config }: { config: GraphConfig }) {
     // ---- panes ----
     for (const P of L.panes) {
       const ph = P.bottom - P.top;
-      // pane separator
       ctx.strokeStyle = T.border;
       ctx.beginPath();
       ctx.moveTo(plotL, Math.round(P.bottom) + 0.5);
@@ -223,7 +237,7 @@ export function GraphView({ config }: { config: GraphConfig }) {
         P.vMin = -mx;
         P.vMax = mx;
         const py = (val: number) => P.top + 6 + ((P.vMax - val) / (P.vMax - P.vMin)) * (ph - 12);
-        drawYAxis(ctx, T, P, py, -mx, mx, 's');
+        drawYAxis(ctx, T, P, py, -mx, mx);
         ctx.strokeStyle = T.gridStrong;
         ctx.beginPath();
         ctx.moveTo(plotL, Math.round(py(0)) + 0.5);
@@ -236,15 +250,13 @@ export function GraphView({ config }: { config: GraphConfig }) {
         for (const { l, v } of vars) {
           ctx.strokeStyle = l.color;
           ctx.lineWidth = 1.5;
-          ctx.setLineDash(laps.length > 4 ? LAP_DASHES[l.slot % 8] : []);
           drawTrace(ctx, { xs: xMode === 'distance' ? v.dist : v.refTime, data: v.delta, off: 0, k: 1, b: 0, x0: v0, x1: v1, px, py, step: false });
         }
-        ctx.setLineDash([]);
         ctx.restore();
         continue;
       }
 
-      const cfg = panesCfg[P.index];
+      const cfg = config.panes[P.index];
       const colors = channelColors(cfg.channels, theme, channelPropsAll ?? {});
       const traces: TraceInfo[] = cfg.channels.map((name, ci) => {
         let mn = Infinity,
@@ -286,9 +298,8 @@ export function GraphView({ config }: { config: GraphConfig }) {
         return { name, color: colors[ci], unit, dps, k, b, min: mn, max: mx, present };
       });
       const units = new Set(traces.filter((t) => t.present).map((t) => t.unit));
-      P.shared = cfg.scale === 'shared' || (cfg.scale === 'auto' && units.size <= 1);
-      P.colorByLap = laps.length > 1 && (overlayStyle === 'lap' || (overlayStyle === 'auto' && cfg.channels.length === 1));
-      if (P.shared) {
+      const shared = cfg.scale === 'shared' || (cfg.scale === 'auto' && units.size <= 1);
+      if (shared) {
         let mn = Math.min(...traces.map((t) => t.min));
         let mx = Math.max(...traces.map((t) => t.max));
         if (cfg.min != null) mn = cfg.min;
@@ -309,8 +320,7 @@ export function GraphView({ config }: { config: GraphConfig }) {
       if (first) {
         P.vMin = first.min;
         P.vMax = first.max;
-        const py = (v: number) => P.top + ((first.max - v) / (first.max - first.min)) * ph;
-        drawYAxis(ctx, T, P, py, first.min, first.max, first.unit);
+        drawYAxis(ctx, T, P, (v) => P.top + ((first.max - v) / (first.max - first.min)) * ph, first.min, first.max);
       }
 
       ctx.save();
@@ -318,7 +328,7 @@ export function GraphView({ config }: { config: GraphConfig }) {
       ctx.rect(plotL, P.top, plotR - plotL, ph);
       ctx.clip();
       ctx.lineJoin = 'round';
-      // Overlays first, reference on top.
+      // Overlays first (solid, lap colour), reference on top.
       const order = laps.slice(1).concat(laps.slice(0, 1));
       for (const t of traces) {
         const py = (v: number) => P.top + ((t.max - v) / (t.max - t.min)) * ph;
@@ -327,34 +337,21 @@ export function GraphView({ config }: { config: GraphConfig }) {
           if (!ch) continue;
           const ser = lapSeries(l.lap, ch, xMode);
           const isRef = l === laps[0];
-          if (laps.length === 1) {
-            ctx.strokeStyle = t.color;
-            ctx.lineWidth = 1.4;
-            ctx.setLineDash([]);
-          } else if (P.colorByLap) {
-            ctx.strokeStyle = l.color;
-            ctx.lineWidth = isRef ? 1.6 : 1.25;
-            ctx.setLineDash(laps.length > 3 ? LAP_DASHES[l.slot % 8] : []);
-          } else {
-            ctx.strokeStyle = isRef ? t.color : withAlpha(t.color, 0.85);
-            ctx.lineWidth = isRef ? 1.6 : 1.2;
-            ctx.setLineDash(isRef ? [] : LAP_DASHES[Math.max(1, l.slot) % 8]);
-          }
-          drawTrace(ctx, { xs: ser.xs, data: ch.data, off: ser.i0, k: t.k, b: t.b, x0: v0, x1: v1, px, py, step: ch.discrete });
+          ctx.strokeStyle = isRef ? (refColors === 'channel' ? t.color : l.color) : l.color;
+          ctx.lineWidth = isRef ? 1.5 : 1.2;
+          drawTrace(ctx, { xs: ser.xs, data: displayData(ch), off: ser.i0, k: t.k, b: t.b, x0: v0, x1: v1, px, py, step: ch.discrete });
         }
       }
-      ctx.setLineDash([]);
       ctx.restore();
     }
 
-    // outer frame line under x-axis
     ctx.strokeStyle = T.border;
     ctx.beginPath();
     ctx.moveTo(plotL + 0.5, TOP);
     ctx.lineTo(plotL + 0.5, h - BOTTOM);
     ctx.stroke();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [size, config, sessions, lapSel, refKey, xMode, zoom, dataVersion, theme, overlayStyle, distUnit, channelPropsAll]);
+  }, [size, config, sessions, lapSel, refKey, xMode, zoom, dataVersion, theme, refColors, distUnit, channelPropsAll, profiles]);
 
   // ------------------------------------------------------------------ overlay layer
   const drawOverlay = useCallback(() => {
@@ -371,7 +368,13 @@ export function GraphView({ config }: { config: GraphConfig }) {
     ctx.font = T.font;
     ctx.textBaseline = 'middle';
 
-    // measure band
+    // pane resize handle highlight
+    const hs = hoverSepRef.current;
+    if (hs >= 0 && L.panes[hs]) {
+      ctx.fillStyle = withAlpha(T.accent, 0.55);
+      ctx.fillRect(LEFT, Math.round(L.panes[hs].bottom) - 1, w - LEFT - RIGHT, 3);
+    }
+
     if (measure) {
       const a = px(Math.min(measure[0], measure[1]));
       const b = px(Math.max(measure[0], measure[1]));
@@ -385,12 +388,10 @@ export function GraphView({ config }: { config: GraphConfig }) {
       ctx.lineTo(Math.round(b) + 0.5, h - BOTTOM);
       ctx.stroke();
       const span = Math.abs(measure[1] - measure[0]);
-      const label = mode === 'time' ? `Δ ${span.toFixed(3)} s` : `Δ ${span.toFixed(1)} m`;
       ctx.fillStyle = T.text;
       ctx.textAlign = 'center';
-      ctx.fillText(label, (a + b) / 2, TOP + 9);
+      ctx.fillText(mode === 'time' ? `Δ ${span.toFixed(3)} s` : `Δ ${span.toFixed(1)} m`, (a + b) / 2, TOP + 9);
     }
-    // drag selection
     const d = dragRef.current;
     if (d && d.moved && (d.mode === 'select' || d.mode === 'measure')) {
       const a = Math.min(d.startPx, d.curPx);
@@ -399,8 +400,12 @@ export function GraphView({ config }: { config: GraphConfig }) {
       ctx.fillRect(a, TOP, b - a, h - TOP - BOTTOM);
       ctx.strokeStyle = withAlpha(T.text, 0.35);
       ctx.strokeRect(a + 0.5, TOP + 0.5, b - a, h - TOP - BOTTOM);
+      if (d.mode === 'select') {
+        ctx.fillStyle = T.text2;
+        ctx.textAlign = 'center';
+        ctx.fillText('release to zoom', (a + b) / 2, TOP + 9);
+      }
     }
-    // drop target
     const drop = dropRef.current;
     if (drop) {
       ctx.strokeStyle = T.accent;
@@ -419,79 +424,69 @@ export function GraphView({ config }: { config: GraphConfig }) {
       ctx.lineWidth = 1;
     }
 
-    // cursor line + dots
-    const inView = cursor != null && cursor >= L.v0 && cursor <= L.v1;
-    if (inView) {
-      const X = Math.round(px(cursor!)) + 0.5;
+    if (cursor != null && cursor >= L.v0 && cursor <= L.v1) {
+      const X = Math.round(px(cursor)) + 0.5;
       ctx.strokeStyle = T.cursor;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(X, TOP);
       ctx.lineTo(X, h - BOTTOM);
       ctx.stroke();
-      ctx.fillStyle = T.cursor;
-      ctx.textAlign = 'center';
-      const label = mode === 'time' ? formatAxisTime(cursor!, 0.01) : `${cursor!.toFixed(0)} m`;
+      const label = mode === 'time' ? formatAxisTime(cursor, 0.01) : `${cursor.toFixed(0)} m`;
       const tw = ctx.measureText(label).width + 10;
       ctx.fillStyle = T.cursor;
       ctx.fillRect(X - tw / 2, h - BOTTOM + 2, tw, BOTTOM - 4);
       ctx.fillStyle = T.surface;
+      ctx.textAlign = 'center';
       ctx.fillText(label, X, h - BOTTOM / 2);
     }
 
     // legends
+    const refColorsMode = st.settings.refColors;
     for (const P of L.panes) {
-      const rows: { swatch: string; dash: number[]; label: string; values: { color: string; dash: number[]; text: string }[] }[] = [];
+      const rows: LegendRow[] = [];
       if (P.kind === 'variance') {
         rows.push({
           swatch: T.text3,
-          dash: [],
           label: 'Time variance vs ref (s)',
           values: laps.slice(1).map((l) => {
-            const v = computeVariance(laps[0].lap, l.lap);
-            const dv = cursor != null ? varianceAt(v, cursor, mode) : NaN;
-            return { color: l.color, dash: laps.length > 4 ? LAP_DASHES[l.slot % 8] : [], text: formatDelta(dv, 3) };
+            const dv = cursor != null ? varianceAt(computeVariance(laps[0].lap, l.lap), cursor, mode) : NaN;
+            return { color: l.color, text: formatDelta(dv, 3) };
           }),
         });
       } else {
         for (const t of P.traces) {
-          const values: { color: string; dash: number[]; text: string }[] = [];
+          const values: LegendValue[] = [];
+          let refVal = NaN;
           for (const l of laps) {
             const ch = l.session.channels.get(t.name);
-            let text = '—';
-            if (ch && measure && l === laps[0]) {
+            const isRef = l === laps[0];
+            const color = isRef ? (refColorsMode === 'channel' ? t.color : l.color) : l.color;
+            let text = ch ? '—' : 'n/a';
+            let delta: string | undefined;
+            if (ch && measure && isRef) {
               const ta = xToTime(l.lap, Math.min(measure[0], measure[1]), mode);
               const tb = xToTime(l.lap, Math.max(measure[0], measure[1]), mode);
-              const i0 = Math.max(0, Math.ceil((ta - ch.t0) * ch.rate));
-              const i1 = Math.min(ch.n - 1, Math.floor((tb - ch.t0) * ch.rate));
-              const s = rangeStats(ch.data, i0, i1);
+              const s = rangeStats(ch.data, Math.max(0, Math.ceil((ta - ch.t0) * ch.rate)), Math.min(ch.n - 1, Math.floor((tb - ch.t0) * ch.rate)));
               const f = (v: number) => formatValue(v * t.k + t.b, t.dps);
               text = `min ${f(s.min)}  avg ${f(s.mean)}  max ${f(s.max)}  Δ ${formatValue((s.last - s.first) * t.k, t.dps)}`;
             } else if (ch && cursor != null) {
               const tt = xToTime(l.lap, cursor, mode);
               if (l.lap.index === -1 || (tt >= l.lap.start - 0.3 && tt <= l.lap.end + 0.3)) {
-                const f = (tt - ch.t0) * ch.rate;
-                const i = Math.max(0, Math.min(ch.n - 1, ch.discrete ? Math.floor(f + 1e-6) : Math.round(f)));
-                let v = ch.data[i];
-                if (!ch.discrete) {
-                  const i0 = Math.max(0, Math.min(ch.n - 2, Math.floor(f)));
-                  const fr = Math.max(0, Math.min(1, f - i0));
-                  v = ch.data[i0] + (ch.data[i0 + 1] - ch.data[i0]) * fr;
+                const v = valueAt(ch, displayData(ch), tt) * t.k + t.b;
+                text = formatValue(v, t.dps);
+                if (isRef) refVal = v;
+                else if (Number.isFinite(refVal) && Number.isFinite(v)) {
+                  const dv = v - refVal;
+                  delta = `Δ${dv >= 0 ? '+' : '−'}${Math.abs(dv).toFixed(t.dps)}`;
                 }
-                text = formatValue(v * t.k + t.b, t.dps);
               }
-            } else if (!ch) text = 'n/a';
-            const isRef = l === laps[0];
-            values.push({
-              color: laps.length === 1 ? t.color : P.colorByLap ? l.color : t.color,
-              dash: laps.length === 1 ? [] : P.colorByLap ? (laps.length > 3 ? LAP_DASHES[l.slot % 8] : []) : isRef ? [] : LAP_DASHES[Math.max(1, l.slot) % 8],
-              text,
-            });
-            if (measure && l === laps[0]) break;
+            }
+            values.push({ color, text, delta });
+            if (measure && isRef) break;
           }
           rows.push({
-            swatch: P.colorByLap ? T.text3 : t.color,
-            dash: [],
+            swatch: refColorsMode === 'channel' ? t.color : laps[0].color,
             label: t.name + (t.unit ? ` [${t.unit}]` : '') + (t.present ? '' : ' — not in session'),
             values: laps.length === 1 || measure ? values.slice(0, 1).map((v) => ({ ...v, color: '' })) : values,
           });
@@ -508,63 +503,99 @@ export function GraphView({ config }: { config: GraphConfig }) {
   useStoreListener(drawOverlay, [drawOverlay]);
 
   // ------------------------------------------------------------------ interaction
-  const localX = (e: { clientX: number; clientY: number }) => {
+  const local = (e: { clientX: number; clientY: number }) => {
     const r = overRef.current!.getBoundingClientRect();
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   };
   const paneAtY = (y: number) => layoutRef.current?.panes.find((p) => y >= p.top && y < p.bottom);
+  /** Index i of the border between panes i and i+1 under y (any pane, incl. variance), or -1. */
   const separatorAt = (y: number) => {
     const L = layoutRef.current;
     if (!L) return -1;
-    const ch = L.panes.filter((p) => p.kind === 'channels');
-    for (let i = 0; i < ch.length - 1; i++) if (Math.abs(ch[i].bottom - y) < 4) return i;
+    for (let i = 0; i < L.panes.length - 1; i++) if (Math.abs(L.panes[i].bottom - y) <= 5) return i;
     return -1;
   };
+  const xIn = (L: Layout, x: number) => Math.max(LEFT, Math.min(L.w - RIGHT, x));
 
   const onPointerDown = (e: React.PointerEvent) => {
     const L = layoutRef.current;
     if (!L || !L.laps.length) return;
-    const { x, y } = localX(e);
+    const { x, y } = local(e);
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     const zoom0 = viewRange();
     const sep = separatorAt(y);
     if (e.button === 0 && sep >= 0) {
-      dragRef.current = { mode: 'resize', startPx: x, curPx: x, startY: y, moved: false, zoom0, paneIdx: sep, weights: config.panes.map((p) => p.weight) };
+      dragRef.current = { mode: 'resize', startPx: x, curPx: x, startY: y, moved: false, zoom0, sep, weights: allWeights(L.laps) };
       return;
     }
-    const mode = e.button === 1 || e.button === 2 || e.ctrlKey || e.metaKey ? 'pan' : e.shiftKey ? 'measure' : 'select';
-    dragRef.current = { mode, startPx: x, curPx: x, startY: y, moved: false, zoom0 };
+    if (e.button === 1 || e.button === 2 || e.ctrlKey || e.metaKey) {
+      dragRef.current = { mode: 'pan', startPx: x, curPx: x, startY: y, moved: false, zoom0 };
+      return;
+    }
+    if (e.shiftKey) {
+      dragRef.current = { mode: 'measure', startPx: x, curPx: x, startY: y, moved: false, zoom0 };
+      return;
+    }
+    const isDouble = performance.now() - lastUpRef.current.t < DOUBLE_CLICK_MS && Math.abs(x - lastUpRef.current.x) < 8;
+    if (useStore.getState().settings.cursorMode !== 'scrub') {
+      // Classic (MoTeC) mode: drag zooms, click places the cursor, double-click resets the zoom.
+      if (isDouble) {
+        lastUpRef.current = { t: 0, x: 0 };
+        setZoom(null);
+        return;
+      }
+      dragRef.current = { mode: 'select', startPx: x, curPx: x, startY: y, moved: false, zoom0 };
+      return;
+    }
+    // Scrub mode: drag moves the cursor; second press of a double-click → drag selects a zoom range.
+    dragRef.current = { mode: isDouble ? 'select' : 'scrub', startPx: x, curPx: x, startY: y, moved: false, zoom0 };
+    if (!isDouble) {
+      setMeasure(null);
+      setCursor(xOfPx(L, xIn(L, x)));
+    }
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
     const L = layoutRef.current;
     if (!L) return;
-    const { x, y } = localX(e);
+    const { x, y } = local(e);
     const d = dragRef.current;
     const el = overRef.current!;
     if (!d) {
-      el.style.cursor = separatorAt(y) >= 0 ? 'row-resize' : 'crosshair';
+      const sep = separatorAt(y);
+      if (sep !== hoverSepRef.current) {
+        hoverSepRef.current = sep;
+        drawOverlay();
+      }
+      el.style.cursor = sep >= 0 ? 'row-resize' : 'crosshair';
       if (useStore.getState().settings.cursorMode === 'hover' && x >= LEFT && x <= L.w - RIGHT) setCursor(xOfPx(L, x));
       return;
     }
     d.curPx = x;
     if (Math.abs(x - d.startPx) > 3 || Math.abs(y - d.startY) > 3) d.moved = true;
-    if (d.mode === 'pan' && d.moved) {
+    if (d.mode === 'scrub') setCursor(xOfPx(L, xIn(L, x)));
+    else if (d.mode === 'pan' && d.moved) {
       const span = d.zoom0[1] - d.zoom0[0];
       const dx = ((x - d.startPx) / (L.w - LEFT - RIGHT)) * span;
       setZoom([d.zoom0[0] - dx, d.zoom0[1] - dx]);
-    } else if (d.mode === 'resize' && d.weights) {
-      const chPanes = L.panes.filter((p) => p.kind === 'channels');
-      const i = d.paneIdx!;
+    } else if (d.mode === 'resize' && d.weights && d.sep != null) {
+      const i = d.sep;
       const total = d.weights.reduce((a, b) => a + b, 0);
-      const plotH = chPanes[chPanes.length - 1].bottom - chPanes[0].top;
+      const plotH = L.h - TOP - BOTTOM;
       const dw = ((y - d.startY) / plotH) * total;
-      const a = Math.max(0.2, d.weights[i] + dw);
-      const b = Math.max(0.2, d.weights[i] + d.weights[i + 1] - a);
+      const pairTotal = d.weights[i] + d.weights[i + 1];
+      const minW = total * 0.04;
+      const a = Math.max(minW, Math.min(pairTotal - minW, d.weights[i] + dw));
       const next = d.weights.slice();
       next[i] = a;
-      next[i + 1] = b;
-      updateComponent(config.id, { panes: config.panes.map((p, k) => ({ ...p, weight: next[k] })) } as Partial<GraphConfig>);
+      next[i + 1] = pairTotal - a;
+      const hasVar = showVar(L.laps);
+      const paneWeights = hasVar ? next.slice(1) : next;
+      updateComponent(
+        config.id,
+        { panes: config.panes.map((p, k) => ({ ...p, weight: paneWeights[k] })), ...(hasVar ? { varianceWeight: next[0] } : {}) } as Partial<GraphConfig>,
+        'Resize pane',
+      );
     } else drawOverlay();
   };
 
@@ -573,18 +604,20 @@ export function GraphView({ config }: { config: GraphConfig }) {
     const d = dragRef.current;
     dragRef.current = null;
     if (!L || !d) return;
-    const { x } = localX(e);
-    if (d.mode === 'select' || d.mode === 'measure') {
-      if (d.moved && Math.abs(x - d.startPx) > 4) {
-        const a = xOfPx(L, Math.min(d.startPx, x));
-        const b = xOfPx(L, Math.max(d.startPx, x));
-        if (d.mode === 'select') setZoom([a, b]);
-        else setMeasure([a, b]);
-      } else if (e.button === 0) {
-        setMeasure(null);
-        if (x >= LEFT) setCursor(xOfPx(L, x));
-      }
+    const { x } = local(e);
+    if ((d.mode === 'select' || d.mode === 'measure') && d.moved && Math.abs(x - d.startPx) > 4) {
+      const a = xOfPx(L, xIn(L, Math.min(d.startPx, x)));
+      const b = xOfPx(L, xIn(L, Math.max(d.startPx, x)));
+      if (d.mode === 'select') setZoom([a, b]);
+      else setMeasure([a, b]);
     }
+    const classic = useStore.getState().settings.cursorMode !== 'scrub';
+    if (classic && d.mode === 'select' && !d.moved && e.button === 0) {
+      setMeasure(null);
+      setCursor(xOfPx(L, xIn(L, x)));
+    }
+    const plainClick = !d.moved && (d.mode === 'scrub' || (classic && d.mode === 'select'));
+    lastUpRef.current = plainClick ? { t: performance.now(), x } : { t: 0, x: 0 };
     drawOverlay();
   };
 
@@ -615,24 +648,44 @@ export function GraphView({ config }: { config: GraphConfig }) {
     const panes = config.panes.map((p) => ({ ...p, channels: p.channels.slice() }));
     if (paneIdx === 'new' || !panes[paneIdx]) panes.push(newPane([name]));
     else if (!panes[paneIdx].channels.includes(name)) panes[paneIdx].channels.push(name);
-    updateComponent(config.id, { panes } as Partial<GraphConfig>);
+    updateComponent(config.id, { panes } as Partial<GraphConfig>, 'Add channel');
   };
-  const setPanes = (panes: GraphPane[]) => updateComponent(config.id, { panes } as Partial<GraphConfig>);
+  const setPanes = (panes: GraphPane[], label = 'Edit graph') => updateComponent(config.id, { panes } as Partial<GraphConfig>, label);
+
+  /** Ask for a name and save a corner / section split at the cursor for this track. */
+  const markAtCursor = async (kind: 'corner' | 'section') => {
+    const st = useStore.getState();
+    const ref = selectedLaps(st)[0];
+    if (!ref || st.cursor == null || ref.lap.index === -1) return;
+    const venue = ref.session.meta.venue;
+    const dist = Math.round(lapDistAt(ref.lap, xToTime(ref.lap, st.cursor, st.xMode)));
+    const prof = trackProfile(venue);
+    if (kind === 'corner') {
+      const name = await promptText(`Corner name at ${dist} m`, `T${prof.corners.length + 1}`);
+      if (name) addCorner(venue, { name, dist });
+    } else {
+      const name = await promptText(`Section split name at ${dist} m`, `Split ${prof.sections.length + 1}`);
+      if (name) setTrackProfile(venue, { sections: [...prof.sections, { name, dist }].sort((a, b) => a.dist - b.dist) }, 'Add section');
+    }
+  };
 
   const onContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    const { x, y } = localX(e);
+    const { x, y } = local(e);
     const P = paneAtY(y);
-    const legend = P?.legendRows.find((r) => y >= r.y && y < r.y + r.h && x < LEFT + 360);
+    const legend = P?.legendRows.find((r) => y >= r.y && y < r.y + r.h && x < LEFT + 420);
     const pIdx = P && P.kind === 'channels' ? P.index : -1;
     const T = useStore.getState().settings.theme;
-    if (legend && P) {
+    const st = useStore.getState();
+    const canMark = st.cursor != null && !!selectedLaps(st)[0] && selectedLaps(st)[0].lap.index !== -1;
+    if (legend && P && P.kind === 'channels') {
       const name = legend.name;
       openMenu(e, [
         { header: name },
+        { label: 'Channel properties…', onClick: () => openChannelProps(name) },
         {
           label: 'Remove from graph',
-          onClick: () => setPanes(config.panes.map((p, i) => (i === pIdx ? { ...p, channels: p.channels.filter((c) => c !== name) } : p)).filter((p) => p.channels.length)),
+          onClick: () => setPanes(config.panes.map((p, i) => (i === pIdx ? { ...p, channels: p.channels.filter((c) => c !== name) } : p)).filter((p) => p.channels.length), 'Remove channel'),
         },
         {
           label: 'Move to its own pane',
@@ -640,15 +693,12 @@ export function GraphView({ config }: { config: GraphConfig }) {
           onClick: () => {
             const panes = config.panes.map((p, i) => (i === pIdx ? { ...p, channels: p.channels.filter((c) => c !== name) } : p));
             panes.splice(pIdx + 1, 0, newPane([name]));
-            setPanes(panes);
+            setPanes(panes, 'Move channel');
           },
         },
-        { label: 'Channel properties…', onClick: () => openChannelProps(name) },
         { separator: true },
         { header: 'Colour' },
-        {
-          swatches: CATEGORICAL[T].map((c) => ({ color: c, onClick: () => setChannelProps(name, { color: c }) })),
-        },
+        { swatches: CATEGORICAL[T].map((c) => ({ color: c, onClick: () => setChannelProps(name, { color: c }) })) },
         { label: 'Automatic colour', onClick: () => setChannelProps(name, { color: undefined }) },
       ]);
       return;
@@ -663,6 +713,9 @@ export function GraphView({ config }: { config: GraphConfig }) {
       { label: 'Corner markers', checked: config.showCorners, onClick: () => updateComponent(config.id, { showCorners: !config.showCorners } as Partial<GraphConfig>) },
       { label: 'Y range: whole lap', checked: config.yRange === 'full', onClick: () => updateComponent(config.id, { yRange: 'full' } as Partial<GraphConfig>) },
       { label: 'Y range: visible area', checked: config.yRange === 'visible', onClick: () => updateComponent(config.id, { yRange: 'visible' } as Partial<GraphConfig>) },
+      { separator: true },
+      { label: 'Add corner at cursor…', disabled: !canMark, onClick: () => markAtCursor('corner') },
+      { label: 'Add section split at cursor…', disabled: !canMark, onClick: () => markAtCursor('section') },
       ...(pIdx >= 0
         ? [
             { separator: true },
@@ -674,17 +727,18 @@ export function GraphView({ config }: { config: GraphConfig }) {
               checked: scale === 'independent',
               onClick: () => setPanes(config.panes.map((p, i) => (i === pIdx ? { ...p, scale: 'independent' as const } : p))),
             },
-            { label: 'Remove pane', onClick: () => setPanes(config.panes.filter((_, i) => i !== pIdx)) },
+            { label: 'Remove pane', onClick: () => setPanes(config.panes.filter((_, i) => i !== pIdx), 'Remove pane') },
           ]
         : []),
       { separator: true },
+      { label: 'Zoom to whole lap', shortcut: 'W', onClick: zoomToLap },
       { label: 'Reset zoom', shortcut: 'Esc', onClick: () => setZoom(null) },
-      { label: 'Clear range measurement', disabled: !useStore.getState().measure, onClick: () => setMeasure(null) },
+      { label: 'Clear range measurement', disabled: !st.measure, onClick: () => setMeasure(null) },
     ]);
   };
 
   const dropTarget = (e: React.DragEvent) => {
-    const { y } = localX(e);
+    const { y } = local(e);
     const L = layoutRef.current;
     if (!L) return { pane: -1, newPane: true };
     const P = paneAtY(y);
@@ -724,17 +778,19 @@ export function GraphView({ config }: { config: GraphConfig }) {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onDoubleClick={() => setZoom(null)}
         onContextMenu={onContextMenu}
         onPointerLeave={() => {
-          if (useStore.getState().settings.cursorMode === 'hover' && !dragRef.current) drawOverlay();
+          if (hoverSepRef.current >= 0 && !dragRef.current) {
+            hoverSepRef.current = -1;
+            drawOverlay();
+          }
         }}
       />
     </div>
   );
 }
 
-function drawYAxis(ctx: CanvasRenderingContext2D, T: ReturnType<typeof chartTheme>, P: PaneLayout, py: (v: number) => number, mn: number, mx: number, unit: string) {
+function drawYAxis(ctx: CanvasRenderingContext2D, T: ReturnType<typeof chartTheme>, P: PaneLayout, py: (v: number) => number, mn: number, mx: number) {
   const ph = P.bottom - P.top;
   const { step, ticks } = niceTicks(mn, mx, Math.max(2, Math.floor(ph / 26)));
   ctx.strokeStyle = T.grid;
@@ -755,15 +811,20 @@ function drawYAxis(ctx: CanvasRenderingContext2D, T: ReturnType<typeof chartThem
     if (Y < P.top + 6 || Y > P.bottom - 6) continue;
     ctx.fillText(fmtTick(t, step), LEFT - 6, Y);
   }
-  void unit;
 }
 
-function drawLegend(
-  ctx: CanvasRenderingContext2D,
-  T: ReturnType<typeof chartTheme>,
-  P: PaneLayout,
-  rows: { swatch: string; dash: number[]; label: string; values: { color: string; dash: number[]; text: string }[] }[],
-) {
+interface LegendValue {
+  color: string;
+  text: string;
+  delta?: string;
+}
+interface LegendRow {
+  swatch: string;
+  label: string;
+  values: LegendValue[];
+}
+
+function drawLegend(ctx: CanvasRenderingContext2D, T: ReturnType<typeof chartTheme>, P: PaneLayout, rows: LegendRow[]) {
   P.legendRows = [];
   if (!rows.length) return;
   const rowH = 15;
@@ -773,7 +834,9 @@ function drawLegend(
   let wMax = 0;
   const measured = shown.map((r) => {
     const lw = ctx.measureText(r.label).width;
-    const vw = r.values.reduce((a, v) => a + ctx.measureText(v.text).width + (v.color ? 22 : 10), 0);
+    ctx.font = T.mono;
+    const vw = r.values.reduce((a, v) => a + ctx.measureText(v.text + (v.delta ? ' ' + v.delta : '')).width + (v.color ? 22 : 10), 0);
+    ctx.font = T.font;
     wMax = Math.max(wMax, lw + vw + 24);
     return { lw };
   });
@@ -788,24 +851,25 @@ function drawLegend(
     ctx.fillRect(x0, y - 4, 8, 8);
     ctx.fillStyle = T.text2;
     ctx.textAlign = 'left';
+    ctx.font = T.font;
     ctx.fillText(r.label, x0 + 13, y);
     let x = x0 + 13 + measured[i].lw + 10;
     for (const v of r.values) {
       if (v.color) {
-        ctx.strokeStyle = v.color;
-        ctx.lineWidth = 2;
-        ctx.setLineDash(v.dash);
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x + 12, y);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        ctx.fillStyle = v.color;
+        ctx.fillRect(x, y - 1.5, 12, 3);
         x += 16;
       }
-      ctx.fillStyle = T.text;
       ctx.font = T.mono;
+      ctx.fillStyle = T.text;
       ctx.fillText(v.text, x, y);
-      x += ctx.measureText(v.text).width + 8;
+      x += ctx.measureText(v.text).width + 4;
+      if (v.delta) {
+        ctx.fillStyle = T.text2;
+        ctx.fillText(v.delta, x, y);
+        x += ctx.measureText(v.delta).width + 4;
+      }
+      x += 6;
       ctx.font = T.font;
     }
   });

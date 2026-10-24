@@ -1,17 +1,20 @@
 // Frequency analysis (FFT magnitude spectrum) of a channel over the reference lap or zoomed range.
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { fftMagnitude } from '../core/stats';
 import { selectedLaps, updateComponent, useStore } from '../state/store';
 import type { FftConfig } from '../state/workspace';
 import { openChannelPicker, openMenu } from '../ui/overlays';
-import { drawAxes, makeAxes } from './axes';
+import { drawAxes, makeAxes, type Axes } from './axes';
+import { BoxZoomLayer, type View } from './BoxZoom';
 import { chartTheme, prepCanvas, useElementSize } from './canvas';
 import { conv, lapWindow } from './data';
 
 export function FftView({ config }: { config: FftConfig }) {
   const [wrapRef, size] = useElementSize<HTMLDivElement>();
   const ref = useRef<HTMLCanvasElement>(null);
+  const axesRef = useRef<Axes | null>(null);
+  const viewRef = useRef<View | null>(null);
   const sessions = useStore((s) => s.sessions);
   const lapSel = useStore((s) => s.laps);
   const refKey = useStore((s) => s.refKey);
@@ -19,7 +22,7 @@ export function FftView({ config }: { config: FftConfig }) {
   const dataVersion = useStore((s) => s.dataVersion);
   const theme = useStore((s) => s.settings.theme);
 
-  useEffect(() => {
+  const draw = useCallback(() => {
     const { w, h } = size;
     const ctx = prepCanvas(ref.current, w, h);
     if (!ctx) return;
@@ -54,11 +57,15 @@ export function FftView({ config }: { config: FftConfig }) {
     let ymax = 0;
     for (const s of sets) for (let k = 1; k < s.freqs.length && s.freqs[k] <= maxHz; k++) if (s.freqs[k] >= minHz) ymax = Math.max(ymax, s.mags[k]);
     const tf = (v: number) => (config.logScale ? Math.log10(Math.max(1e-6, v)) : v);
-    const y0 = config.logScale ? tf(ymax) - 4 : 0;
-    const y1 = tf(ymax) * (config.logScale ? 1 : 1.1) + (config.logScale ? 0.2 : 0);
+    let y0 = config.logScale ? tf(ymax) - 4 : 0;
+    let y1 = tf(ymax) * (config.logScale ? 1 : 1.1) + (config.logScale ? 0.2 : 0);
+    let fx0 = 0,
+      fx1 = maxHz;
+    if (viewRef.current) ({ x0: fx0, x1: fx1, y0, y1 } = viewRef.current);
     const rect = { x: 54, y: 10, w: Math.max(10, w - 54 - 12), h: Math.max(10, h - 10 - 40) };
-    const A = makeAxes(rect, 0, maxHz, y0, y1);
-    drawAxes(ctx, T, A, 0, maxHz, y0, y1, 'frequency [Hz]', `${config.channel} amplitude${config.logScale ? ' (log₁₀)' : ''}`);
+    const A = makeAxes(rect, fx0, fx1, y0, y1);
+    axesRef.current = A;
+    drawAxes(ctx, T, A, fx0, fx1, y0, y1, 'frequency [Hz]', `${config.channel} amplitude${config.logScale ? ' (log₁₀)' : ''}`);
     ctx.save();
     ctx.beginPath();
     ctx.rect(rect.x, rect.y, rect.w, rect.h);
@@ -93,14 +100,21 @@ export function FftView({ config }: { config: FftConfig }) {
     notes.slice(0, 3).forEach((n, i) => ctx.fillText(n, rect.x + rect.w - 8, rect.y + 12 + i * 14));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [size, config, sessions, lapSel, refKey, zoom, dataVersion, theme]);
+  useEffect(draw, [draw]);
 
   return (
     <div ref={wrapRef} className="chart">
-      <canvas
-        ref={ref}
+      <canvas ref={ref} />
+      <BoxZoomLayer
+        axesRef={axesRef}
+        onView={(v) => {
+          viewRef.current = v;
+          draw();
+        }}
         onContextMenu={(e) => {
           e.preventDefault();
           openMenu(e, [
+            { label: 'Reset zoom', shortcut: 'double-click', onClick: () => ((viewRef.current = null), draw()) },
             { label: `Channel: ${config.channel}…`, onClick: () => openChannelPicker(e, (n) => updateComponent(config.id, { channel: n })) },
             { label: 'Log scale', checked: config.logScale, onClick: () => updateComponent(config.id, { logScale: !config.logScale }) },
             { label: 'Only zoomed range', checked: config.useZoom, onClick: () => updateComponent(config.id, { useZoom: !config.useZoom }) },

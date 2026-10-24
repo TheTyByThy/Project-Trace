@@ -11,7 +11,7 @@ A grid of gauges, each one of:
 - **Bar**: a horizontal bar with label and value. Overlay laps appear as coloured markers.
 - **Digital**: a large number. Overlay laps' values are shown above it.
 
-Configure in the Properties panel: channel, style, min/max (blank = the channel's range) and number of columns. Or right-click a gauge to change the channel or style, remove it, or add another. **Drag a channel onto the gauges** to add a digital gauge.
+Configure in the Properties pop-out: channel, style, min/max (blank = the channel's range) and number of columns. Or right-click a gauge to change the channel or style, remove it, or add another. **Drag a channel onto the gauges** to add a digital gauge.
 
 ## Driver inputs
 

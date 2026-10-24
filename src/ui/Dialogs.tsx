@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { pt } from '../core/bridge';
 import { buildCommands } from '../actions';
-import { DEFAULT_SETTINGS, setUi, updateSettings, useStore } from '../state/store';
+import { DEFAULT_SETTINGS, setSmoothing, setUi, updateSettings, useStore } from '../state/store';
 
 export function SettingsDialog() {
   const s = useStore((st) => st.settings);
@@ -61,13 +61,27 @@ export function SettingsDialog() {
           {row('Theme', seg(s.theme, [['dark', 'Dark'], ['light', 'Light']], (v) => updateSettings({ theme: v })))}
           {row(
             'Cursor',
-            seg(s.cursorMode, [['click', 'Click to place (MoTeC)'], ['hover', 'Follows mouse']], (v) => updateSettings({ cursorMode: v })),
-            'In click mode, drag to zoom and Shift+drag to measure.',
+            seg(s.cursorMode, [['click', 'Click to place, drag to zoom'], ['scrub', 'Drag to scrub, double-click-drag to zoom'], ['hover', 'Follows mouse']], (v) => updateSettings({ cursorMode: v })),
+            'Classic (MoTeC): click places the cursor, drag zooms, double-click resets. Scrub: click/drag moves the cursor, double-click then drag zooms. Follows mouse: like classic, but the cursor tracks the pointer. Shift+drag measures in every mode.',
           )}
           {row(
-            'Overlay colouring',
-            seg(s.overlayStyle, [['auto', 'Auto'], ['lap', 'By lap'], ['channel', 'By channel']], (v) => updateSettings({ overlayStyle: v })),
-            'Auto: single-channel panes colour by lap; multi-channel panes keep channel colours and dash the overlays.',
+            'Reference lap colours',
+            seg(s.refColors, [['channel', 'Per channel'], ['lap', 'Single lap colour']], (v) => updateSettings({ refColors: v })),
+            'Overlay laps are always drawn solid in their lap colour. Toggle the reference lap with J.',
+          )}
+          {row(
+            'Smoothing',
+            <div className="row">
+              {seg(s.smoothing.enabled ? 'on' : 'off', [['off', 'Off (raw)'], ['on', 'On']], (v) => setSmoothing({ enabled: v === 'on' }))}
+              <select className="input" style={{ width: 110 }} value={s.smoothing.seconds} onChange={(e) => setSmoothing({ seconds: Number(e.target.value) })}>
+                {[0.03, 0.05, 0.1, 0.2, 0.35, 0.5, 1].map((v) => (
+                  <option key={v} value={v}>
+                    {v < 1 ? `${v * 1000} ms` : `${v} s`}
+                  </option>
+                ))}
+              </select>
+            </div>,
+            'Display-only moving average for graph traces (also in the top bar; S toggles). Reports always use raw data.',
           )}
           {row(
             'In-game clock',
@@ -115,25 +129,36 @@ const SHORTCUTS: [string, string][] = [
   ['Ctrl/⌘ + K', 'Command palette'],
   ['Ctrl/⌘ + M', 'Math channel editor'],
   ['Ctrl/⌘ + ,', 'Settings'],
-  ['Ctrl/⌘ + B / I', 'Toggle sidebar / inspector'],
+  ['Ctrl/⌘ + Z', 'Undo (deleted components, panes, channels, worksheets, layouts…)'],
+  ['Ctrl/⌘ + Y, Ctrl/⌘ + Shift + Z', 'Redo'],
+  ['Ctrl/⌘ + I', 'Properties of the selected component'],
+  ['Ctrl/⌘ + B', 'Toggle sidebar'],
   ['Ctrl/⌘ + E', 'Export visible data to CSV'],
   ['Ctrl/⌘ + Shift + S', 'Save screenshot'],
   ['D', 'Toggle time / distance x-axis'],
   ['F3 or V', 'Toggle time variance pane'],
   ['F', 'Fastest lap as reference'],
-  ['PgUp / PgDn or [ / ]', 'Previous / next lap'],
+  ['W', 'Zoom to the whole reference lap'],
+  ['J', 'Reference lap: channel colours ⇄ single lap colour'],
+  ['S', 'Toggle trace smoothing'],
+  ['↑ / ↓ (also PgUp / PgDn, [ / ])', 'Previous / next lap as reference'],
   ['← / →', 'Move cursor (Shift = bigger steps)'],
   ['+ / −', 'Zoom in / out around the cursor'],
   ['Esc or Home', 'Reset zoom and clear measurement'],
   ['1 … 9', 'Switch worksheet'],
-  ['Click (graph)', 'Place cursor'],
-  ['Drag (graph)', 'Zoom to range'],
+  ['Click / drag (graph)', 'Move the cursor (scrub through the data)'],
+  ['Double-click + drag (graph)', 'Zoom to the dragged range'],
+  ['Drag a pane border (graph)', 'Resize panes'],
   ['Shift + drag (graph)', 'Measure range: min / avg / max / Δ'],
   ['Wheel (graph)', 'Zoom; Shift+wheel or trackpad swipe pans'],
   ['Right/middle drag, Ctrl+drag', 'Pan'],
-  ['Double-click (graph/map)', 'Reset zoom / view'],
+  ['Drag a rectangle (scatter, trend, histogram, FFT)', 'Zoom into that area (double-click resets)'],
+  ['Drag the dial ring (track map / GPS track)', 'Rotate the map; Save stores it for the track'],
+  ['Double-click (map)', 'Reset map view'],
   ['Click (track map)', 'Move the cursor to that point'],
   ['Ctrl/⌘ + click (lap)', 'Add / remove overlay lap'],
+  ['Click a selected lap’s colour square', 'Change that lap’s colour'],
+  ['Right-click any component', 'Its options + Properties… / Remove component'],
   ['Shift + click (lap)', 'Make reference lap'],
   ['Drag channel', 'Onto any graph pane, histogram, report, gauge or track map'],
   ['Drag component header', 'Dock elsewhere (edges split, centre swaps)'],

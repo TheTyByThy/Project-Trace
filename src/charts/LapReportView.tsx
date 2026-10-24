@@ -7,9 +7,8 @@ import { fastestLap, segmentTimes, theoreticalBest } from '../core/session';
 import { rangeStats } from '../core/stats';
 import { lapKey, type Lap, type Session } from '../core/types';
 import { convertUnit } from '../core/units';
-import { selectLap, trackProfile, updateComponent, useStore } from '../state/store';
+import { selectLap, selectedLaps, trackProfile, updateComponent, useStore } from '../state/store';
 import type { LapReportConfig } from '../state/workspace';
-import { lapColor } from '../core/colors';
 
 function lapExtras(s: Session, lap: Lap) {
   let vmax = NaN;
@@ -32,7 +31,8 @@ export function LapReportView({ config }: { config: LapReportConfig }) {
   const sessions = useStore((s) => s.sessions);
   const lapSel = useStore((s) => s.laps);
   const refKey = useStore((s) => s.refKey);
-  const theme = useStore((s) => s.settings.theme);
+  useStore((s) => s.settings.theme);
+  const lapColors = new Map(selectedLaps().map((l) => [l.key, l.color]));
   const speedUnit = useStore((s) => s.settings.units.speed);
   const profiles = useStore((s) => s.settings.trackProfiles);
   const dataVersion = useStore((s) => s.dataVersion);
@@ -127,7 +127,7 @@ export function LapReportView({ config }: { config: LapReportConfig }) {
                     className={'click' + (sel ? ' sel' : '')}
                     onClick={(e) => selectLap(key, e.ctrlKey || e.metaKey ? 'toggle' : e.shiftKey ? 'reference' : 'replace')}
                   >
-                    <td className="l">{sel && <span className="swatch" style={{ background: lapColor(sel.slot, theme), outline: key === refKey ? '2px solid var(--text)' : undefined }} />}</td>
+                    <td className="l">{sel && <span className="swatch" style={{ background: lapColors.get(key), outline: key === refKey ? '2px solid var(--text)' : undefined }} />}</td>
                     <td className="l">
                       {lap.number}{' '}
                       {lap.kind === 'out' && <span className="tag">out</span>}

@@ -1,38 +1,52 @@
 import { useEffect, useState } from 'react';
 import { handleGlobalKey, handleMenuAction } from './actions';
 import { pt } from './core/bridge';
+import { suggestCorners } from './core/corners';
 import { lapKey } from './core/types';
 import {
+  activeSheet,
   activeWorkspace,
+  deleteWorksheet,
+  redo,
+  removeComponentById,
+  setActiveWorkspace,
+  STARTER_ID,
+  undo,
   initApp,
   openFiles,
+  openProperties,
   selectLap,
+  selectedLaps,
   setActiveSheet,
   setCursor,
   setMeasure,
+  setSmoothing,
+  setTrackProfile,
   setUi,
+  setWorkingRotation,
   setXMode,
   setZoom,
   toast,
   updateSettings,
   useStore,
 } from './state/store';
-import { Inspector } from './ui/Inspector';
 import { MathEditor } from './ui/MathEditor';
 import { OverlayHosts } from './ui/overlays';
+import { InspectorPanel, PropertiesModal } from './ui/PropertiesModal';
 import { SessionBrowser } from './ui/SessionBrowser';
 import { SheetView } from './ui/SheetView';
 import { Sidebar } from './ui/Sidebar';
+import { TrackProfileDialog } from './ui/TrackProfileEditor';
 import { CommandPalette, SettingsDialog, ShortcutsDialog } from './ui/Dialogs';
 import { SheetTabs, StatusBar, Toasts, TopBar } from './ui/Chrome';
 
-function useResizer(key: 'sidebarWidth' | 'inspectorWidth', dir: 1 | -1) {
+function usePanelResizer(key: 'sidebarWidth' | 'inspectorWidth', dir: 1 | -1) {
   return (e: React.PointerEvent) => {
     e.preventDefault();
     const start = e.clientX;
     const w0 = useStore.getState().settings[key];
     const move = (ev: PointerEvent) => {
-      const w = Math.max(220, Math.min(560, w0 + (ev.clientX - start) * dir));
+      const w = Math.max(220, Math.min(620, w0 + (ev.clientX - start) * dir));
       useStore.setState((s) => ({ settings: { ...s.settings, [key]: w } }));
     };
     const up = () => {
@@ -45,7 +59,37 @@ function useResizer(key: 'sidebarWidth' | 'inspectorWidth', dir: 1 | -1) {
   };
 }
 
+/** Keep the native menu bar (Workspace / Worksheet / Analysis menus) in sync with app state. */
+function useMenuSync() {
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let lastKey = '';
+    const push = () => {
+      const s = useStore.getState();
+      const state = {
+        workspaces: s.workspaces.map((w) => ({ id: w.id, name: w.name, locked: !!w.locked })),
+        activeWorkspaceId: s.settings.activeWorkspaceId,
+        library: s.library.map((l) => ({ id: l.id, name: l.name })),
+        refColors: s.settings.refColors,
+        smoothing: s.settings.smoothing.enabled,
+        canUndo: s.history.past.length > 0,
+        canRedo: s.history.future.length > 0,
+      };
+      const key = JSON.stringify(state);
+      if (key === lastKey) return;
+      lastKey = key;
+      pt().setMenuState(state);
+    };
+    push();
+    return useStore.subscribe(() => {
+      clearTimeout(timer);
+      timer = setTimeout(push, 120);
+    });
+  }, []);
+}
+
 function installAutomation() {
+  const sheetIndex = (name: string) => activeWorkspace().worksheets.findIndex((w) => w.name === name);
   window.__ptAutomation = {
     ready: () => useStore.getState().ready,
     showBrowser: (dir: string) => {
@@ -53,13 +97,13 @@ function installAutomation() {
       setTimeout(() => window.dispatchEvent(new CustomEvent('pt-browse', { detail: dir })), 50);
     },
     openFiles: (paths: string[]) => openFiles(paths, 'replace'),
-    loaded: () => {
+    loaded: (n = 1) => {
       const s = useStore.getState();
-      return s.sessions.length > 0 && s.loading.length === 0;
+      return s.sessions.length >= n && s.loading.length === 0;
     },
     worksheets: () => activeWorkspace().worksheets.map((w) => w.name),
     setWorksheet: (i: number, demo: boolean) => {
-      setUi({ browser: false, math: false, settings: false, palette: false });
+      setUi({ browser: false, math: false, settings: false, palette: false, properties: false, trackProfile: false });
       setActiveSheet(i);
       const s = useStore.getState();
       if (demo && s.sessions[0]) {
@@ -70,10 +114,54 @@ function installAutomation() {
         if (s.cursor == null) setCursor(1240);
       }
     },
-    extras: () => ['math-editor', 'command-palette', 'settings', 'zoom-measure', 'time-axis', 'light-theme'],
+    extras: () => [
+      'corners-and-gps',
+      'properties-graph',
+      'properties-scatter',
+      'track-profile',
+      'smoothing',
+      'ref-lap-colour',
+      'math-editor',
+      'command-palette',
+      'settings',
+      'zoom-measure',
+      'time-axis',
+      'light-theme',
+    ],
     runExtra: (name: string) => {
-      setUi({ math: name === 'math-editor', palette: name === 'command-palette', settings: name === 'settings' });
-      if (name === 'zoom-measure') {
+      setUi({ math: name === 'math-editor', palette: name === 'command-palette', settings: name === 'settings', properties: false, trackProfile: false });
+      const ref = selectedLaps()[0];
+      const venue = ref?.session.meta.venue ?? '';
+      if (name === 'corners-and-gps') {
+        // Demonstrate user-defined corners (temporary screenshot profile only) and the GPS track.
+        if (ref) setTrackProfile(venue, { corners: suggestCorners(ref.session, ref.lap).slice(0, 12) });
+        setWorkingRotation(venue, 35);
+        setActiveSheet(sheetIndex('Racing Lines'));
+        setZoom([360, 700]);
+        setCursor(560);
+      } else if (name === 'properties-graph') {
+        setZoom(null);
+        setWorkingRotation(venue, 0);
+        setActiveSheet(0);
+        const g = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'graph');
+        openProperties(g?.id ?? null);
+      } else if (name === 'properties-scatter') {
+        setActiveSheet(sheetIndex('Aero'));
+        const sc = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'scatter');
+        openProperties(sc?.id ?? null);
+      } else if (name === 'track-profile') {
+        setActiveSheet(0);
+        setUi({ trackProfile: true });
+      } else if (name === 'smoothing') {
+        setActiveSheet(0);
+        setSmoothing({ enabled: true, seconds: 0.2 });
+        setZoom([850, 2000]);
+      } else if (name === 'ref-lap-colour') {
+        setSmoothing({ enabled: false });
+        updateSettings({ refColors: 'lap' });
+        setActiveSheet(0);
+      } else if (name === 'zoom-measure') {
+        updateSettings({ refColors: 'channel' });
         setActiveSheet(0);
         setZoom([850, 2000]);
         setMeasure([1180, 1420]);
@@ -89,6 +177,38 @@ function installAutomation() {
       }
     },
     errors: () => useStore.getState().errors,
+    sessions: () => useStore.getState().sessions.map((x) => x.fileName),
+    /** End-to-end checks of undo/redo and the read-only Starter workspace (run by the screenshot script). */
+    checks: () => {
+      const out: string[] = [];
+      const ok = (cond: boolean, what: string) => out.push(`${cond ? 'PASS' : 'FAIL'}: ${what}`);
+      const count = () => Object.keys(activeSheet()?.components ?? {}).length;
+      setActiveSheet(0);
+      const before = count();
+      const id = Object.keys(activeSheet()!.components)[0];
+      removeComponentById(id);
+      ok(count() === before - 1, 'remove component');
+      undo();
+      ok(count() === before && !!activeSheet()!.components[id], 'undo restores the removed component');
+      redo();
+      ok(count() === before - 1, 'redo removes it again');
+      undo();
+      const sheets = activeWorkspace().worksheets.length;
+      deleteWorksheet(1);
+      ok(activeWorkspace().worksheets.length === sheets - 1, 'delete worksheet');
+      undo();
+      ok(activeWorkspace().worksheets.length === sheets, 'undo restores the deleted worksheet');
+      const mine = activeWorkspace().id;
+      setActiveWorkspace(STARTER_ID);
+      const starterSheets = activeWorkspace().worksheets.length;
+      deleteWorksheet(0);
+      const starter = useStore.getState().workspaces.find((w) => w.id === STARTER_ID)!;
+      ok(starter.worksheets.length === starterSheets && activeWorkspace().id !== STARTER_ID, 'editing the Starter creates a personal copy and leaves the Starter intact');
+      undo();
+      ok(useStore.getState().workspaces.every((w) => w.id === STARTER_ID || w.id === mine), 'undo removes the copy again');
+      setActiveWorkspace(mine);
+      return out;
+    },
   };
 }
 
@@ -96,10 +216,10 @@ export function App() {
   const ready = useStore((s) => s.ready);
   const ui = useStore((s) => s.ui);
   const sidebarWidth = useStore((s) => s.settings.sidebarWidth);
-  const inspectorWidth = useStore((s) => s.settings.inspectorWidth);
   const [fileDrag, setFileDrag] = useState(false);
-  const sideResize = useResizer('sidebarWidth', 1);
-  const inspResize = useResizer('inspectorWidth', -1);
+  const sideResize = usePanelResizer('sidebarWidth', 1);
+  const inspResize = usePanelResizer('inspectorWidth', -1);
+  const inspectorWidth = useStore((s) => s.settings.inspectorWidth);
 
   useEffect(() => {
     if (!window.pt) return;
@@ -115,6 +235,7 @@ export function App() {
       window.removeEventListener('keydown', handleGlobalKey);
     };
   }, []);
+  useMenuSync();
 
   if (!window.pt)
     return (
@@ -141,7 +262,10 @@ export function App() {
         if (!e.dataTransfer.files.length) return;
         e.preventDefault();
         const paths = [...e.dataTransfer.files].map((f) => pt().pathForFile(f)).filter(Boolean);
-        openFiles(paths, e.shiftKey || e.ctrlKey || e.metaKey ? 'add' : 'replace');
+        // Dropping adds to what's open (per the browser's double-click setting); Shift inverts it.
+        const st = useStore.getState();
+        const add = st.sessions.length > 0 && st.settings.browserOpenMode === 'add';
+        openFiles(paths, add !== (e.shiftKey || e.ctrlKey || e.metaKey) ? 'add' : 'replace');
       }}
     >
       <TopBar />
@@ -168,7 +292,7 @@ export function App() {
                 <button className="on">Properties</button>
               </div>
               <div className="scroll">
-                <Inspector />
+                <InspectorPanel />
               </div>
             </div>
           </>
@@ -180,12 +304,14 @@ export function App() {
       {ui.settings && <SettingsDialog />}
       {ui.shortcuts && <ShortcutsDialog />}
       {ui.palette && <CommandPalette />}
+      {ui.properties && <PropertiesModal />}
+      {ui.trackProfile && <TrackProfileDialog />}
       <OverlayHosts />
       <Toasts />
       {fileDrag && (
         <div className="modal-back" style={{ pointerEvents: 'none' }}>
           <div className="modal" style={{ padding: 40, fontSize: 16 }}>
-            Drop CSV files to open them <span className="muted">(hold Shift to add for comparison)</span>
+            Drop CSV or .ld files to open them <span className="muted">(Shift switches between adding and replacing)</span>
           </div>
         </div>
       )}

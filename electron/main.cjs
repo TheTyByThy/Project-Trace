@@ -33,6 +33,7 @@ const settingsFile = () => path.join(userDir(), 'settings.json');
 const workspacesDir = () => path.join(userDir(), 'workspaces');
 const cacheFile = () => path.join(userDir(), 'session-cache.json');
 const notesFile = () => path.join(userDir(), 'session-notes.json');
+const libraryFile = () => path.join(userDir(), 'worksheet-library.json');
 
 function sampleDataDir() {
   const packaged = path.join(process.resourcesPath || '', 'sample-data');
@@ -56,12 +57,24 @@ async function readJson(file, fallback) {
   }
 }
 
-// Write to a temp file then rename, so a crash mid-write never corrupts settings/workspaces.
-async function writeJson(file, data) {
-  await fsp.mkdir(path.dirname(file), { recursive: true });
-  const tmp = file + '.tmp';
-  await fsp.writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
-  await fsp.rename(tmp, file);
+// File operations are queued per path so overlapping saves/deletes (e.g. undo racing a debounced
+// save) run in order and never clash.
+const fileQueues = new Map();
+let tmpCounter = 0;
+function queued(file, op) {
+  const next = (fileQueues.get(file) || Promise.resolve()).catch(() => {}).then(op);
+  fileQueues.set(file, next);
+  return next;
+}
+
+// Write to a unique temp file then rename, so a crash mid-write never corrupts settings/workspaces.
+function writeJson(file, data) {
+  return queued(file, async () => {
+    await fsp.mkdir(path.dirname(file), { recursive: true });
+    const tmp = `${file}.${process.pid}.${++tmpCounter}.tmp`;
+    await fsp.writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
+    await fsp.rename(tmp, file);
+  });
 }
 
 function toArrayBuffer(buf) {
@@ -127,15 +140,20 @@ function sendMenu(action) {
   if (mainWindow) mainWindow.webContents.send('menu:action', action);
 }
 
+// The renderer pushes the data needed for the dynamic menus (workspaces, saved worksheets…).
+let menuState = { workspaces: [], activeWorkspaceId: '', library: [], refColors: 'channel', smoothing: false };
+
 function buildMenu() {
   const isMac = process.platform === 'darwin';
+  const s = menuState;
+  const library = s.library || [];
   const template = [
     ...(isMac ? [{ role: 'appMenu' }] : []),
     {
       label: 'File',
       submenu: [
         { label: 'Session Browser…', accelerator: 'CmdOrCtrl+O', click: () => sendMenu('open-browser') },
-        { label: 'Open CSV Files…', accelerator: 'CmdOrCtrl+Shift+O', click: () => sendMenu('open-files') },
+        { label: 'Open Telemetry Files…', accelerator: 'CmdOrCtrl+Shift+O', click: () => sendMenu('open-files') },
         { type: 'separator' },
         { label: 'Export Visible Data to CSV…', accelerator: 'CmdOrCtrl+E', click: () => sendMenu('export-csv') },
         { label: 'Save Screenshot (PNG)…', accelerator: 'CmdOrCtrl+Shift+S', click: () => sendMenu('screenshot') },
@@ -145,25 +163,103 @@ function buildMenu() {
         isMac ? { role: 'close' } : { role: 'quit' },
       ],
     },
-    { role: 'editMenu' },
+    {
+      // Custom Edit menu: Undo/Redo drive the app's own history (layouts, components, worksheets…);
+      // inside text fields the renderer falls back to normal text undo.
+      label: 'Edit',
+      submenu: [
+        { label: 'Undo', accelerator: 'CmdOrCtrl+Z', click: () => sendMenu('undo') },
+        { label: 'Redo', accelerator: isMac ? 'Shift+Cmd+Z' : 'Ctrl+Y', click: () => sendMenu('redo') },
+        ...(isMac ? [] : [{ label: 'Redo', accelerator: 'Ctrl+Shift+Z', visible: false, acceleratorWorksWhenHidden: true, click: () => sendMenu('redo') }]),
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' },
+      ],
+    },
+    {
+      label: 'Workspace',
+      submenu: [
+        ...(s.workspaces || []).map((w) => ({
+          label: w.locked ? `${w.name}  (built-in, read-only)` : w.name,
+          type: 'radio',
+          checked: w.id === s.activeWorkspaceId,
+          click: () => sendMenu('ws-switch:' + w.id),
+        })),
+        { type: 'separator' },
+        { label: 'New Workspace from Starter…', click: () => sendMenu('ws-new-starter') },
+        { label: 'New Blank Workspace…', click: () => sendMenu('ws-new-blank') },
+        { label: 'Duplicate Current Workspace', click: () => sendMenu('ws-duplicate') },
+        { label: 'Rename Current Workspace…', click: () => sendMenu('ws-rename') },
+        { type: 'separator' },
+        { label: 'Revert Current Workspace to Starter', click: () => sendMenu('ws-revert') },
+        { type: 'separator' },
+        { label: 'Export Workspace…', click: () => sendMenu('ws-export') },
+        { label: 'Import Workspace…', click: () => sendMenu('ws-import') },
+        { type: 'separator' },
+        { label: 'Delete Current Workspace…', click: () => sendMenu('ws-delete') },
+      ],
+    },
+    {
+      label: 'Worksheet',
+      submenu: [
+        { label: 'New Worksheet', click: () => sendMenu('sheet-new') },
+        { label: 'Duplicate Worksheet', click: () => sendMenu('sheet-duplicate') },
+        { label: 'Rename Worksheet…', click: () => sendMenu('sheet-rename') },
+        { label: 'Reset Worksheet to Starter Version', click: () => sendMenu('sheet-reset') },
+        { type: 'separator' },
+        { label: 'Save Worksheet to Library…', click: () => sendMenu('sheet-save-lib') },
+        {
+          label: 'Insert Saved Worksheet',
+          submenu: library.length
+            ? library.map((l) => ({ label: l.name, click: () => sendMenu('sheet-insert-lib:' + l.id) }))
+            : [{ label: 'Library is empty', enabled: false }],
+        },
+        {
+          label: 'Remove from Library',
+          submenu: library.length
+            ? library.map((l) => ({ label: l.name, click: () => sendMenu('sheet-delete-lib:' + l.id) }))
+            : [{ label: 'Library is empty', enabled: false }],
+        },
+        { type: 'separator' },
+        { label: 'Export Worksheet…', click: () => sendMenu('sheet-export') },
+        { label: 'Import Worksheet…', click: () => sendMenu('sheet-import') },
+        { type: 'separator' },
+        { label: 'Delete Worksheet…', click: () => sendMenu('sheet-delete') },
+      ],
+    },
     {
       label: 'Analysis',
       submenu: [
         { label: 'Math Channels…', accelerator: 'CmdOrCtrl+M', click: () => sendMenu('math') },
+        { label: 'Track Profile (corners, sections, rotation)…', click: () => sendMenu('track-profile') },
+        { type: 'separator' },
         { label: 'Toggle Time / Distance', accelerator: 'D', registerAccelerator: false, click: () => sendMenu('toggle-x') },
         { label: 'Toggle Time Variance', accelerator: 'F3', registerAccelerator: false, click: () => sendMenu('toggle-variance') },
+        { label: 'Smoothing', type: 'checkbox', checked: !!s.smoothing, accelerator: 'S', registerAccelerator: false, click: () => sendMenu('toggle-smoothing') },
+        {
+          label: 'Reference Lap in Channel Colours',
+          type: 'checkbox',
+          checked: s.refColors !== 'lap',
+          accelerator: 'J',
+          registerAccelerator: false,
+          click: () => sendMenu('toggle-ref-colors'),
+        },
         { type: 'separator' },
+        { label: 'Zoom to Whole Lap', accelerator: 'W', registerAccelerator: false, click: () => sendMenu('zoom-lap') },
         { label: 'Fastest Lap as Reference', accelerator: 'F', registerAccelerator: false, click: () => sendMenu('fastest-lap') },
-        { label: 'Previous Lap', accelerator: 'PageUp', registerAccelerator: false, click: () => sendMenu('prev-lap') },
-        { label: 'Next Lap', accelerator: 'PageDown', registerAccelerator: false, click: () => sendMenu('next-lap') },
+        { label: 'Previous Lap', accelerator: 'Up', registerAccelerator: false, click: () => sendMenu('prev-lap') },
+        { label: 'Next Lap', accelerator: 'Down', registerAccelerator: false, click: () => sendMenu('next-lap') },
       ],
     },
     {
       label: 'View',
       submenu: [
+        { label: 'Properties Pop-out…', click: () => sendMenu('properties') },
+        { label: 'Toggle Properties Panel', accelerator: 'CmdOrCtrl+I', click: () => sendMenu('toggle-inspector') },
         { label: 'Command Palette…', accelerator: 'CmdOrCtrl+K', click: () => sendMenu('palette') },
         { label: 'Toggle Sidebar', accelerator: 'CmdOrCtrl+B', click: () => sendMenu('toggle-sidebar') },
-        { label: 'Toggle Inspector', accelerator: 'CmdOrCtrl+I', click: () => sendMenu('toggle-inspector') },
         { type: 'separator' },
         { role: 'reload' },
         { role: 'toggleDevTools' },
@@ -218,14 +314,21 @@ function registerIpc() {
     }
   });
   ipcMain.handle('workspaces:save', (_e, ws) => writeJson(path.join(workspacesDir(), safeName(ws.id) + '.json'), ws));
-  ipcMain.handle('workspaces:delete', async (_e, id) => {
-    await fsp.rm(path.join(workspacesDir(), safeName(id) + '.json'), { force: true });
+  ipcMain.handle('workspaces:delete', (_e, id) => {
+    const file = path.join(workspacesDir(), safeName(id) + '.json');
+    return queued(file, () => fsp.rm(file, { force: true }));
   });
 
   ipcMain.handle('cache:get', () => readJson(cacheFile(), {}));
   ipcMain.handle('cache:set', (_e, data) => writeJson(cacheFile(), data));
   ipcMain.handle('notes:get', () => readJson(notesFile(), {}));
   ipcMain.handle('notes:set', (_e, data) => writeJson(notesFile(), data));
+  ipcMain.handle('library:get', () => readJson(libraryFile(), []));
+  ipcMain.handle('library:set', (_e, data) => writeJson(libraryFile(), data));
+  ipcMain.on('menu:state', (_e, state) => {
+    menuState = state || menuState;
+    buildMenu();
+  });
 
   ipcMain.handle('dialog:openFolder', async (_e, defaultPath) => {
     const r = await dialog.showOpenDialog(mainWindow, {
@@ -408,11 +511,12 @@ async function runScreenshotAutomation() {
   }
   await evalJs(`window.__ptAutomation.showBrowser(${JSON.stringify(sampleDir)})`);
   await shot('00-session-browser');
-  await evalJs(`window.__ptAutomation.openFiles(${JSON.stringify(files.slice(0, 1))})`);
-  for (let i = 0; i < 150; i++) {
-    if (await evalJs('window.__ptAutomation.loaded()')) break;
+  await evalJs(`window.__ptAutomation.openFiles(${JSON.stringify(files)})`);
+  for (let i = 0; i < 300; i++) {
+    if (await evalJs(`window.__ptAutomation.loaded(${files.length})`)) break;
     await wait(200);
   }
+  console.log('[screenshots] requested ' + files.length + ' file(s); loaded: ' + JSON.stringify(await evalJs('window.__ptAutomation.sessions ? window.__ptAutomation.sessions() : null')));
   const sheets = await evalJs('window.__ptAutomation.worksheets()');
   for (let i = 0; i < sheets.length; i++) {
     await evalJs(`window.__ptAutomation.setWorksheet(${i}, true)`);
@@ -423,6 +527,9 @@ async function runScreenshotAutomation() {
     await evalJs(`window.__ptAutomation.runExtra(${JSON.stringify(name)})`);
     await shot('x-' + name);
   }
+  // End-to-end checks (undo/redo, read-only Starter) run last so their toasts don't appear in shots.
+  const checks = await evalJs('window.__ptAutomation.checks ? window.__ptAutomation.checks() : []');
+  for (const c of checks) console.log('[check] ' + c);
   const errors = await evalJs('window.__ptAutomation.errors()');
   if (errors && errors.length) console.log('[screenshots] renderer errors:\n' + errors.join('\n'));
   app.quit();

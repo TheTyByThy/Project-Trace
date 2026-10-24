@@ -1,18 +1,19 @@
 // Lap trend: one statistic per lap across the session (lap time by default). Each loaded session
-// is a series; invalid laps are drawn hollow. Click a point to select that lap as reference.
+// is a series; invalid laps are drawn hollow. Click a point to make that lap the reference; drag a
+// rectangle to zoom; the y-axis range can be fixed in the Properties.
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { CATEGORICAL } from '../core/colors';
-import { formatLapTime, formatValue } from '../core/format';
+import { formatLapTime, formatValue, prettyTrack } from '../core/format';
 import { rangeStats } from '../core/stats';
 import { lapKey, type Lap, type Session } from '../core/types';
-import { selectLap, updateComponent, useStore } from '../state/store';
+import { openProperties, selectLap, updateComponent, useStore } from '../state/store';
 import type { TrendConfig } from '../state/workspace';
 import { openChannelPicker, openMenu } from '../ui/overlays';
-import { drawAxes, drawMarker, makeAxes, padRange } from './axes';
+import { drawAxes, drawMarker, makeAxes, padRange, type Axes } from './axes';
+import { BoxZoomLayer, type View } from './BoxZoom';
 import { chartTheme, prepCanvas, useElementSize } from './canvas';
 import { channelDps, conv } from './data';
-import { prettyTrack } from '../core/format';
 
 function lapStat(s: Session, lap: Lap, cfg: TrendConfig): number {
   if (!cfg.channel) return lap.complete ? lap.time : NaN;
@@ -29,6 +30,8 @@ function lapStat(s: Session, lap: Lap, cfg: TrendConfig): number {
 export function TrendView({ config }: { config: TrendConfig }) {
   const [wrapRef, size] = useElementSize<HTMLDivElement>();
   const ref = useRef<HTMLCanvasElement>(null);
+  const axesRef = useRef<Axes | null>(null);
+  const viewRef = useRef<View | null>(null);
   const hitsRef = useRef<{ x: number; y: number; key: string }[]>([]);
   const sessions = useStore((s) => s.sessions);
   const lapSel = useStore((s) => s.laps);
@@ -36,7 +39,7 @@ export function TrendView({ config }: { config: TrendConfig }) {
   const dataVersion = useStore((s) => s.dataVersion);
   const theme = useStore((s) => s.settings.theme);
 
-  useEffect(() => {
+  const draw = useCallback(() => {
     const { w, h } = size;
     const ctx = prepCanvas(ref.current, w, h);
     if (!ctx) return;
@@ -44,6 +47,7 @@ export function TrendView({ config }: { config: TrendConfig }) {
     ctx.font = T.font;
     ctx.textBaseline = 'middle';
     hitsRef.current = [];
+    axesRef.current = null;
     const series = sessions.map((s, si) => ({
       s,
       color: CATEGORICAL[theme][si % 8],
@@ -59,17 +63,27 @@ export function TrendView({ config }: { config: TrendConfig }) {
       return;
     }
     const maxLap = Math.max(...all.map((p) => p.l.number));
-    const [y0, y1] = padRange(Math.min(...all.map((p) => p.v)), Math.max(...all.map((p) => p.v)), 0.12);
+    let [y0, y1] = padRange(Math.min(...all.map((p) => p.v)), Math.max(...all.map((p) => p.v)), 0.12);
+    if (config.yMin != null) y0 = config.yMin;
+    if (config.yMax != null) y1 = config.yMax;
+    let x0 = 0.5,
+      x1 = maxLap + 0.5;
+    if (viewRef.current) ({ x0, x1, y0, y1 } = viewRef.current);
     const rect = { x: 60, y: 12, w: Math.max(10, w - 60 - 14), h: Math.max(10, h - 12 - 40) };
-    const A = makeAxes(rect, 0.5, maxLap + 0.5, y0, y1);
+    const A = makeAxes(rect, x0, x1, y0, y1);
+    axesRef.current = A;
     const ch = config.channel ? sessions[0]?.channels.get(config.channel) : undefined;
     const unit = ch ? conv(ch).unit : 's';
     const dps = ch ? channelDps(ch) : 3;
     const label = config.channel ? `${config.stat} ${config.channel}${unit ? ` [${unit}]` : ''}` : 'lap time';
-    drawAxes(ctx, T, A, 0.5, maxLap + 0.5, y0, y1, 'lap', label, {
-      xFmt: (v) => (Number.isInteger(v) ? String(v) : ''),
+    drawAxes(ctx, T, A, x0, x1, y0, y1, 'lap', label, {
+      xFmt: (v) => (Number.isInteger(Math.round(v * 1000) / 1000) ? String(Math.round(v)) : ''),
       yFmt: (v, step) => (config.channel ? formatValue(v, step < 1 ? 2 : 0) : formatLapTime(v, step < 0.1 ? 2 : 1)),
     });
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rect.x, rect.y, rect.w, rect.h);
+    ctx.clip();
     for (const sr of series) {
       ctx.strokeStyle = sr.color;
       ctx.lineWidth = 1.5;
@@ -104,13 +118,14 @@ export function TrendView({ config }: { config: TrendConfig }) {
           ctx.arc(X, Y, 8, 0, Math.PI * 2);
           ctx.stroke();
         }
-        if (rect.w / Math.max(1, maxLap) > 46) {
+        if (rect.w / Math.max(1, x1 - x0) > 46) {
           ctx.fillStyle = T.text2;
           ctx.textAlign = 'center';
           ctx.fillText(config.channel ? formatValue(p.v, dps) : formatLapTime(p.v), X, Y - 14);
         }
       }
     }
+    ctx.restore();
     if (series.length > 1) {
       let x = rect.x + 8;
       for (const sr of series) {
@@ -125,18 +140,21 @@ export function TrendView({ config }: { config: TrendConfig }) {
     }
     ctx.fillStyle = T.text3;
     ctx.textAlign = 'left';
-    ctx.fillText('hollow = invalid lap · click a point to make it the reference', rect.x, h - 8);
+    ctx.fillText(viewRef.current ? 'zoomed — double-click to reset' : 'hollow = invalid lap · click a point to make it the reference · drag to zoom', rect.x, h - 8);
   }, [size, config, sessions, lapSel, refKey, dataVersion, theme]);
+
+  useEffect(draw, [draw]);
 
   return (
     <div ref={wrapRef} className="chart">
-      <canvas
-        ref={ref}
-        style={{ cursor: 'pointer' }}
-        onClick={(e) => {
-          const r = ref.current!.getBoundingClientRect();
-          const x = e.clientX - r.left,
-            y = e.clientY - r.top;
+      <canvas ref={ref} />
+      <BoxZoomLayer
+        axesRef={axesRef}
+        onView={(v) => {
+          viewRef.current = v;
+          draw();
+        }}
+        onClick={(x, y, e) => {
           const hit = hitsRef.current.find((p) => (p.x - x) ** 2 + (p.y - y) ** 2 < 100);
           if (hit) selectLap(hit.key, e.ctrlKey || e.metaKey ? 'toggle' : 'replace');
         }}
@@ -145,7 +163,7 @@ export function TrendView({ config }: { config: TrendConfig }) {
           openMenu(e, [
             {
               label: `Channel: ${config.channel || 'Lap time'}…`,
-              onClick: () => openChannelPicker(e, (n) => updateComponent(config.id, { channel: n === '__lap' ? '' : n }), [{ value: '__lap', label: 'Lap time' }]),
+              onClick: () => openChannelPicker(e, (n) => updateComponent(config.id, { channel: n === '__lap' ? '' : n, yMin: undefined, yMax: undefined }), [{ value: '__lap', label: 'Lap time' }]),
             },
             ...(['mean', 'max', 'min', 'first', 'last', 'delta'] as const).map((s) => ({
               label: `Statistic: ${s}`,
@@ -154,6 +172,9 @@ export function TrendView({ config }: { config: TrendConfig }) {
               onClick: () => updateComponent(config.id, { stat: s }),
             })),
             { label: 'Valid laps only', checked: config.validOnly, onClick: () => updateComponent(config.id, { validOnly: !config.validOnly }) },
+            { separator: true },
+            { label: 'Y-axis range…', onClick: () => openProperties(config.id) },
+            { label: 'Reset zoom', shortcut: 'double-click', onClick: () => ((viewRef.current = null), draw()) },
           ]);
         }}
       />

@@ -1,63 +1,77 @@
-# 05 · Track map
+# 05 · Track Map & GPS Track
 
-The track map draws the circuit from the car's position: MoTeC's GPS track, rebuilt from sim coordinates.
+Two components draw the circuit from the car's position (`Car Coord X/Y`, or GPS latitude/longitude projected to metres):
 
-![Gain/loss track map](images/driver.png)
+| | **Track Map** | **GPS Track** |
+|---|---|---|
+| Purpose | See *what* happened where: speed, pedals, gear, elevation, time gained/lost | Compare *the lines you drove*, lap against lap |
+| Line | Thick, coloured by a channel or by lap | **Thin**, one line per lap in its lap colour |
+| Zoom | Highlights the graphs' zoomed range | **Frames** the graphs' zoomed range |
+| Extras | Colour ramps (preset or custom), gain/loss | Line-offset readout, scale bar, track band, follow-cursor |
 
-## Where the shape comes from
+Both share the **rotation dial**, the per-track **corners, sections and rotation**, cursor dots for every lap, and **click-to-seek**.
 
-| Source | Used when |
-|---|---|
-| `Car Coord X` / `Car Coord Y` (metres, Telemetrick/AC) | present (AC files) |
-| `GPS Latitude` / `GPS Longitude` | no X/Y channels; projected to local metres around the session's mean position |
+## Track Map
 
-The outline is the **reference lap's** path. `Car Coord Z` (elevation) is available as a channel to colour by. The *Session & Setup* worksheet ships with an elevation map.
+![Track map coloured by time gained/lost](images/driver.png)
 
-## Colouring
-
-Choose in the Properties panel, the right-click menu, or by **dragging a channel onto the map**:
+**Colour by** (Properties, right-click, or drag a channel onto the map):
 
 | Mode | Shows |
 |---|---|
-| **Channel** (e.g. Ground Speed, Brake Pos, Gear, Car Coord Z) | the reference lap coloured on a single-hue ramp from the lap's min to max, with a legend (honours *Channel properties* fixed min/max) |
-| **Lap colours** | every selected lap's racing line in its lap colour, useful for comparing lines |
-| **Time gained / lost** | rate of change of the variance between the reference and the first overlay: **blue = the overlay gains time here, red = loses time**, grey = equal |
+| **Channel** (Ground Speed, Brake Pos, Gear, Car Coord Z…) | The reference lap coloured from the lap's min to max, with a legend |
+| **Lap colours** | Each selected lap's line in its lap colour |
+| **Time gained / lost** | Where the first overlay gains (blue) or loses (red) time against the reference |
 
-Ramps: *Blue* and *Orange* (sequential, for magnitudes) and *Blue ↔ Red* (diverging, for signed values).
+**Colour ramps**: Blue or Orange (sequential), Blue ↔ Red (diverging), or **Custom colours…**. Custom means you pick the **low** and **high** colours (or the *gaining* and *losing* colours in gain/loss mode) with the full colour picker in Properties.
 
-## Markers
+## GPS Track: comparing racing lines
 
-- **S/F** start/finish line.
-- **S2, S3…** game sector splits (from the sector timer; see [08](08-laps-sectors-reports.md)).
-- **Custom section** splits with your names.
-- **Corner labels** T1, T2… (auto-detected; renameable in the Corner Report).
+![GPS track zoomed into T1–T2](images/gps-track.png)
 
-Toggle sectors/sections and corners from the right-click menu or Properties.
+1. Select two or more laps (Ctrl/⌘ + click in the sidebar).
+2. **Zoom the graphs into a corner**: double-click and drag across it, or click the corner in the Corner Report. The GPS Track automatically frames exactly that part of the lap for every selected lap.
+3. Compare the thin lines:
+   - the **scale bar** (bottom right) gives the size in metres;
+   - the faint band is an approximate 13 m-wide track;
+   - the readout at the top left gives each overlay's **lateral offset from the reference line at the cursor**, e.g. *"Lap 3: 0.8 m left of ref"*.
+4. Scrub the cursor along a graph to watch the cars and offsets move. With **Follow the cursor** on, a map you've zoomed into manually keeps the reference car centred.
 
-## Cursor & zoom link
+Interactions are the same as the Track Map: scroll to zoom (much deeper on the GPS Track), drag to pan, double-click to reset, click to move the cursor. Options in Properties or right-click:
+- line width;
+- frame the zoomed range;
+- follow cursor;
+- track band;
+- sector/corner labels.
 
-- A dot marks every selected lap's position at the cursor. The reference has a ring.
-- **Click near the track** to move the cursor to that point, so every graph jumps there.
-- When the graphs are zoomed, the map **dims everything outside the zoomed section** (toggle *Highlight zoomed range*).
+## The rotation dial
 
-## Navigation
+Both maps have a small **dial** in the top-right corner:
 
-| Action | Input |
-|---|---|
-| Zoom | scroll wheel (around the mouse) |
-| Pan | drag |
-| Reset view | double-click |
-| Rotate 90° | right-click → *Rotate 90° (this track)* |
-| Mirror | right-click → *Mirror (this track)* |
+- **Drag the ring** to rotate the map (hold **Shift** for 15° steps). Every map of the same track turns together, and the angle in Properties updates live.
+- **Save** stores the current angle as **this track's default rotation**, used every time you open that track.
+- **Reset** returns to the saved rotation after you've been experimenting. "unsaved" shows while they differ.
 
-Rotation and mirroring are saved **per track** (in the track profile), so every map of that circuit, in every workspace, matches. Fine-tune the rotation in degrees in the Properties panel.
+You can also type an angle, or use ⟲ 90° / ⟳ 90°, in the track profile (Properties, or **Analysis → Track Profile…**). **Mirror** is in the same place and in the right-click menu.
 
-## Custom sections
+## Corners, sections and the track profile
 
-Sections are your own split points, used for section times in the Lap Report.
+![Track profile editor](images/track-profile.png)
 
-1. Put the cursor where you want a split (click a graph or the map).
-2. Right-click the map → **Add section split at cursor…** and give it a name ("T7 exit", "Back straight").
-3. Lap Report → **Custom sections** now shows the time between consecutive splits for every lap.
+Corners are **not** generated automatically: you define them once per track and they're remembered.
 
-Edit names and exact distances, or delete splits, in the Properties panel's *Track profile* group. **Clear custom sections** removes them all. Sections are stored per track and shared across workspaces.
+**Add a corner**
+1. Put the cursor on the corner's apex (click a graph or the map).
+2. Right-click a graph, the Track Map or the GPS Track → **Add corner at cursor…**, and name it (e.g. "T7" or "Turn 7 – Memorial").
+
+**Edit corners** in the **track profile** editor (Properties of a map or corner report, or **Analysis → Track Profile (corners, sections, rotation)…**):
+- rename;
+- type an exact distance;
+- **⇢ cursor** to move a corner to the cursor;
+- delete, or **Clear all**.
+
+Right-click a corner in the Corner Report for Rename / Move to cursor / Delete. **Suggest from speed minima** proposes corners at the reference lap's slowest points, but only when you click it; edit or delete them afterwards.
+
+**Section splits** work the same way (**Add section split at cursor…**). They divide the lap into named parts for the Lap Report's *Custom sections* columns.
+
+Corners appear on graphs (*Corner markers*), both maps (*Corner labels*) and in the **Corner Report**. Everything in a track profile is saved per venue, shared by all workspaces, and undoable.

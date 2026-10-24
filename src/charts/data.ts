@@ -3,9 +3,40 @@
 import { lapSeries, xToTime } from '../core/axis';
 import { sampleAt } from '../core/channel';
 import { autoDps } from '../core/format';
-import type { ChannelInfo, Lap, Session, XMode } from '../core/types';
+import type { ChannelInfo, Lap, Samples, Session, XMode } from '../core/types';
 import { displayConv, type DisplayConv } from '../core/units';
 import { activeWorkspace, useStore, type SelectedLap } from '../state/store';
+
+const smoothCache = new WeakMap<ChannelInfo, Map<number, Float32Array>>();
+
+/**
+ * Samples to draw for a channel: the raw data, or a centred moving average when display smoothing
+ * is switched on (top bar). Discrete channels (gear, flags…) are never smoothed. Reports and
+ * statistics always use the raw data.
+ */
+export function displayData(ch: ChannelInfo): Samples {
+  const sm = useStore.getState().settings.smoothing;
+  if (!sm.enabled || ch.discrete) return ch.data;
+  const win = Math.round(sm.seconds * ch.rate);
+  if (win < 2) return ch.data;
+  let m = smoothCache.get(ch);
+  if (!m) smoothCache.set(ch, (m = new Map()));
+  let out = m.get(win);
+  if (!out) {
+    const n = ch.n;
+    const half = Math.floor(win / 2);
+    const pre = new Float64Array(n + 1);
+    for (let i = 0; i < n; i++) pre[i + 1] = pre[i] + (Number.isFinite(ch.data[i]) ? ch.data[i] : 0);
+    out = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const a = Math.max(0, i - half);
+      const b = Math.min(n, i + half + 1);
+      out[i] = Number.isFinite(ch.data[i]) ? (pre[b] - pre[a]) / (b - a) : NaN;
+    }
+    m.set(win, out);
+  }
+  return out;
+}
 
 export function conv(ch: ChannelInfo): DisplayConv {
   const props = activeWorkspace()?.channelProps[ch.name];

@@ -29,9 +29,11 @@ Project-Trace uses the best evidence in the file, in this order:
 | **Ctrl/⌘ + click** (or the checkbox) | add/remove it as an overlay |
 | **Shift + click** (or ☆) | make it the **reference** (keeps the others) |
 | **F** | fastest lap as reference |
-| **PgUp / PgDn** or **[ / ]** | step the reference to the previous/next lap |
+| **↑ / ↓** (or PgUp / PgDn, [ / ]) | step the reference to the previous/next lap |
 | *Whole session* | view the entire outing on a session-time axis |
 | **Clear overlays** | keep only the reference |
+
+**Lap colours**: each selected lap gets a colour that stays with it. **Click a selected lap's coloured square** (or right-click → *Lap colour…*) to choose any colour from the palette, a custom colour picker or a hex value. Overlay laps are drawn in their colour on every graph, map and report; the reference lap uses channel colours or its lap colour (toggle with **J**, see [04](04-time-distance-graph.md#lap-colours)).
 
 The **reference** is what variance, gain/loss maps and corner deltas compare against. It is drawn on top in every chart and listed first in reports. Opening a session selects its fastest valid lap. Opening a *second* session adds its fastest lap as an overlay, so comparing two runs takes one action.
 
@@ -66,7 +68,9 @@ A table of statistics for chosen channels for every selected lap (or only the zo
 
 ## Corner report
 
-Corners are **detected automatically** on the reference lap as significant minima in speed vs distance (≥ 8 km/h or 6 % drop and recovery, merged within 60 m). Fast kinks taken flat are not corners by this definition, so numbering can differ from the official one. **Double-click a corner name to rename it** (e.g. "T7 Turn 7 / Memorial"); names are stored per track and shown on graphs and maps.
+The corner report uses **the corners you define for the track**. Nothing is generated automatically; see [05](05-track-map.md#corners-sections-and-the-track-profile). Until a track has corners, the report explains how to add them and offers two buttons: **Open track profile editor**, and an optional **Suggest from speed minima** that proposes corners at the reference lap's slowest points for you to keep, rename or delete.
+
+Each corner is analysed over a window from halfway to the previous corner to halfway to the next, capped at ±200 m from the apex you set. **Right-click a corner** to rename it, move it to the cursor, or delete it.
 
 | Metric | |
 |---|---|

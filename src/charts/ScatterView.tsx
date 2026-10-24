@@ -1,6 +1,7 @@
 // Scatter / XY plot: any channel against any other for each selected lap.
 // Options: colour by lap or by a third channel, polynomial fit with R², MoTeC-style
-// X-interval averaging, gate channel, equal aspect (G-G diagrams get friction circles).
+// X-interval averaging, gate channel, fixed axis ranges, equal aspect (G-G diagrams get friction
+// circles). Drag a rectangle to zoom; double-click resets.
 
 import { useCallback, useEffect, useRef } from 'react';
 import { xToTime } from '../core/axis';
@@ -9,10 +10,11 @@ import { rampColor, withAlpha } from '../core/colors';
 import { formatValue } from '../core/format';
 import { lapLabel } from '../core/session';
 import { evalPoly, polyFit } from '../core/stats';
-import { selectedLaps, updateComponent, useStore } from '../state/store';
+import { openProperties, selectedLaps, updateComponent, useStore } from '../state/store';
 import type { ScatterConfig } from '../state/workspace';
 import { openChannelPicker, openMenu } from '../ui/overlays';
 import { drawAxes, drawMarker, makeAxes, padRange, type Axes } from './axes';
+import { BoxZoomLayer, type View } from './BoxZoom';
 import { chartTheme, prepCanvas, useElementSize, useStoreListener } from './canvas';
 import { conv, findChannel, lapWindow, sampleGrid } from './data';
 
@@ -21,8 +23,7 @@ export function ScatterView({ config }: { config: ScatterConfig }) {
   const baseRef = useRef<HTMLCanvasElement>(null);
   const overRef = useRef<HTMLCanvasElement>(null);
   const axesRef = useRef<Axes | null>(null);
-  const viewRef = useRef<{ x0: number; x1: number; y0: number; y1: number } | null>(null);
-  const dragRef = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null);
+  const viewRef = useRef<View | null>(null);
   const sessions = useStore((s) => s.sessions);
   const lapSel = useStore((s) => s.laps);
   const refKey = useStore((s) => s.refKey);
@@ -84,10 +85,15 @@ export function ScatterView({ config }: { config: ScatterConfig }) {
     }
     let [x0, x1] = padRange(xmn, xmx);
     let [y0, y1] = padRange(ymn, ymx);
+    // Fixed axis ranges from the Properties take precedence over automatic ranges.
+    if (config.xMin != null) x0 = config.xMin;
+    if (config.xMax != null) x1 = config.xMax;
+    if (config.yMin != null) y0 = config.yMin;
+    if (config.yMax != null) y1 = config.yMax;
     const cx = conv(chX);
     const cy = conv(chY);
     const rect = { x: 54, y: 10, w: Math.max(10, w - 54 - 14), h: Math.max(10, h - 10 - 40) };
-    if (config.equalAspect) {
+    if (config.equalAspect && config.xMin == null && config.xMax == null && config.yMin == null && config.yMax == null) {
       const sx = rect.w / (x1 - x0);
       const sy = rect.h / (y1 - y0);
       if (sx > sy) {
@@ -111,7 +117,6 @@ export function ScatterView({ config }: { config: ScatterConfig }) {
     ctx.beginPath();
     ctx.rect(rect.x, rect.y, rect.w, rect.h);
     ctx.clip();
-    // Friction circles for G-G plots.
     if (config.equalAspect && /^g$/i.test(cx.unit) && /^g$/i.test(cy.unit)) {
       ctx.strokeStyle = T.gridStrong;
       ctx.setLineDash([3, 4]);
@@ -123,10 +128,8 @@ export function ScatterView({ config }: { config: ScatterConfig }) {
       ctx.setLineDash([]);
     }
     const ps = config.pointSize;
-    const order = sets.slice(1).concat(sets.slice(0, 1));
-    for (const s of order) {
-      const alpha = sets.length > 1 ? 0.55 : 0.7;
-      if (!s.cs) ctx.fillStyle = withAlpha(s.l.color, alpha);
+    for (const s of sets.slice(1).concat(sets.slice(0, 1))) {
+      if (!s.cs) ctx.fillStyle = withAlpha(s.l.color, sets.length > 1 ? 0.55 : 0.7);
       for (let i = 0; i < s.xs.length; i++) {
         if (s.gate && !s.gate[i]) continue;
         const x = s.xs[i],
@@ -136,7 +139,6 @@ export function ScatterView({ config }: { config: ScatterConfig }) {
         drawMarker(ctx, sets.length > 1 ? s.l.slot : 0, A.px(x), A.py(y), ps);
       }
     }
-    // Interval averages / fits
     const fitDeg = config.fit === 'linear' ? 1 : config.fit === 'poly2' ? 2 : config.fit === 'poly3' ? 3 : 0;
     const notes: string[] = [];
     for (const s of sets) {
@@ -210,10 +212,14 @@ export function ScatterView({ config }: { config: ScatterConfig }) {
     ctx.fillStyle = T.text2;
     ctx.textAlign = 'left';
     notes.slice(0, 4).forEach((n, i) => ctx.fillText(n, rect.x + 8, rect.y + 12 + i * 14));
+    if (viewRef.current) {
+      ctx.fillStyle = T.text3;
+      ctx.textAlign = 'right';
+      ctx.fillText('zoomed — double-click to reset', rect.x + rect.w - 6, rect.y + 10);
+    }
     if (colorCh) {
       const cc = findChannel(sessions, colorCh);
       const cv = cc ? conv(cc) : null;
-      // Colour key in the bottom-right corner (fit equations use the top-left).
       const bw = 100;
       const ky = rect.y + rect.h - 30;
       const g = ctx.createLinearGradient(rect.x + rect.w - bw - 8, 0, rect.x + rect.w - 8, 0);
@@ -264,7 +270,7 @@ export function ScatterView({ config }: { config: ScatterConfig }) {
   useStoreListener(drawOverlay, [drawOverlay]);
   useEffect(() => {
     viewRef.current = null;
-  }, [config.x, config.y, config.equalAspect]);
+  }, [config.x, config.y, config.equalAspect, config.xMin, config.xMax, config.yMin, config.yMax]);
 
   const onContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -275,7 +281,8 @@ export function ScatterView({ config }: { config: ScatterConfig }) {
         label: `Colour: ${config.color === 'lap' ? 'by lap' : config.color}…`,
         onClick: () => openChannelPicker(e, (n) => updateComponent(config.id, { color: n }), [{ value: 'lap', label: 'Lap colours' }]),
       },
-      { label: 'Swap X and Y', onClick: () => updateComponent(config.id, { x: config.y, y: config.x }) },
+      { label: 'Swap X and Y', onClick: () => updateComponent(config.id, { x: config.y, y: config.x, xMin: config.yMin, xMax: config.yMax, yMin: config.xMin, yMax: config.xMax }) },
+      { label: 'Axis ranges & scales…', onClick: () => openProperties(config.id) },
       { separator: true },
       { label: 'Fit: none', checked: config.fit === 'none', onClick: () => updateComponent(config.id, { fit: 'none' }) },
       { label: 'Fit: linear', checked: config.fit === 'linear', onClick: () => updateComponent(config.id, { fit: 'linear' }) },
@@ -285,56 +292,22 @@ export function ScatterView({ config }: { config: ScatterConfig }) {
       { label: 'Equal aspect', checked: config.equalAspect, onClick: () => updateComponent(config.id, { equalAspect: !config.equalAspect }) },
       { label: 'Only zoomed range', checked: config.useZoom, onClick: () => updateComponent(config.id, { useZoom: !config.useZoom }) },
       { separator: true },
-      { label: 'Reset view', onClick: () => ((viewRef.current = null), drawBase(), drawOverlay()) },
+      { label: 'Reset zoom', shortcut: 'double-click', onClick: () => ((viewRef.current = null), drawBase(), drawOverlay()) },
     ]);
   };
-
-  useEffect(() => {
-    const el = overRef.current;
-    if (!el) return;
-    const onWheel = (e: WheelEvent) => {
-      const A = axesRef.current;
-      if (!A) return;
-      e.preventDefault();
-      const r = el.getBoundingClientRect();
-      const mx = A.ix(e.clientX - r.left);
-      const my = A.iy(e.clientY - r.top);
-      const cur = viewRef.current ?? { x0: A.ix(A.rect.x), x1: A.ix(A.rect.x + A.rect.w), y0: A.iy(A.rect.y + A.rect.h), y1: A.iy(A.rect.y) };
-      const f = Math.pow(1.0015, e.deltaY);
-      viewRef.current = { x0: mx - (mx - cur.x0) * f, x1: mx + (cur.x1 - mx) * f, y0: my - (my - cur.y0) * f, y1: my + (cur.y1 - my) * f };
-      drawBase();
-      drawOverlay();
-    };
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  });
 
   return (
     <div ref={wrapRef} className="chart">
       <canvas ref={baseRef} />
-      <canvas
-        ref={overRef}
-        style={{ cursor: 'move', touchAction: 'none' }}
-        onContextMenu={onContextMenu}
-        onDoubleClick={() => ((viewRef.current = null), drawBase(), drawOverlay())}
-        onPointerDown={(e) => {
-          (e.target as HTMLElement).setPointerCapture(e.pointerId);
-          dragRef.current = { x: e.clientX, y: e.clientY, cx: e.clientX, cy: e.clientY };
-        }}
-        onPointerMove={(e) => {
-          const d = dragRef.current;
-          const A = axesRef.current;
-          if (!d || !A) return;
-          const cur = viewRef.current ?? { x0: A.ix(A.rect.x), x1: A.ix(A.rect.x + A.rect.w), y0: A.iy(A.rect.y + A.rect.h), y1: A.iy(A.rect.y) };
-          const dx = A.ix(e.clientX) - A.ix(d.cx);
-          const dy = A.iy(e.clientY) - A.iy(d.cy);
-          d.cx = e.clientX;
-          d.cy = e.clientY;
-          viewRef.current = { x0: cur.x0 - dx, x1: cur.x1 - dx, y0: cur.y0 - dy, y1: cur.y1 - dy };
+      <canvas ref={overRef} />
+      <BoxZoomLayer
+        axesRef={axesRef}
+        onView={(v) => {
+          viewRef.current = v;
           drawBase();
           drawOverlay();
         }}
-        onPointerUp={() => (dragRef.current = null)}
+        onContextMenu={onContextMenu}
       />
     </div>
   );

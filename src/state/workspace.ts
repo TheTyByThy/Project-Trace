@@ -18,7 +18,8 @@ export type ComponentType =
   | 'details'
   | 'trend'
   | 'corners'
-  | 'fft';
+  | 'fft'
+  | 'gpstrack';
 
 export interface GraphPane {
   id: string;
@@ -40,6 +41,8 @@ export interface GraphConfig extends Base {
   type: 'graph';
   panes: GraphPane[];
   showVariance: boolean;
+  /** Relative height of the variance pane (same units as pane weights). */
+  varianceWeight?: number;
   showSectors: boolean;
   showCorners: boolean;
   yRange: 'full' | 'visible';
@@ -58,6 +61,11 @@ export interface ScatterConfig extends Base {
   intervalCount: number;
   ramp: RampName;
   gate?: string; // optional channel: only plot samples where gate channel is non-zero
+  /** Fixed axis ranges (display units); undefined = automatic. */
+  xMin?: number;
+  xMax?: number;
+  yMin?: number;
+  yMax?: number;
 }
 
 export interface HistogramConfig extends Base {
@@ -89,11 +97,28 @@ export interface TrackMapConfig extends Base {
   type: 'trackmap';
   colorBy: string; // 'lap' | 'delta' | channel name
   ramp: RampName;
+  /** Colours for the 'custom' ramp (low → high). */
+  customLow?: string;
+  customHigh?: string;
   showSectors: boolean;
   showCorners: boolean;
   showZoom: boolean;
   lineWidth: number;
-  rotation: number; // degrees, added to the per-track profile rotation
+  /** @deprecated rotation now lives in the per-track profile. */
+  rotation?: number;
+}
+
+/** Racing-line comparison: thin per-lap lines from car coordinates. */
+export interface GpsTrackConfig extends Base {
+  type: 'gpstrack';
+  lineWidth: number;
+  /** Frame the graphs' zoomed range automatically. */
+  fitToZoom: boolean;
+  /** Keep the reference car centred when zoomed in. */
+  followCursor: boolean;
+  showRoad: boolean;
+  showSectors: boolean;
+  showCorners: boolean;
 }
 
 export interface LapReportConfig extends Base {
@@ -143,6 +168,8 @@ export interface TrendConfig extends Base {
   channel: string; // '' = lap time
   stat: 'mean' | 'max' | 'min' | 'last' | 'first' | 'delta';
   validOnly: boolean;
+  yMin?: number;
+  yMax?: number;
 }
 
 export interface CornersConfig extends Base {
@@ -172,7 +199,8 @@ export type ComponentConfig =
   | DetailsConfig
   | TrendConfig
   | CornersConfig
-  | FftConfig;
+  | FftConfig
+  | GpsTrackConfig;
 
 export type LayoutNode =
   | { kind: 'split'; id: string; dir: 'row' | 'col'; children: LayoutNode[]; sizes: number[] }
@@ -204,6 +232,8 @@ export interface Workspace {
   channelProps: Record<string, ChannelProps>;
   createdAt: number;
   updatedAt: number;
+  /** Built-in template (the Starter workspace): never modified in place. */
+  locked?: boolean;
 }
 
 let idCounter = 0;

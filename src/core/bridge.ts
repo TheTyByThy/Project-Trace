@@ -32,6 +32,17 @@ export interface DirListing {
   error: string | null;
 }
 
+/** Data the main process needs to build the dynamic Workspace / Worksheet menus. */
+export interface MenuState {
+  workspaces: { id: string; name: string; locked: boolean }[];
+  activeWorkspaceId: string;
+  library: { id: string; name: string }[];
+  refColors: 'channel' | 'lap';
+  smoothing: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
+}
+
 export interface PtBridge {
   appInfo(): Promise<AppInfo>;
   getSettings(): Promise<any>;
@@ -56,6 +67,9 @@ export interface PtBridge {
   watchDir(dir: string): Promise<boolean>;
   showItemInFolder(p: string): Promise<void>;
   capture(): Promise<ArrayBuffer>;
+  getLibrary(): Promise<any[]>;
+  setLibrary(lib: any[]): Promise<void>;
+  setMenuState(state: MenuState): void;
   pathForFile(file: File): string;
   onMenu(cb: (action: string) => void): () => void;
   onOpenFiles(cb: (files: string[]) => void): () => void;

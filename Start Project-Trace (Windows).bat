@@ -14,17 +14,13 @@ if errorlevel 1 (
   exit /b 1
 )
 
-if not exist "node_modules\electron" (
+rem Installs (or re-installs, if the folder was copied from a Mac) the dependencies for this PC.
+node scripts\ensure-install.mjs
+if errorlevel 1 (
   echo.
-  echo  First run: installing Project-Trace ^(about a minute, needs internet^)...
-  echo.
-  call npm install
-  if errorlevel 1 (
-    echo.
-    echo  Installation failed - see the messages above.
-    pause
-    exit /b 1
-  )
+  echo  Installation failed - see the messages above.
+  pause
+  exit /b 1
 )
 
 echo  Starting Project-Trace...

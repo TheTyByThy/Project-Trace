@@ -23,9 +23,100 @@ interface OverlayState {
   picker: { x: number; y: number; onPick: (name: string) => void; extras?: { value: string; label: string }[]; title?: string } | null;
   prompt: { title: string; value: string; resolve: (v: string | null) => void } | null;
   channelProps: string | null;
+  color: { x: number; y: number; value?: string; title?: string; allowAuto?: boolean; onPick: (c: string | undefined) => void } | null;
 }
 
-export const useOverlay = create<OverlayState>(() => ({ menu: null, picker: null, prompt: null, channelProps: null }));
+export const useOverlay = create<OverlayState>(() => ({ menu: null, picker: null, prompt: null, channelProps: null, color: null }));
+
+/** Pop up a colour chooser (palette + custom picker + hex) at the mouse. */
+export function openColorPicker(
+  e: { clientX: number; clientY: number },
+  value: string | undefined,
+  onPick: (c: string | undefined) => void,
+  opts: { title?: string; allowAuto?: boolean } = {},
+) {
+  useOverlay.setState({ color: { x: e.clientX, y: e.clientY, value, onPick, ...opts } });
+}
+
+const HEX_RE = /^#[0-9a-f]{6}$/i;
+
+/** Inline colour field: palette swatches, a custom colour picker and a hex input. */
+export function ColorField({ value, onChange, allowAuto = false }: { value?: string; onChange: (c: string | undefined) => void; allowAuto?: boolean }) {
+  const theme = useStore((s) => s.settings.theme);
+  const [hex, setHex] = useState(value ?? '');
+  useEffect(() => setHex(value ?? ''), [value]);
+  return (
+    <div className="color-field">
+      <div className="row" style={{ gap: 5, flexWrap: 'wrap' }}>
+        {CATEGORICAL[theme].map((c) => (
+          <span
+            key={c}
+            className="swatch big"
+            style={{ background: c, outline: value?.toLowerCase() === c.toLowerCase() ? '2px solid var(--text)' : undefined }}
+            onClick={() => onChange(c)}
+            title={c}
+          />
+        ))}
+        {allowAuto && (
+          <button className={'btn small' + (!value ? ' active' : '')} onClick={() => onChange(undefined)}>
+            Auto
+          </button>
+        )}
+      </div>
+      <div className="row" style={{ gap: 8, marginTop: 6 }}>
+        <label className="custom-color" title="Pick any colour">
+          <input type="color" value={value && HEX_RE.test(value) ? value : '#3987e5'} onChange={(e) => onChange(e.target.value)} />
+          <span>Custom…</span>
+        </label>
+        <input
+          className="input mono"
+          style={{ width: 96 }}
+          placeholder="#rrggbb"
+          value={hex}
+          onChange={(e) => {
+            setHex(e.target.value);
+            if (HEX_RE.test(e.target.value)) onChange(e.target.value);
+          }}
+        />
+        {value && <span className="swatch big" style={{ background: value }} />}
+      </div>
+    </div>
+  );
+}
+
+function ColorPickerHost() {
+  const st = useOverlay((s) => s.color);
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  useEffect(() => {
+    if (!st) return;
+    setPos(clampToViewport(st.x, st.y, 300, 150));
+    const close = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) useOverlay.setState({ color: null });
+    };
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && useOverlay.setState({ color: null });
+    setTimeout(() => window.addEventListener('mousedown', close), 0);
+    window.addEventListener('keydown', esc);
+    return () => {
+      window.removeEventListener('mousedown', close);
+      window.removeEventListener('keydown', esc);
+    };
+  }, [st?.x, st?.y]);
+  if (!st || !pos) return null;
+  return (
+    <div ref={ref} className="popover" style={{ ...pos, padding: 10, width: 300 }}>
+      {st.title && <div className="section-title" style={{ padding: '0 0 6px' }}>{st.title}</div>}
+      <ColorField
+        value={st.value}
+        allowAuto={st.allowAuto}
+        onChange={(c) => {
+          st.onPick(c);
+          useOverlay.setState((s) => ({ color: s.color ? { ...s.color, value: c } : null }));
+        }}
+      />
+    </div>
+  );
+}
 
 export function openMenu(e: { clientX: number; clientY: number }, items: MenuItem[]) {
   useOverlay.setState({ menu: { x: e.clientX, y: e.clientY, items } });
@@ -294,7 +385,6 @@ function PromptHost() {
 
 function ChannelPropsHost() {
   const name = useOverlay((s) => s.channelProps);
-  const theme = useStore((s) => s.settings.theme);
   const props = useStore((s) => (name ? activeWorkspace(s)?.channelProps[name] : undefined)) ?? {};
   if (!name) return null;
   const close = () => useOverlay.setState({ channelProps: null });
@@ -306,23 +396,10 @@ function ChannelPropsHost() {
           <h2>Channel properties — {name}</h2>
         </div>
         <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <label className="field">
-            Colour
-            <div className="row">
-              {CATEGORICAL[theme].map((c) => (
-                <span
-                  key={c}
-                  className="swatch"
-                  style={{ background: c, width: 22, height: 22, cursor: 'pointer', outline: props.color === c ? '2px solid var(--text)' : undefined }}
-                  onClick={() => setChannelProps(name, { color: c })}
-                />
-              ))}
-              <input type="color" value={props.color ?? '#3987e5'} onChange={(e) => setChannelProps(name, { color: e.target.value })} />
-              <button className="btn small" onClick={() => setChannelProps(name, { color: undefined })}>
-                Auto
-              </button>
-            </div>
-          </label>
+          <div className="field">
+            Colour (the reference lap uses it when showing channel colours)
+            <ColorField value={props.color} allowAuto onChange={(c) => setChannelProps(name, { color: c })} />
+          </div>
           <div className="row">
             <label className="field grow">
               Fixed min (display units)
@@ -370,6 +447,7 @@ export function OverlayHosts() {
       <PickerHost />
       <PromptHost />
       <ChannelPropsHost />
+      <ColorPickerHost />
     </>
   );
 }

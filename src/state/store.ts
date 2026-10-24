@@ -5,8 +5,9 @@ import { create } from 'zustand';
 import { baseName, dirName, pt, type AppInfo } from '../core/bridge';
 import { lapXRange, timeToX, xToTime } from '../core/axis';
 import { lapColor, type Theme } from '../core/colors';
+import type { TrackCorner } from '../core/corners';
 import { applyMathChannels, type MathChannelDef, type MathConstant } from '../core/math/evaluate';
-import { fastestLap, getLap, theoreticalBest } from '../core/session';
+import { fastestLap, getLap, lapAtTime, theoreticalBest } from '../core/session';
 import { lapKey, parseLapKey, type Lap, type Session, type XMode } from '../core/types';
 import { DEFAULT_UNITS, type UnitPrefs } from '../core/units';
 import { createComponent } from './components';
@@ -20,11 +21,12 @@ export interface TrackSection {
   dist: number;
 }
 
+/** Everything Project-Trace remembers about a circuit (keyed by venue name). */
 export interface TrackProfile {
   rotation: number;
   mirror: boolean;
   sections: TrackSection[];
-  cornerNames: Record<string, string>;
+  corners: TrackCorner[];
 }
 
 export interface Settings {
@@ -33,7 +35,8 @@ export interface Settings {
   recent: string[];
   units: UnitPrefs;
   theme: Theme;
-  cursorMode: 'click' | 'hover';
+  /** click = MoTeC classic (drag zooms); scrub = drag moves the cursor, double-click-drag zooms; hover = follows the mouse. */
+  cursorMode: 'click' | 'scrub' | 'hover';
   gameClock: 'track' | 'utc';
   trackZones: Record<string, string>;
   activeWorkspaceId: string;
@@ -41,7 +44,13 @@ export interface Settings {
   hideConstant: boolean;
   sidebarWidth: number;
   inspectorWidth: number;
-  overlayStyle: 'auto' | 'lap' | 'channel';
+  /** Reference lap drawn in per-channel colours, or entirely in its lap colour (toggle: J). */
+  refColors: 'channel' | 'lap';
+  /** Display smoothing for graph traces (centred moving average). */
+  smoothing: { enabled: boolean; seconds: number };
+  trackSort: 'recent' | 'name' | 'sessions' | 'oldest';
+  /** What double-click / drag-and-drop does when sessions are already open. */
+  browserOpenMode: 'add' | 'replace';
   showBrowserOnLaunch: boolean;
 }
 
@@ -58,16 +67,23 @@ export const DEFAULT_SETTINGS: Settings = {
   trackProfiles: {},
   hideConstant: false,
   sidebarWidth: 300,
-  inspectorWidth: 320,
-  overlayStyle: 'auto',
+  inspectorWidth: 340,
+  refColors: 'channel',
+  smoothing: { enabled: false, seconds: 0.1 },
+  trackSort: 'recent',
+  browserOpenMode: 'add',
   showBrowserOnLaunch: true,
 };
 
-export const emptyTrackProfile = (): TrackProfile => ({ rotation: 0, mirror: false, sections: [], cornerNames: {} });
+export const emptyTrackProfile = (): TrackProfile => ({ rotation: 0, mirror: false, sections: [], corners: [] });
+
+export const STARTER_ID = 'starter';
 
 export interface LapSel {
   key: string;
   slot: number;
+  /** User-chosen colour (otherwise the palette colour of the slot). */
+  color?: string;
 }
 
 export interface Toast {
@@ -78,13 +94,15 @@ export interface Toast {
 
 export interface UiState {
   sidebar: boolean;
-  inspector: boolean;
   browser: boolean;
   math: boolean;
   settings: boolean;
   shortcuts: boolean;
   palette: boolean;
-  addComponent: boolean;
+  properties: boolean;
+  /** Docked Properties panel on the right (Ctrl/⌘+I). */
+  inspector: boolean;
+  trackProfile: boolean;
   sidebarTab: 'laps' | 'channels';
 }
 
@@ -95,6 +113,21 @@ export interface SessionCacheEntry {
   bestValidNumber: number | null;
   ideal: number | null;
   invalidLaps: number;
+}
+
+export interface SavedSheet {
+  id: string;
+  name: string;
+  savedAt: number;
+  sheet: Worksheet;
+}
+
+/** Undo/redo snapshot. Workspaces are updated immutably, so snapshots share structure. */
+interface Snapshot {
+  workspaces: Workspace[];
+  activeWorkspaceId: string;
+  trackProfiles: Record<string, TrackProfile>;
+  label: string;
 }
 
 interface State {
@@ -117,6 +150,10 @@ interface State {
   mathErrors: Record<string, Record<string, string>>;
   notes: Record<string, string>;
   sessionCache: Record<string, SessionCacheEntry>;
+  /** Unsaved track-map rotation per venue (saved rotation lives in the track profile). */
+  workingRotation: Record<string, number>;
+  history: { past: Snapshot[]; future: Snapshot[] };
+  library: SavedSheet[];
   errors: string[];
 }
 
@@ -135,11 +172,14 @@ export const useStore = create<State>(() => ({
   measure: null,
   workspaces: [],
   activeComponentId: null,
-  ui: { sidebar: true, inspector: true, browser: false, math: false, settings: false, shortcuts: false, palette: false, addComponent: false, sidebarTab: 'laps' },
+  ui: { sidebar: true, browser: false, math: false, settings: false, shortcuts: false, palette: false, properties: false, inspector: true, trackProfile: false, sidebarTab: 'laps' },
   toasts: [],
   mathErrors: {},
   notes: {},
   sessionCache: {},
+  workingRotation: {},
+  history: { past: [], future: [] },
+  library: [],
   errors: [],
 }));
 
@@ -156,9 +196,14 @@ function debounce(key: string, ms: number, fn: () => void) {
   timers.set(key, setTimeout(fn, ms));
 }
 const saveSettings = () => debounce('settings', 400, () => pt().setSettings(get().settings));
-const saveWorkspace = (ws: Workspace) => debounce('ws:' + ws.id, 600, () => pt().saveWorkspace(ws));
+const saveWorkspace = (ws: Workspace) => {
+  if (!ws.locked) debounce('ws:' + ws.id, 600, () => pt().saveWorkspace(ws));
+};
+/** Drop a pending debounced save (used when a workspace is deleted). */
+const cancelSave = (id: string) => clearTimeout(timers.get('ws:' + id));
 const saveCache = () => debounce('cache', 800, () => pt().setCache(get().sessionCache));
 const saveNotes = () => debounce('notes', 600, () => pt().setNotes(get().notes));
+const saveLibrary = () => debounce('library', 300, () => pt().setLibrary(get().library));
 
 // ---------------------------------------------------------------------------------------------
 // Selectors
@@ -200,7 +245,7 @@ export function selectedLaps(s: State = get()): SelectedLap[] {
     if (!session) continue;
     const lap = getLap(session, r.lapIndex);
     if (!lap) continue;
-    out.push({ key: l.key, session, lap, slot: l.slot, color: lapColor(l.slot, s.settings.theme), isRef: l.key === s.refKey });
+    out.push({ key: l.key, session, lap, slot: l.slot, color: l.color ?? lapColor(l.slot, s.settings.theme), isRef: l.key === s.refKey });
   }
   out.sort((a, b) => (a.isRef === b.isRef ? 0 : a.isRef ? -1 : 1));
   return out;
@@ -234,11 +279,20 @@ export function channelProps(name: string): ChannelProps {
 }
 
 export function trackProfile(venue: string): TrackProfile {
-  return get().settings.trackProfiles[venue] ?? emptyTrackProfile();
+  return { ...emptyTrackProfile(), ...get().settings.trackProfiles[venue] };
+}
+
+/** Rotation currently shown for a track (unsaved working value, else the saved default). */
+export function trackRotation(venue: string, s: State = get()): number {
+  return s.workingRotation[venue] ?? s.settings.trackProfiles[venue]?.rotation ?? 0;
+}
+export function rotationDirty(venue: string, s: State = get()): boolean {
+  const w = s.workingRotation[venue];
+  return w != null && Math.abs(w - (s.settings.trackProfiles[venue]?.rotation ?? 0)) > 0.05;
 }
 
 // ---------------------------------------------------------------------------------------------
-// Actions
+// Basic actions
 // ---------------------------------------------------------------------------------------------
 
 let toastId = 0;
@@ -257,39 +311,185 @@ export function updateSettings(patch: Partial<Settings>) {
   set((s) => ({ settings: { ...s.settings, ...patch } }));
   saveSettings();
   if (patch.theme) document.documentElement.dataset.theme = patch.theme;
-  if (patch.units || patch.theme) set((s) => ({ dataVersion: s.dataVersion + 1 }));
+  if (patch.units || patch.theme || patch.smoothing || patch.refColors) set((s) => ({ dataVersion: s.dataVersion + 1 }));
 }
 
-export function setTrackProfile(venue: string, patch: Partial<TrackProfile>) {
+export function setSmoothing(patch: Partial<Settings['smoothing']>) {
+  updateSettings({ smoothing: { ...get().settings.smoothing, ...patch } });
+}
+
+export function toggleRefColors() {
+  const next = get().settings.refColors === 'channel' ? 'lap' : 'channel';
+  updateSettings({ refColors: next });
+  toast(next === 'channel' ? 'Reference lap: channel colours' : 'Reference lap: single lap colour', 'info', 1600);
+}
+
+/** Open the Properties pop-out, optionally for a specific component. */
+export function openProperties(componentId?: string | null) {
+  if (componentId !== undefined) set({ activeComponentId: componentId });
+  setUi({ properties: true });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Undo / redo
+// ---------------------------------------------------------------------------------------------
+
+let lastRecordAt = 0;
+let restoring = false;
+
+function snapshot(label: string): Snapshot {
+  const s = get();
+  return { workspaces: s.workspaces, activeWorkspaceId: s.settings.activeWorkspaceId, trackProfiles: s.settings.trackProfiles, label };
+}
+
+/** Record the state *before* a change. Rapid successive edits (e.g. dragging a divider) coalesce. */
+function recordHistory(label: string) {
+  if (restoring) return;
+  const now = Date.now();
+  const coalesce = now - lastRecordAt < 500 && get().history.past.length > 0;
+  lastRecordAt = now;
+  if (coalesce) return;
+  set((s) => ({ history: { past: [...s.history.past.slice(-99), snapshot(label)], future: [] } }));
+}
+
+function applySnapshot(snap: Snapshot) {
+  const before = get();
+  const prevWs = before.workspaces;
+  const prevActive = activeWorkspace(before);
+  restoring = true;
+  set((s) => ({
+    workspaces: snap.workspaces,
+    settings: { ...s.settings, activeWorkspaceId: snap.activeWorkspaceId, trackProfiles: snap.trackProfiles },
+    dataVersion: s.dataVersion + 1,
+  }));
+  restoring = false;
+  saveSettings();
+  for (const ws of snap.workspaces) if (!prevWs.includes(ws) && !ws.locked) pt().saveWorkspace(ws);
+  for (const ws of prevWs)
+    if (!snap.workspaces.some((w) => w.id === ws.id) && !ws.locked) {
+      cancelSave(ws.id);
+      pt().deleteWorkspace(ws.id);
+    }
+  const nowActive = activeWorkspace();
+  if (nowActive && (nowActive.id !== prevActive?.id || nowActive.math !== prevActive.math || nowActive.constants !== prevActive.constants)) recomputeMath();
+  const sheet = activeSheet();
+  const ac = get().activeComponentId;
+  if (ac && !sheet?.components[ac]) set({ activeComponentId: null });
+}
+
+export function undo() {
+  const s = get();
+  const snap = s.history.past[s.history.past.length - 1];
+  if (!snap) return toast('Nothing to undo', 'info', 1400);
+  const current = snapshot(snap.label);
+  applySnapshot(snap);
+  set((st) => ({ history: { past: st.history.past.slice(0, -1), future: [...st.history.future, current] } }));
+  lastRecordAt = 0;
+  toast(`Undo: ${snap.label}`, 'info', 1600);
+}
+
+export function redo() {
+  const s = get();
+  const snap = s.history.future[s.history.future.length - 1];
+  if (!snap) return toast('Nothing to redo', 'info', 1400);
+  const current = snapshot(snap.label);
+  applySnapshot(snap);
+  set((st) => ({ history: { past: [...st.history.past, current], future: st.history.future.slice(0, -1) } }));
+  lastRecordAt = 0;
+  toast(`Redo: ${snap.label}`, 'info', 1600);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Track profiles
+// ---------------------------------------------------------------------------------------------
+
+export function setTrackProfile(venue: string, patch: Partial<TrackProfile>, label = 'Track profile') {
+  if (!venue) return;
+  recordHistory(label);
   const cur = trackProfile(venue);
   updateSettings({ trackProfiles: { ...get().settings.trackProfiles, [venue]: { ...cur, ...patch } } });
   set((s) => ({ dataVersion: s.dataVersion + 1 }));
 }
 
+export function setWorkingRotation(venue: string, deg: number) {
+  if (!venue) return;
+  const norm = ((Math.round(deg * 10) / 10) % 360 + 360) % 360;
+  set((s) => ({ workingRotation: { ...s.workingRotation, [venue]: norm } }));
+}
+
+export function saveRotation(venue: string) {
+  const r = trackRotation(venue);
+  setTrackProfile(venue, { rotation: r }, 'Save track rotation');
+  set((s) => {
+    const w = { ...s.workingRotation };
+    delete w[venue];
+    return { workingRotation: w };
+  });
+  toast(`Saved ${r.toFixed(0)}° as the default rotation for this track`, 'success', 2200);
+}
+
+export function resetRotation(venue: string) {
+  set((s) => {
+    const w = { ...s.workingRotation };
+    delete w[venue];
+    return { workingRotation: w };
+  });
+}
+
+export function addCorner(venue: string, corner: TrackCorner) {
+  const p = trackProfile(venue);
+  setTrackProfile(venue, { corners: [...p.corners, corner].sort((a, b) => a.dist - b.dist) }, 'Add corner');
+}
+
+// ---------------------------------------------------------------------------------------------
+// Startup
+// ---------------------------------------------------------------------------------------------
+
+function starterWorkspace(): Workspace {
+  return { ...buildDefaultWorkspace('Starter'), id: STARTER_ID, locked: true, createdAt: 0, updatedAt: 0 };
+}
+
 export async function initApp() {
   const bridge = pt();
-  const [info, rawSettings, list, cache, notes] = await Promise.all([
+  const [info, rawSettings, list, cache, notes, library] = await Promise.all([
     bridge.appInfo(),
     bridge.getSettings(),
     bridge.listWorkspaces(),
     bridge.getCache(),
     bridge.getNotes(),
+    bridge.getLibrary(),
   ]);
-  const settings: Settings = { ...DEFAULT_SETTINGS, ...(rawSettings ?? {}), units: { ...DEFAULT_UNITS, ...(rawSettings?.units ?? {}) } };
+  const raw = rawSettings ?? {};
+  const settings: Settings = {
+    ...DEFAULT_SETTINGS,
+    ...raw,
+    units: { ...DEFAULT_UNITS, ...(raw.units ?? {}) },
+    smoothing: { ...DEFAULT_SETTINGS.smoothing, ...(raw.smoothing ?? {}) },
+  };
+  // Migrate track profiles from older versions (auto-corner renames → manual corners).
+  const profiles: Record<string, TrackProfile> = {};
+  for (const [venue, p] of Object.entries((raw.trackProfiles ?? {}) as Record<string, Partial<TrackProfile>>)) {
+    profiles[venue] = { rotation: p.rotation ?? 0, mirror: !!p.mirror, sections: p.sections ?? [], corners: p.corners ?? [] };
+  }
+  settings.trackProfiles = profiles;
   if (!settings.telemetryRoot && info.defaultTelemetryRoot) settings.telemetryRoot = info.defaultTelemetryRoot;
-  let workspaces = (list as Workspace[]).filter((w) => w && Array.isArray(w.worksheets));
+
+  // The Starter workspace is rebuilt from code every launch and never saved, so it's always pristine.
+  let workspaces = (list as Workspace[]).filter((w) => w && Array.isArray(w.worksheets) && !w.locked && w.id !== STARTER_ID);
   if (!workspaces.length) {
-    const ws = buildDefaultWorkspace();
-    workspaces = [ws];
-    bridge.saveWorkspace(ws);
+    const mine = buildDefaultWorkspace('My Workspace');
+    workspaces = [mine];
+    bridge.saveWorkspace(mine);
   }
   workspaces.sort((a, b) => a.createdAt - b.createdAt);
-  if (!workspaces.some((w) => w.id === settings.activeWorkspaceId)) settings.activeWorkspaceId = workspaces[0].id;
+  workspaces = [starterWorkspace(), ...workspaces];
+  if (!workspaces.some((w) => w.id === settings.activeWorkspaceId)) settings.activeWorkspaceId = workspaces[1].id;
   document.documentElement.dataset.theme = settings.theme;
   set({
     appInfo: info,
     settings,
     workspaces,
+    library: Array.isArray(library) ? library : [],
     sessionCache: cache ?? {},
     notes: notes ?? {},
     ready: true,
@@ -298,7 +498,9 @@ export async function initApp() {
   bridge.setSettings(settings);
 }
 
-// ---- sessions ----
+// ---------------------------------------------------------------------------------------------
+// Sessions
+// ---------------------------------------------------------------------------------------------
 
 export async function openFiles(paths: string[], mode: 'replace' | 'add' = 'replace') {
   paths = paths.filter((p) => /\.(csv|txt|ld)$/i.test(p));
@@ -373,20 +575,23 @@ export function closeSession(id: string) {
   });
 }
 
-// ---- lap selection ----
+// ---------------------------------------------------------------------------------------------
+// Lap selection
+// ---------------------------------------------------------------------------------------------
 
 export function selectLap(key: string, mode: 'replace' | 'toggle' | 'add' | 'reference') {
   set((s) => {
     let laps = s.laps;
     let refKey = s.refKey;
     const has = laps.some((l) => l.key === key);
+    const prevColor = laps.find((l) => l.key === key)?.color;
     const freeSlot = () => {
       const used = new Set(laps.map((l) => l.slot));
       for (let i = 0; i < 64; i++) if (!used.has(i)) return i;
       return laps.length;
     };
     if (mode === 'replace') {
-      laps = [{ key, slot: 0 }];
+      laps = [{ key, slot: 0, color: prevColor }];
       refKey = key;
     } else if (mode === 'toggle') {
       if (has) {
@@ -404,9 +609,12 @@ export function selectLap(key: string, mode: 'replace' | 'toggle' | 'add' | 'ref
       if (!has) laps = [...laps, { key, slot: freeSlot() }];
       refKey = key;
     }
-    const zoomKeep = s.zoom;
-    return { laps, refKey, zoom: zoomKeep, measure: null };
+    return { laps, refKey, measure: null };
   });
+}
+
+export function setLapColor(key: string, color: string | undefined) {
+  set((s) => ({ laps: s.laps.map((l) => (l.key === key ? { ...l, color } : l)), dataVersion: s.dataVersion + 1 }));
 }
 
 export function clearOverlays() {
@@ -441,7 +649,9 @@ export function selectWholeSession(sessionId: string) {
   set({ zoom: null, xMode: 'time' });
 }
 
-// ---- view ----
+// ---------------------------------------------------------------------------------------------
+// View
+// ---------------------------------------------------------------------------------------------
 
 export function setCursor(x: number | null) {
   if (get().cursor !== x) set({ cursor: x });
@@ -465,6 +675,22 @@ export function setMeasure(m: [number, number] | null) {
   set({ measure: m });
 }
 
+/** W: show the whole reference lap (or, in whole-session view, the lap under the cursor). */
+export function zoomToLap() {
+  const st = get();
+  const ref = refLap(st);
+  if (!ref) return;
+  if (ref.lap.index === -1) {
+    const t = st.cursor != null ? xToTime(ref.lap, st.cursor, st.xMode) : fastestLap(ref.session)?.start ?? 0;
+    const lap = lapAtTime(ref.session, t);
+    if (lap) setZoom([timeToX(ref.lap, lap.start, st.xMode), timeToX(ref.lap, lap.end, st.xMode)]);
+    return;
+  }
+  const [a, b] = lapXRange(ref.lap, st.xMode);
+  setZoom([a, b]);
+  set({ measure: null });
+}
+
 export function setXMode(mode: XMode) {
   const s = get();
   if (s.xMode === mode) return;
@@ -478,7 +704,9 @@ export function setXMode(mode: XMode) {
   });
 }
 
-// ---- workspaces ----
+// ---------------------------------------------------------------------------------------------
+// Workspaces
+// ---------------------------------------------------------------------------------------------
 
 function commitWorkspace(ws: Workspace) {
   ws = { ...ws, updatedAt: Date.now() };
@@ -487,111 +715,192 @@ function commitWorkspace(ws: Workspace) {
   return ws;
 }
 
-export function updateWorkspace(fn: (ws: Workspace) => Workspace) {
-  const ws = activeWorkspace();
-  if (ws) commitWorkspace(fn(ws));
+function uniqueWorkspaceName(base: string) {
+  const names = new Set(get().workspaces.map((w) => w.name));
+  if (!names.has(base)) return base;
+  for (let i = 2; ; i++) if (!names.has(`${base} ${i}`)) return `${base} ${i}`;
 }
 
-export function updateSheet(fn: (sh: Worksheet) => Worksheet) {
+export interface EditOpts {
+  label?: string;
+  /** false for view-only changes (e.g. switching tabs) that shouldn't be undo steps. */
+  history?: boolean;
+}
+
+export function updateWorkspace(fn: (ws: Workspace) => Workspace, opts: EditOpts = {}) {
+  const ws = activeWorkspace();
+  if (!ws) return;
+  if (ws.locked) {
+    if (opts.history === false) {
+      set((s) => ({ workspaces: s.workspaces.map((w) => (w.id === ws.id ? fn(w) : w)) }));
+      return;
+    }
+    // Copy-on-write: the Starter stays pristine; edits continue in a personal copy.
+    recordHistory(opts.label ?? 'Edit');
+    const now = Date.now();
+    const copy: Workspace = { ...structuredClone(ws), id: uid('ws'), name: uniqueWorkspaceName('My Workspace'), locked: false, createdAt: now, updatedAt: now };
+    const edited = fn(copy);
+    set((s) => ({ workspaces: [...s.workspaces, edited], settings: { ...s.settings, activeWorkspaceId: edited.id } }));
+    saveSettings();
+    pt().saveWorkspace(edited);
+    toast(`The Starter workspace is read-only, so your change was saved in a new workspace, "${edited.name}".`, 'info', 6500);
+    return;
+  }
+  if (opts.history !== false) recordHistory(opts.label ?? 'Edit');
+  commitWorkspace(fn(ws));
+}
+
+export function updateSheet(fn: (sh: Worksheet) => Worksheet, opts: EditOpts = {}) {
   updateWorkspace((ws) => {
     const i = Math.min(ws.activeSheet, ws.worksheets.length - 1);
     const sheets = ws.worksheets.slice();
     sheets[i] = fn(sheets[i]);
     return { ...ws, worksheets: sheets };
-  });
+  }, opts);
 }
 
 export function setActiveSheet(index: number) {
-  updateWorkspace((ws) => ({ ...ws, activeSheet: Math.max(0, Math.min(ws.worksheets.length - 1, index)) }));
+  updateWorkspace((ws) => ({ ...ws, activeSheet: Math.max(0, Math.min(ws.worksheets.length - 1, index)) }), { history: false });
   set({ activeComponentId: null });
 }
 
+/** Deep-copy a worksheet with fresh ids. */
+function cloneSheet(src: Worksheet, name?: string): Worksheet {
+  const idMap: Record<string, string> = {};
+  const components: Record<string, ComponentConfig> = {};
+  for (const [id, c] of Object.entries(src.components)) {
+    const nid = uid('c');
+    idMap[id] = nid;
+    components[nid] = { ...structuredClone(c), id: nid };
+  }
+  return { id: uid('w'), name: name ?? src.name, layout: cloneLayout(src.layout, idMap), components };
+}
+
 export function addWorksheet(name?: string) {
-  updateWorkspace((ws) => {
-    const c = createComponent('graph');
-    const sheet: Worksheet = {
-      id: uid('w'),
-      name: name || `Sheet ${ws.worksheets.length + 1}`,
-      layout: { kind: 'leaf', id: uid('l'), componentId: c.id },
-      components: { [c.id]: c },
-    };
-    return { ...ws, worksheets: [...ws.worksheets, sheet], activeSheet: ws.worksheets.length };
-  });
+  updateWorkspace(
+    (ws) => {
+      const c = createComponent('graph');
+      const sheet: Worksheet = {
+        id: uid('w'),
+        name: name || `Sheet ${ws.worksheets.length + 1}`,
+        layout: { kind: 'leaf', id: uid('l'), componentId: c.id },
+        components: { [c.id]: c },
+      };
+      return { ...ws, worksheets: [...ws.worksheets, sheet], activeSheet: ws.worksheets.length };
+    },
+    { label: 'Add worksheet' },
+  );
 }
 
 export function duplicateWorksheet(index: number) {
-  updateWorkspace((ws) => {
-    const src = ws.worksheets[index];
-    const idMap: Record<string, string> = {};
-    const components: Record<string, ComponentConfig> = {};
-    for (const [id, c] of Object.entries(src.components)) {
-      const nid = uid('c');
-      idMap[id] = nid;
-      components[nid] = { ...structuredClone(c), id: nid };
-    }
-    const copy: Worksheet = { id: uid('w'), name: src.name + ' copy', layout: cloneLayout(src.layout, idMap), components };
-    const sheets = ws.worksheets.slice();
-    sheets.splice(index + 1, 0, copy);
-    return { ...ws, worksheets: sheets, activeSheet: index + 1 };
-  });
+  updateWorkspace(
+    (ws) => {
+      const copy = cloneSheet(ws.worksheets[index], ws.worksheets[index].name + ' copy');
+      const sheets = ws.worksheets.slice();
+      sheets.splice(index + 1, 0, copy);
+      return { ...ws, worksheets: sheets, activeSheet: index + 1 };
+    },
+    { label: 'Duplicate worksheet' },
+  );
 }
 
 export function renameWorksheet(index: number, name: string) {
-  updateWorkspace((ws) => ({ ...ws, worksheets: ws.worksheets.map((w, i) => (i === index ? { ...w, name } : w)) }));
+  updateWorkspace((ws) => ({ ...ws, worksheets: ws.worksheets.map((w, i) => (i === index ? { ...w, name } : w)) }), { label: 'Rename worksheet' });
 }
 
 export function deleteWorksheet(index: number) {
-  updateWorkspace((ws) => {
-    if (ws.worksheets.length <= 1) return ws;
-    const sheets = ws.worksheets.filter((_, i) => i !== index);
-    return { ...ws, worksheets: sheets, activeSheet: Math.min(ws.activeSheet, sheets.length - 1) };
-  });
+  updateWorkspace(
+    (ws) => {
+      if (ws.worksheets.length <= 1) return ws;
+      const sheets = ws.worksheets.filter((_, i) => i !== index);
+      return { ...ws, worksheets: sheets, activeSheet: Math.min(ws.activeSheet, sheets.length - 1) };
+    },
+    { label: 'Delete worksheet' },
+  );
 }
 
 export function moveWorksheet(from: number, to: number) {
-  updateWorkspace((ws) => {
-    const sheets = ws.worksheets.slice();
-    const [m] = sheets.splice(from, 1);
-    sheets.splice(to, 0, m);
-    return { ...ws, worksheets: sheets, activeSheet: to };
-  });
+  updateWorkspace(
+    (ws) => {
+      const sheets = ws.worksheets.slice();
+      const [m] = sheets.splice(from, 1);
+      sheets.splice(to, 0, m);
+      return { ...ws, worksheets: sheets, activeSheet: to };
+    },
+    { label: 'Move worksheet' },
+  );
+}
+
+/** Replace a worksheet with the Starter version of the same name. */
+export function resetSheetToStarter(index: number) {
+  const ws = activeWorkspace();
+  const target = ws.worksheets[index];
+  const starterSheet = starterWorkspace().worksheets.find((s) => s.name.toLowerCase() === target?.name.toLowerCase());
+  if (!target || !starterSheet) {
+    toast(`The Starter workspace has no worksheet called "${target?.name}".`, 'info');
+    return;
+  }
+  updateWorkspace((w) => ({ ...w, worksheets: w.worksheets.map((s, i) => (i === index ? cloneSheet(starterSheet) : s)) }), { label: 'Reset worksheet' });
+  toast(`"${target.name}" reset to the Starter layout (Ctrl/⌘+Z to undo)`, 'success', 3000);
+}
+
+/** Restore the current workspace's worksheets and math to the Starter versions. */
+export function revertWorkspaceToStarter() {
+  const ws = activeWorkspace();
+  if (ws.locked) return toast('This is the Starter workspace already.', 'info');
+  const st = starterWorkspace();
+  updateWorkspace(
+    (w) => ({ ...w, worksheets: st.worksheets.map((s) => cloneSheet(s)), activeSheet: 0, math: structuredClone(st.math), constants: [], channelProps: {} }),
+    { label: 'Revert to Starter' },
+  );
+  recomputeMath();
+  toast(`"${ws.name}" reverted to the Starter layout (Ctrl/⌘+Z to undo)`, 'success', 3000);
 }
 
 export function addComponent(type: ComponentType, targetId: string | null = null, zone: DropZone = 'right', patch: Partial<ComponentConfig> = {}) {
   const c = createComponent(type, patch);
-  updateSheet((sh) => ({
-    ...sh,
-    components: { ...sh.components, [c.id]: c },
-    layout: insertComponent(sh.layout, targetId, c.id, zone),
-  }));
+  updateSheet(
+    (sh) => ({
+      ...sh,
+      components: { ...sh.components, [c.id]: c },
+      layout: insertComponent(sh.layout, targetId, c.id, zone),
+    }),
+    { label: 'Add component' },
+  );
   set({ activeComponentId: c.id });
   return c.id;
 }
 
 export function removeComponentById(id: string) {
-  updateSheet((sh) => {
-    const components = { ...sh.components };
-    delete components[id];
-    return { ...sh, components, layout: removeComponent(sh.layout, id) };
-  });
+  updateSheet(
+    (sh) => {
+      const components = { ...sh.components };
+      delete components[id];
+      return { ...sh, components, layout: removeComponent(sh.layout, id) };
+    },
+    { label: 'Remove component' },
+  );
   if (get().activeComponentId === id) set({ activeComponentId: null });
 }
 
-export function updateComponent(id: string, patch: Partial<ComponentConfig> | ((c: ComponentConfig) => ComponentConfig)) {
-  updateSheet((sh) => {
-    const cur = sh.components[id];
-    if (!cur) return sh;
-    const next = typeof patch === 'function' ? patch(cur) : ({ ...cur, ...patch } as ComponentConfig);
-    return { ...sh, components: { ...sh.components, [id]: next } };
-  });
+export function updateComponent(id: string, patch: Partial<ComponentConfig> | ((c: ComponentConfig) => ComponentConfig), label = 'Edit component') {
+  updateSheet(
+    (sh) => {
+      const cur = sh.components[id];
+      if (!cur) return sh;
+      const next = typeof patch === 'function' ? patch(cur) : ({ ...cur, ...patch } as ComponentConfig);
+      return { ...sh, components: { ...sh.components, [id]: next } };
+    },
+    { label },
+  );
 }
 
 export function moveComponentTo(srcId: string, targetId: string, zone: DropZone) {
-  updateSheet((sh) => ({ ...sh, layout: moveComponent(sh.layout, srcId, targetId, zone) }));
+  updateSheet((sh) => ({ ...sh, layout: moveComponent(sh.layout, srcId, targetId, zone) }), { label: 'Move component' });
 }
 
 export function setSplitSizes(splitId: string, sizes: number[]) {
-  updateSheet((sh) => ({ ...sh, layout: setSizes(sh.layout, splitId, sizes) }));
+  updateSheet((sh) => ({ ...sh, layout: setSizes(sh.layout, splitId, sizes) }), { label: 'Resize' });
 }
 
 export function setActiveWorkspace(id: string) {
@@ -600,12 +909,14 @@ export function setActiveWorkspace(id: string) {
   recomputeMath();
 }
 
-export function createWorkspace(kind: 'default' | 'blank' | 'duplicate', name?: string) {
+export function createWorkspace(kind: 'starter' | 'blank' | 'duplicate', name?: string) {
+  recordHistory('New workspace');
   let ws: Workspace;
+  const now = Date.now();
   if (kind === 'duplicate') {
     const src = activeWorkspace();
-    ws = { ...structuredClone(src), id: uid('ws'), name: name || src.name + ' copy', createdAt: Date.now(), updatedAt: Date.now() };
-  } else ws = kind === 'default' ? buildDefaultWorkspace(name) : buildBlankWorkspace(name);
+    ws = { ...structuredClone(src), id: uid('ws'), name: uniqueWorkspaceName(name || src.name + ' copy'), locked: false, createdAt: now, updatedAt: now };
+  } else ws = kind === 'starter' ? buildDefaultWorkspace(uniqueWorkspaceName(name || 'My Workspace')) : buildBlankWorkspace(uniqueWorkspaceName(name || 'Blank workspace'));
   set((s) => ({ workspaces: [...s.workspaces, ws] }));
   pt().saveWorkspace(ws);
   setActiveWorkspace(ws.id);
@@ -613,34 +924,50 @@ export function createWorkspace(kind: 'default' | 'blank' | 'duplicate', name?: 
 
 export function renameWorkspace(id: string, name: string) {
   const ws = get().workspaces.find((w) => w.id === id);
-  if (ws) commitWorkspace({ ...ws, name });
+  if (!ws) return;
+  if (ws.locked) return toast('The Starter workspace can’t be renamed — duplicate it first.', 'info');
+  recordHistory('Rename workspace');
+  commitWorkspace({ ...ws, name });
 }
 
 export function deleteWorkspace(id: string) {
   const { workspaces } = get();
-  if (workspaces.length <= 1) {
-    toast('You need at least one workspace.', 'info');
-    return;
-  }
+  const ws = workspaces.find((w) => w.id === id);
+  if (!ws) return;
+  if (ws.locked) return toast('The Starter workspace is built in and can’t be deleted.', 'info');
+  if (workspaces.filter((w) => !w.locked).length <= 1) return toast('You need at least one personal workspace.', 'info');
+  recordHistory('Delete workspace');
   set({ workspaces: workspaces.filter((w) => w.id !== id) });
+  cancelSave(id);
   pt().deleteWorkspace(id);
-  if (get().settings.activeWorkspaceId === id) setActiveWorkspace(get().workspaces[0].id);
+  if (get().settings.activeWorkspaceId === id) setActiveWorkspace(get().workspaces.find((w) => !w.locked)!.id);
 }
+
+const fileSafe = (s: string) => s.replace(/[^\w\- ]+/g, '').trim() || 'export';
 
 export async function exportWorkspace() {
   const ws = activeWorkspace();
-  const p = await pt().saveFile(`${ws.name.replace(/[^\w\- ]+/g, '')}.ptw.json`, [{ name: 'Project-Trace workspace', extensions: ['json'] }], JSON.stringify(ws, null, 2));
+  const p = await pt().saveFile(`${fileSafe(ws.name)}.ptw.json`, [{ name: 'Project-Trace workspace', extensions: ['json'] }], JSON.stringify({ ...ws, locked: undefined }, null, 2));
   if (p) toast(`Workspace exported to ${p}`, 'success');
 }
 
 export async function importWorkspace() {
   const data = await pt().openJson();
   if (!data) return;
+  if (data.kind === 'project-trace-worksheet') return importWorksheetData(data);
   if (!Array.isArray(data.worksheets)) {
     toast('That file is not a Project-Trace workspace.', 'error');
     return;
   }
-  const ws: Workspace = { ...data, id: uid('ws'), name: data.name ? `${data.name} (imported)` : 'Imported workspace', createdAt: Date.now(), updatedAt: Date.now() };
+  recordHistory('Import workspace');
+  const ws: Workspace = {
+    ...data,
+    id: uid('ws'),
+    locked: false,
+    name: uniqueWorkspaceName(data.name ? `${data.name} (imported)` : 'Imported workspace'),
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
   ws.math ??= [];
   ws.constants ??= [];
   ws.channelProps ??= {};
@@ -650,17 +977,69 @@ export async function importWorkspace() {
   toast(`Imported "${ws.name}"`, 'success');
 }
 
-export function setChannelProps(name: string, patch: Partial<ChannelProps> | null) {
-  updateWorkspace((ws) => {
-    const cp = { ...ws.channelProps };
-    if (patch === null) delete cp[name];
-    else cp[name] = { ...cp[name], ...patch };
-    return { ...ws, channelProps: cp };
+// ---- worksheet library, export & import ----
+
+export function saveSheetToLibrary(index: number, name: string) {
+  const sheet = activeWorkspace().worksheets[index];
+  if (!sheet) return;
+  const entry: SavedSheet = { id: uid('lib'), name, savedAt: Date.now(), sheet: structuredClone({ ...sheet, name }) };
+  set((s) => ({ library: [...s.library.filter((l) => l.name !== name), entry] }));
+  saveLibrary();
+  toast(`Saved "${name}" to your worksheet library`, 'success', 2500);
+}
+
+export function insertLibrarySheet(id: string) {
+  const entry = get().library.find((l) => l.id === id);
+  if (!entry) return;
+  updateWorkspace((ws) => ({ ...ws, worksheets: [...ws.worksheets, cloneSheet(entry.sheet, entry.name)], activeSheet: ws.worksheets.length }), {
+    label: 'Insert worksheet',
   });
+}
+
+export function deleteLibrarySheet(id: string) {
+  set((s) => ({ library: s.library.filter((l) => l.id !== id) }));
+  saveLibrary();
+}
+
+export async function exportWorksheet(index: number) {
+  const sheet = activeWorkspace().worksheets[index];
+  if (!sheet) return;
+  const p = await pt().saveFile(
+    `${fileSafe(sheet.name)}.ptsheet.json`,
+    [{ name: 'Project-Trace worksheet', extensions: ['json'] }],
+    JSON.stringify({ kind: 'project-trace-worksheet', version: 1, sheet }, null, 2),
+  );
+  if (p) toast(`Worksheet exported to ${p}`, 'success');
+}
+
+function importWorksheetData(data: { sheet?: Worksheet }) {
+  const sheet = data.sheet;
+  if (!sheet || !sheet.components) return toast('That file is not a Project-Trace worksheet.', 'error');
+  updateWorkspace((ws) => ({ ...ws, worksheets: [...ws.worksheets, cloneSheet(sheet)], activeSheet: ws.worksheets.length }), { label: 'Import worksheet' });
+  toast(`Imported worksheet "${sheet.name}"`, 'success');
+}
+
+export async function importWorksheet() {
+  const data = await pt().openJson();
+  if (data) importWorksheetData(data.kind === 'project-trace-worksheet' ? data : { sheet: data.components ? data : undefined });
+}
+
+export function setChannelProps(name: string, patch: Partial<ChannelProps> | null) {
+  updateWorkspace(
+    (ws) => {
+      const cp = { ...ws.channelProps };
+      if (patch === null) delete cp[name];
+      else cp[name] = { ...cp[name], ...patch };
+      return { ...ws, channelProps: cp };
+    },
+    { label: 'Channel properties' },
+  );
   set((s) => ({ dataVersion: s.dataVersion + 1 }));
 }
 
-// ---- math ----
+// ---------------------------------------------------------------------------------------------
+// Math
+// ---------------------------------------------------------------------------------------------
 
 export function recomputeMath() {
   const ws = activeWorkspace();
@@ -671,11 +1050,13 @@ export function recomputeMath() {
 }
 
 export function setMathChannels(math: MathChannelDef[], constants?: MathConstant[]) {
-  updateWorkspace((ws) => ({ ...ws, math, constants: constants ?? ws.constants }));
+  updateWorkspace((ws) => ({ ...ws, math, constants: constants ?? ws.constants }), { label: 'Math channels' });
   recomputeMath();
 }
 
-// ---- notes ----
+// ---------------------------------------------------------------------------------------------
+// Notes
+// ---------------------------------------------------------------------------------------------
 
 export function setNote(fileName: string, text: string) {
   set((s) => ({ notes: { ...s.notes, [fileName]: text } }));

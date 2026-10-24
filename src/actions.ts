@@ -9,23 +9,46 @@ import {
   activeSheet,
   activeWorkspace,
   addComponent,
+  addWorksheet,
+  createWorkspace,
+  deleteLibrarySheet,
+  deleteWorksheet,
+  deleteWorkspace,
+  duplicateWorksheet,
+  exportWorksheet,
+  exportWorkspace,
   fastestAsReference,
+  importWorksheet,
+  importWorkspace,
+  insertLibrarySheet,
   openFiles,
+  openProperties,
+  redo,
+  renameWorkspace,
+  resetSheetToStarter,
+  revertWorkspaceToStarter,
+  saveSheetToLibrary,
   selectedLaps,
   setActiveSheet,
+  setActiveWorkspace,
   setCursor,
   setMeasure,
+  setSmoothing,
   setUi,
   setXMode,
   setZoom,
   stepReferenceLap,
   toast,
+  toggleRefColors,
+  undo,
   updateSheet,
   useStore,
   viewRange,
   xExtent,
+  zoomToLap,
 } from './state/store';
 import type { GraphConfig } from './state/workspace';
+import { promptText } from './ui/overlays';
 
 export function toggleVarianceAll() {
   const sheet = activeSheet();
@@ -33,12 +56,21 @@ export function toggleVarianceAll() {
   const graphs = Object.values(sheet.components).filter((c): c is GraphConfig => c.type === 'graph');
   if (!graphs.length) return;
   const on = !graphs.every((g) => g.showVariance);
-  updateSheet((sh) => {
-    const components = { ...sh.components };
-    for (const g of graphs) components[g.id] = { ...g, showVariance: on };
-    return { ...sh, components };
-  });
+  updateSheet(
+    (sh) => {
+      const components = { ...sh.components };
+      for (const g of graphs) components[g.id] = { ...g, showVariance: on };
+      return { ...sh, components };
+    },
+    { label: 'Toggle variance' },
+  );
   if (on && selectedLaps().length < 2) toast('Variance needs at least two laps — Ctrl/⌘+click another lap to overlay it.', 'info');
+}
+
+export function toggleSmoothing() {
+  const sm = useStore.getState().settings.smoothing;
+  setSmoothing({ enabled: !sm.enabled });
+  toast(!sm.enabled ? `Smoothing on (${Math.round(sm.seconds * 1000)} ms)` : 'Smoothing off — raw data', 'info', 1500);
 }
 
 export function moveCursor(frac: number) {
@@ -76,7 +108,7 @@ export async function exportVisibleCsv() {
     const row = [t.toFixed(4), (t - ref.lap.start).toFixed(4), lapDistAt(ref.lap, t).toFixed(2), ...chans.map((c) => sampleAt(c, t).toPrecision(7))];
     lines.push(row.join(','));
   }
-  const name = `${ref.session.fileName.replace(/\.csv$/i, '')}-lap${ref.lap.number}.csv`;
+  const name = `${ref.session.fileName.replace(/\.(csv|ld)$/i, '')}-lap${ref.lap.number}.csv`;
   const p = await pt().saveFile(name, [{ name: 'CSV', extensions: ['csv'] }], lines.join('\n'));
   if (p) toast(`Exported ${lines.length - 2} rows to ${p}`, 'success');
 }
@@ -96,45 +128,57 @@ export interface Command {
 }
 
 export function buildCommands(): Command[] {
+  const st = useStore.getState();
   const ws = activeWorkspace();
   const cmds: Command[] = [
     { id: 'browser', label: 'Open session browser', hint: 'Ctrl+O', run: () => setUi({ browser: true }) },
+    { id: 'props', label: 'Properties pop-out for selected component', run: () => openProperties() },
+    { id: 'insp', label: 'Toggle Properties side panel', hint: 'Ctrl+I', run: () => setUi({ inspector: !useStore.getState().ui.inspector }) },
     { id: 'math', label: 'Math channels…', hint: 'Ctrl+M', run: () => setUi({ math: true }) },
+    { id: 'track', label: 'Track profile (corners, sections, rotation)…', run: () => setUi({ trackProfile: true }) },
     { id: 'settings', label: 'Settings…', hint: 'Ctrl+,', run: () => setUi({ settings: true }) },
+    { id: 'undo', label: 'Undo', hint: 'Ctrl+Z', run: undo },
+    { id: 'redo', label: 'Redo', hint: 'Ctrl+Y', run: redo },
     { id: 'time', label: 'X axis: time', run: () => setXMode('time') },
     { id: 'dist', label: 'X axis: distance', run: () => setXMode('distance') },
+    { id: 'smooth', label: 'Toggle smoothing', hint: 'S', run: toggleSmoothing },
+    { id: 'refcol', label: 'Toggle reference lap colours (channel / lap)', hint: 'J', run: toggleRefColors },
     { id: 'var', label: 'Toggle time variance', hint: 'F3', run: toggleVarianceAll },
     { id: 'fast', label: 'Fastest lap as reference', hint: 'F', run: fastestAsReference },
-    { id: 'prev', label: 'Previous lap', hint: 'PgUp', run: () => stepReferenceLap(-1) },
-    { id: 'next', label: 'Next lap', hint: 'PgDn', run: () => stepReferenceLap(1) },
+    { id: 'prev', label: 'Previous lap', hint: '↑', run: () => stepReferenceLap(-1) },
+    { id: 'next', label: 'Next lap', hint: '↓', run: () => stepReferenceLap(1) },
+    { id: 'lap', label: 'Zoom to whole lap', hint: 'W', run: zoomToLap },
     { id: 'reset', label: 'Reset zoom', hint: 'Esc', run: () => (setZoom(null), setMeasure(null)) },
     { id: 'csv', label: 'Export visible data to CSV', hint: 'Ctrl+E', run: exportVisibleCsv },
     { id: 'shot', label: 'Save screenshot', hint: 'Ctrl+Shift+S', run: saveScreenshot },
     { id: 'sidebar', label: 'Toggle sidebar', hint: 'Ctrl+B', run: () => setUi({ sidebar: !useStore.getState().ui.sidebar }) },
-    { id: 'insp', label: 'Toggle inspector', hint: 'Ctrl+I', run: () => setUi({ inspector: !useStore.getState().ui.inspector }) },
     { id: 'keys', label: 'Keyboard shortcuts', hint: 'F1', run: () => setUi({ shortcuts: true }) },
+    { id: 'sheet-reset', label: 'Reset this worksheet to the Starter version', run: () => resetSheetToStarter(activeWorkspace().activeSheet) },
+    { id: 'ws-revert', label: 'Revert this workspace to Starter', run: revertWorkspaceToStarter },
   ];
+  st.workspaces.forEach((w) => cmds.push({ id: 'ws' + w.id, label: `Switch workspace: ${w.name}`, run: () => setActiveWorkspace(w.id) }));
   ws?.worksheets.forEach((sh, i) => cmds.push({ id: 'sheet' + i, label: `Go to worksheet: ${sh.name}`, hint: i < 9 ? String(i + 1) : undefined, run: () => setActiveSheet(i) }));
+  st.library.forEach((l) => cmds.push({ id: 'lib' + l.id, label: `Insert saved worksheet: ${l.name}`, run: () => insertLibrarySheet(l.id) }));
   for (const c of COMPONENT_CATALOG) cmds.push({ id: 'add' + c.type, label: `Add component: ${c.label}`, run: () => addComponent(c.type, useStore.getState().activeComponentId) });
   return cmds;
 }
 
-function inEditable(e: KeyboardEvent) {
-  const t = e.target as HTMLElement;
-  return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+function inEditable(target: EventTarget | null) {
+  const t = target as HTMLElement | null;
+  return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
 }
 
 export function handleGlobalKey(e: KeyboardEvent) {
   const st = useStore.getState();
   const mod = e.ctrlKey || e.metaKey;
-  const anyModal = st.ui.browser || st.ui.math || st.ui.settings || st.ui.palette || st.ui.shortcuts;
+  const anyModal = st.ui.browser || st.ui.math || st.ui.settings || st.ui.palette || st.ui.shortcuts || st.ui.properties || st.ui.trackProfile;
   if (mod && e.key.toLowerCase() === 'k') {
     e.preventDefault();
     setUi({ palette: !st.ui.palette });
     return;
   }
-  if (inEditable(e) || anyModal) {
-    if (e.key === 'Escape') setUi({ palette: false, shortcuts: false, settings: false });
+  if (inEditable(e.target) || anyModal) {
+    if (e.key === 'Escape') setUi({ palette: false, shortcuts: false, settings: false, trackProfile: false });
     return;
   }
   if (mod) {
@@ -181,11 +225,25 @@ export function handleGlobalKey(e: KeyboardEvent) {
     case 'F':
       fastestAsReference();
       break;
+    case 'j':
+    case 'J':
+      toggleRefColors();
+      break;
+    case 'w':
+    case 'W':
+      zoomToLap();
+      break;
+    case 's':
+    case 'S':
+      toggleSmoothing();
+      break;
+    case 'ArrowUp':
     case 'PageUp':
     case '[':
       e.preventDefault();
       stepReferenceLap(-1);
       break;
+    case 'ArrowDown':
     case 'PageDown':
     case ']':
       e.preventDefault();
@@ -221,8 +279,25 @@ export function handleGlobalKey(e: KeyboardEvent) {
   }
 }
 
-export function handleMenuAction(action: string) {
-  switch (action) {
+/** Undo/redo from the Edit menu: text undo inside text fields, otherwise the app's history. */
+function editHistory(kind: 'undo' | 'redo') {
+  if (inEditable(document.activeElement)) {
+    document.execCommand(kind);
+    return;
+  }
+  if (kind === 'undo') undo();
+  else redo();
+}
+
+export async function handleMenuAction(action: string) {
+  const [cmd, arg] = action.includes(':') ? [action.slice(0, action.indexOf(':')), action.slice(action.indexOf(':') + 1)] : [action, ''];
+  const ws = activeWorkspace();
+  const sheetIdx = ws?.activeSheet ?? 0;
+  switch (cmd) {
+    case 'undo':
+      return editHistory('undo');
+    case 'redo':
+      return editHistory('redo');
     case 'open-browser':
       return setUi({ browser: true });
     case 'open-files':
@@ -239,10 +314,22 @@ export function handleMenuAction(action: string) {
       return setUi({ settings: true });
     case 'math':
       return setUi({ math: true });
+    case 'track-profile':
+      return setUi({ trackProfile: true });
+    case 'properties':
+      return openProperties();
+    case 'toggle-inspector':
+      return setUi({ inspector: !useStore.getState().ui.inspector });
     case 'toggle-x':
       return setXMode(useStore.getState().xMode === 'time' ? 'distance' : 'time');
     case 'toggle-variance':
       return toggleVarianceAll();
+    case 'toggle-smoothing':
+      return toggleSmoothing();
+    case 'toggle-ref-colors':
+      return toggleRefColors();
+    case 'zoom-lap':
+      return zoomToLap();
     case 'fastest-lap':
       return fastestAsReference();
     case 'prev-lap':
@@ -253,9 +340,65 @@ export function handleMenuAction(action: string) {
       return setUi({ palette: true });
     case 'toggle-sidebar':
       return setUi({ sidebar: !useStore.getState().ui.sidebar });
-    case 'toggle-inspector':
-      return setUi({ inspector: !useStore.getState().ui.inspector });
     case 'shortcuts':
       return setUi({ shortcuts: true });
+    // ---- Workspace menu ----
+    case 'ws-switch':
+      return setActiveWorkspace(arg);
+    case 'ws-new-starter': {
+      const n = await promptText('Name the new workspace', 'My Workspace');
+      if (n) createWorkspace('starter', n);
+      return;
+    }
+    case 'ws-new-blank': {
+      const n = await promptText('Name the new workspace', 'Blank workspace');
+      if (n) createWorkspace('blank', n);
+      return;
+    }
+    case 'ws-duplicate':
+      return createWorkspace('duplicate');
+    case 'ws-rename': {
+      if (ws.locked) return toast('The Starter workspace is read-only — duplicate it first.', 'info');
+      const n = await promptText('Rename workspace', ws.name);
+      if (n) renameWorkspace(ws.id, n);
+      return;
+    }
+    case 'ws-revert':
+      return revertWorkspaceToStarter();
+    case 'ws-export':
+      return exportWorkspace();
+    case 'ws-import':
+      return importWorkspace();
+    case 'ws-delete':
+      if (ws.locked) return toast('The Starter workspace is built in and can’t be deleted.', 'info');
+      if (window.confirm(`Delete workspace "${ws.name}"? (Ctrl/⌘+Z can undo this)`)) deleteWorkspace(ws.id);
+      return;
+    // ---- Worksheet menu ----
+    case 'sheet-new':
+      return addWorksheet();
+    case 'sheet-duplicate':
+      return duplicateWorksheet(sheetIdx);
+    case 'sheet-rename':
+      window.dispatchEvent(new Event('pt-rename-sheet'));
+      return;
+    case 'sheet-reset':
+      return resetSheetToStarter(sheetIdx);
+    case 'sheet-save-lib': {
+      const n = await promptText('Save worksheet to your library as', ws.worksheets[sheetIdx]?.name ?? 'Worksheet');
+      if (n) saveSheetToLibrary(sheetIdx, n);
+      return;
+    }
+    case 'sheet-insert-lib':
+      return insertLibrarySheet(arg);
+    case 'sheet-delete-lib':
+      return deleteLibrarySheet(arg);
+    case 'sheet-export':
+      return exportWorksheet(sheetIdx);
+    case 'sheet-import':
+      return importWorksheet();
+    case 'sheet-delete':
+      if (ws.worksheets.length <= 1) return toast('A workspace needs at least one worksheet.', 'info');
+      if (window.confirm(`Delete worksheet "${ws.worksheets[sheetIdx].name}"? (Ctrl/⌘+Z can undo this)`)) deleteWorksheet(sheetIdx);
+      return;
   }
 }

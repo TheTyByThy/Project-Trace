@@ -20,6 +20,8 @@ Node.js is only needed when running from source. The optional installers (see be
 2. Double-click **`Start Project-Trace (Windows).bat`** in the Project-Trace folder.
 3. The first run downloads and installs Project-Trace's components (~1 minute). A console window shows progress; leave it open while you use the app.
 
+> Copied the folder from a Mac (or vice versa)? The launcher detects that the installed components belong to the other system and reinstalls them automatically.
+
 ### macOS
 1. Install **Node.js LTS** from <https://nodejs.org>.
 2. **Right-click** `Start Project-Trace (macOS).command` → **Open** → **Open**. The right-click is only needed the first time, to satisfy Gatekeeper.
@@ -50,17 +52,19 @@ When Project-Trace opens for the first time you'll see the **Session Browser** w
 Then:
 1. Click a **track card**.
 2. **Double-click** a session (or select one and press **Open**).
-3. Project-Trace opens it with the **fastest valid lap as the reference** and shows the *Overview* worksheet.
+3. Project-Trace opens it with the **fastest valid lap as the reference** and shows the *Overview* worksheet of **My Workspace**, your editable copy of the built-in **Starter** layout (see [03](03-workspaces-and-layout.md#the-starter-workspace)).
 
 ## Your first analysis in 60 seconds
 
 1. **Overlay another lap**: in the left sidebar, **Ctrl/⌘ + click** a second lap. It appears in a new colour and the **time variance** pane shows where you gained or lost time.
-2. **Place the cursor**: click anywhere on a graph. Every legend, gauge, the track map dot and the channel list update to that point.
-3. **Zoom**: drag across a corner on the graph. Press **Esc** to zoom out.
+2. **Move the cursor**: click on a graph, or click and drag to scrub through the lap. Every legend (with each lap's Δ to the reference), gauge, map dot and the channel list follow.
+3. **Zoom**: double-click and drag across a corner. Press **W** for the whole lap again (or **Esc**).
 4. **Measure**: hold **Shift** and drag. Each legend shows min / avg / max / Δ over the range.
-5. **Switch axis**: press **D** to toggle between distance and time.
-6. **Explore worksheets**: use the tabs (or keys **1–9**): Driver, Tyres, Brakes, Suspension, Aero, Engine & ERS, Lap Analysis, Session & Setup.
-7. **Add a channel**: open the **Channels** tab in the sidebar and drag any channel onto a graph pane.
+5. **Switch axis**: press **D** to toggle between distance and time. Press **J** to switch the reference lap between channel colours and its lap colour.
+6. **Compare lines**: open the **Racing Lines** tab, zoom into a corner and compare the thin GPS lines.
+7. **Explore worksheets**: use the tabs (or keys **1–9**).
+8. **Add a channel**: open the **Channels** tab in the sidebar and drag any channel onto a graph pane.
+9. **Made a mistake?** **Ctrl/⌘ + Z** undoes it.
 
 ## Opening files other ways
 

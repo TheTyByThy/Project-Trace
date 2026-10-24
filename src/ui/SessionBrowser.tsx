@@ -6,7 +6,7 @@ import { baseName, dirName, pt, type DirFile, type DirListing } from '../core/br
 import { formatBytes, formatDateTime, formatDuration, formatGameClock, formatLapTime, prettyCar, prettyTeam, prettyTrack, relativeTime } from '../core/format';
 import { COMMON_ZONES, guessTrackZone, zoneForVenue } from '../core/timezones';
 import { summarizeFile, type SessionSummary } from '../state/loader';
-import { openFiles, setUi, updateSettings, useStore } from '../state/store';
+import { closeSession, openFiles, setUi, updateSettings, useStore } from '../state/store';
 
 type SortKey = 'savedAt' | 'gameTimeUtc' | 'driver' | 'vehicle' | 'laps' | 'bestLap' | 'duration' | 'size';
 
@@ -33,7 +33,11 @@ export function SessionBrowser() {
   const settings = useStore((s) => s.settings);
   const appInfo = useStore((s) => s.appInfo);
   const cache = useStore((s) => s.sessionCache);
-  const hasSessions = useStore((s) => s.sessions.length > 0);
+  const loaded = useStore((s) => s.sessions);
+  const hasSessions = loaded.length > 0;
+  const loadedPaths = new Set(loaded.map((s) => normPath(s.path)));
+  // Double-click / quick actions add to what's open (or replace it), per the user's choice.
+  const quickMode: 'add' | 'replace' = hasSessions ? settings.browserOpenMode : 'replace';
   const root = settings.telemetryRoot;
   const initial = () => {
     const last = settings.lastBrowsePath;
@@ -68,7 +72,6 @@ export function SessionBrowser() {
 
   useEffect(() => {
     load(path);
-    setSelected([]);
     setFocus(null);
   }, [path, load]);
   useEffect(() => pt().onDirChanged((d) => d === path && load(path)), [path, load]);
@@ -124,7 +127,23 @@ export function SessionBrowser() {
     });
   }, [listing, summaries, sort, filter]);
 
-  const folders = useMemo(() => (listing ? listing.folders.slice().sort((a, b) => b.latestMtime - a.latestMtime) : []), [listing]);
+  const trackSort = settings.trackSort;
+  const folders = useMemo(() => {
+    if (!listing) return [];
+    const q = filter.trim().toLowerCase();
+    const label = (name: string) => prettyTrack(name).full.toLowerCase();
+    const list = listing.folders.filter((f) => !q || f.name.toLowerCase().includes(q) || label(f.name).includes(q));
+    switch (trackSort) {
+      case 'name':
+        return list.sort((a, b) => label(a.name).localeCompare(label(b.name)));
+      case 'sessions':
+        return list.sort((a, b) => b.csvCount - a.csvCount || label(a.name).localeCompare(label(b.name)));
+      case 'oldest':
+        return list.sort((a, b) => a.latestMtime - b.latestMtime);
+      default:
+        return list.sort((a, b) => b.latestMtime - a.latestMtime);
+    }
+  }, [listing, trackSort, filter]);
   const lastTrack = settings.lastBrowsePath;
   const fastestInFolder = useMemo(() => {
     let best: SessionSummary | null = null;
@@ -146,20 +165,26 @@ export function SessionBrowser() {
     } else crumbs.push({ label: baseName(path) || path, path });
   }
 
-  const open = (paths: string[], mode: 'replace' | 'add') => {
+  const open = (paths: string[], mode: 'replace' | 'add' = quickMode) => {
     if (!paths.length) return;
     openFiles(paths, mode);
+    setSelected([]);
   };
+  // The selection is a basket that survives folder changes, so sessions from different tracks,
+  // drivers or stints can be opened together. Plain clicks only replace this folder's picks.
+  const inThisFolder = (p: string) => normPath(dirName(p)) === normPath(path);
   const toggleSel = (p: string, e: React.MouseEvent) => {
     setFocus(p);
     if (e.ctrlKey || e.metaKey) setSelected((s) => (s.includes(p) ? s.filter((x) => x !== p) : [...s, p]));
-    else if (e.shiftKey && selected.length) {
-      const idx = rows.findIndex((r) => r.path === selected[selected.length - 1]);
+    else if (e.shiftKey && selected.some(inThisFolder)) {
+      const here = selected.filter(inThisFolder);
+      const idx = rows.findIndex((r) => r.path === here[here.length - 1]);
       const j = rows.findIndex((r) => r.path === p);
-      const [a, b] = idx < j ? [idx, j] : [j, idx];
-      setSelected(rows.slice(a, b + 1).map((r) => r.path));
-    } else setSelected([p]);
+      const [a, c] = idx < j ? [idx, j] : [j, idx];
+      setSelected((s) => [...s.filter((x) => !inThisFolder(x)), ...rows.slice(a, c + 1).map((r) => r.path)]);
+    } else setSelected((s) => [...s.filter((x) => !inThisFolder(x)), p]);
   };
+  const folderCount = new Set(selected.map((p) => normPath(dirName(p)))).size;
   const focused = focus ? summaries[focus] : null;
   const venue = focused?.venue || rows.find((r) => r.venue)?.venue || '';
   const tz = zoneForVenue(venue, settings.trackZones, settings.gameClock);
@@ -182,11 +207,26 @@ export function SessionBrowser() {
             className="btn"
             onClick={async () => {
               const files = await pt().chooseFiles(path || root || undefined);
-              if (files.length) open(files, 'replace');
+              if (files.length) open(files);
             }}
           >
             Open files…
           </button>
+          {hasSessions && (
+            <div className="row" style={{ gap: 6 }} title="What double-click, Recent and Open files… do while sessions are open">
+              <span className="muted" style={{ fontSize: 12 }}>
+                Double-click:
+              </span>
+              <div className="seg">
+                <button className={settings.browserOpenMode === 'add' ? 'on' : ''} onClick={() => updateSettings({ browserOpenMode: 'add' })}>
+                  Add to open
+                </button>
+                <button className={settings.browserOpenMode === 'replace' ? 'on' : ''} onClick={() => updateSettings({ browserOpenMode: 'replace' })}>
+                  Replace
+                </button>
+              </div>
+            </div>
+          )}
           {hasSessions && (
             <button className="btn icon ghost" onClick={() => setUi({ browser: false })} title="Close (Esc)">
               ✕
@@ -195,6 +235,21 @@ export function SessionBrowser() {
         </div>
         <div className="browser-grid">
           <div className="browser-side">
+            {hasSessions && (
+              <>
+                <div className="section-title">Open now ({loaded.length})</div>
+                {loaded.map((s) => (
+                  <div key={s.id} className="item row" style={{ gap: 6 }} title={s.path}>
+                    <span className="grow" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {s.meta.driver || 'Unknown'} <span className="muted">· {prettyTrack(s.meta.venue).track} · {formatDateTime(s.meta.savedAt)}</span>
+                    </span>
+                    <button className="btn icon ghost small" title="Close this session" onClick={() => closeSession(s.id)}>
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </>
+            )}
             <div className="section-title">Telemetry folder</div>
             <div className="item" title={root} onClick={() => root && setPath(root)}>
               🏁 {root ? baseName(root) : <span className="muted">Not set</span>}
@@ -220,7 +275,7 @@ export function SessionBrowser() {
                   const m = name.match(/^(\d{2})(\d{2})(\d{4})-(\d{2})(\d{2})/);
                   const track = prettyTrack(baseName(dirName(p))).track;
                   return (
-                    <div key={p} className="item" title={p} onClick={() => open([p], 'replace')}>
+                    <div key={p} className="item" title={p} onClick={() => open([p])}>
                       {track}
                       <span className="muted"> · {m ? `${m[1]}/${m[2]} ${m[4]}:${m[5]}` : name}</span>
                     </div>
@@ -284,9 +339,31 @@ export function SessionBrowser() {
                 {listing?.error && <div className="err" style={{ padding: 16 }}>Could not read folder: {listing.error}</div>}
                 <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
                   <div className="scroll">
-                    {folders.length > 0 && (
+                    {(folders.length > 0 || (listing?.folders.length ?? 0) > 0) && (
                       <>
-                        {listing!.files.length > 0 && <div className="section-title" style={{ paddingLeft: 16 }}>Folders</div>}
+                        <div className="row" style={{ padding: '12px 16px 0' }}>
+                          <span className="section-title" style={{ padding: 0 }}>
+                            {listing!.files.length > 0 ? 'Folders' : `${folders.length} folder${folders.length === 1 ? '' : 's'}`}
+                          </span>
+                          <span className="grow" />
+                          <span className="muted" style={{ fontSize: 12 }}>
+                            Sort:
+                          </span>
+                          <div className="seg">
+                            {(
+                              [
+                                ['recent', 'Last driven'],
+                                ['name', 'Name A–Z'],
+                                ['sessions', 'Most sessions'],
+                                ['oldest', 'Oldest first'],
+                              ] as const
+                            ).map(([k, l]) => (
+                              <button key={k} className={trackSort === k ? 'on' : ''} onClick={() => updateSettings({ trackSort: k })}>
+                                {l}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                         <div className="cards">
                           {folders.map((f) => {
                             const isTrack = f.csvCount > 0;
@@ -335,7 +412,7 @@ export function SessionBrowser() {
                                 key={r.path}
                                 className={'click' + (sel ? ' sel' : '')}
                                 onClick={(e) => toggleSel(r.path, e)}
-                                onDoubleClick={() => open([r.path], 'replace')}
+                                onDoubleClick={() => open([r.path])}
                               >
                                 <td>
                                   <input type="checkbox" checked={sel} onChange={() => {}} onClick={(e) => (e.stopPropagation(), setSelected((s) => (s.includes(r.path) ? s.filter((x) => x !== r.path) : [...s, r.path])), setFocus(r.path))} />
@@ -344,6 +421,7 @@ export function SessionBrowser() {
                                   <div>{formatDateTime(r.savedAt ?? r.mtime)}</div>
                                   <div className="muted" style={{ fontSize: 11 }}>
                                     {relativeTime(r.savedAt ?? r.mtime)}{' '}
+                                    {loadedPaths.has(normPath(r.path)) && <span className="tag best">open</span>}{' '}
                                     <span className="tag" title={isLdName(r.fileName) ? 'MoTeC .ld log (with .ldx laps)' : 'CSV export'}>
                                       {isLdName(r.fileName) ? 'ld' : 'csv'}
                                     </span>
@@ -473,16 +551,29 @@ export function SessionBrowser() {
         </div>
         <div className="modal-foot">
           <span className="muted grow" style={{ fontSize: 12 }}>
-            Double-click to open · Ctrl/⌘ or Shift-click to select several (they open overlaid for comparison)
+            {selected.length
+              ? `${selected.length} session${selected.length === 1 ? '' : 's'} selected${folderCount > 1 ? ` from ${folderCount} folders` : ''} — selections are kept while you browse other tracks or drivers`
+              : 'Tick sessions in any folders (they stay selected as you browse), then open them together to compare · double-click opens one'}
           </span>
-          {hasSessions && (
-            <button className="btn" disabled={!selected.length} onClick={() => open(selected, 'add')}>
-              Add to current
+          {selected.length > 0 && (
+            <button className="btn ghost" onClick={() => setSelected([])}>
+              Clear selection
             </button>
           )}
-          <button className="btn primary" disabled={!selected.length} onClick={() => open(selected, 'replace')}>
-            Open {selected.length > 1 ? `${selected.length} sessions` : ''}
-          </button>
+          {hasSessions ? (
+            <>
+              <button className="btn" disabled={!selected.length} onClick={() => open(selected, 'replace')}>
+                Replace open sessions{selected.length > 1 ? ` with ${selected.length}` : ''}
+              </button>
+              <button className="btn primary" disabled={!selected.length} onClick={() => open(selected, 'add')}>
+                Add {selected.length > 1 ? `${selected.length} sessions` : ''} to open
+              </button>
+            </>
+          ) : (
+            <button className="btn primary" disabled={!selected.length} onClick={() => open(selected, 'replace')}>
+              Open {selected.length > 1 ? `${selected.length} sessions` : ''}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -14,6 +14,7 @@ Telemetrick saves exports as `exported/<Driver>/<car>/<track>/<files>`. Project-
   - known acronyms (F1, GP, GT3, CSP…) are capitalised.
   So `fn_hungaroring-layout_f1_2026` reads **Hungaroring · F1 2026**. The raw folder name is shown underneath.
 - Each card shows the **number of sessions** (an export that has both `.csv` and `.ld` counts once) and **when you last drove** there. The track you last opened is outlined.
+- **Sort** the cards with the control above them: **Last driven** (default), **Name A–Z**, **Most sessions** or **Oldest first**. Your choice is remembered. The **Filter sessions…** box also filters track cards by name.
 - A **breadcrumb** trail lets you step back up to your telemetry folder.
 
 Project-Trace remembers the last folder you opened a session from. Next launch it opens **one level above** (your track list) so you can pick a track straight away.
@@ -37,11 +38,16 @@ Project-Trace remembers the last folder you opened a session from. Next launch i
 
 Click a column header to sort. Type in **Filter sessions…** to search by driver, car, track or file name.
 
-### Selecting & opening
-- **Double-click** a row to open it, replacing what's open.
-- **Click** selects; **Ctrl/⌘ + click** adds to the selection; **Shift + click** selects a range.
-- **Open** opens the selection; several sessions open together and their fastest laps are overlaid.
-- **Add to current** keeps the open sessions and adds the new ones for comparison (also in the details pane as **Add to comparison**).
+### Selecting & opening (comparing several sessions)
+There's no limit on how many sessions you can have open: your own stints, another driver's sessions, other days.
+
+- **Tick sessions in as many folders as you like.** The selection is a basket that **survives browsing** to other tracks, cars or drivers, and the footer shows e.g. *"4 sessions selected from 2 folders"*. Plain click picks a session in the current folder; **Ctrl/⌘ + click** or the checkbox adds or removes; **Shift + click** selects a range. **Clear selection** empties the basket.
+- With nothing open, **Open** opens the whole selection together.
+- With sessions already open you get two buttons: **Add N to open** (keeps everything open and adds the new ones) and **Replace open sessions** (closes the current ones first).
+- **Double-click** opens a single session. While sessions are open, the **Double-click: Add to open | Replace** switch in the header decides what it does; the default is **Add**. The same choice applies to *Recent sessions*, *Open files…* and dragging files onto the window (hold Shift to do the opposite).
+- The **Open now** list (left column) shows every loaded session (driver · track · date) with ✕ to close it. Sessions already open are tagged **open** in the table.
+
+Each newly added session's fastest lap is overlaid automatically. Ctrl/⌘ + click more laps in the sidebar, where every session has its own card headed by the driver's name.
 
 ### Details pane
 Selecting a row shows:

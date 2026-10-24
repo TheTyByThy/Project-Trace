@@ -18,7 +18,8 @@ There are no runtime dependencies beyond Electron itself; everything else is bun
 ```
 electron/
   main.cjs        window, app:// protocol (serves dist/), IPC: filesystem, dialogs,
-                  settings/workspace persistence, folder watching, menus, screenshot automation
+                  settings/workspace/library persistence (per-file write queue), folder watching,
+                  native menus (Workspace/Worksheet menus rebuilt from renderer state), automation
   preload.cjs     contextBridge → window.pt (the only way the UI touches the OS)
 src/
   core/           framework-free logic
@@ -30,23 +31,27 @@ src/
     channel.ts      sampling, interpolation, resampling helpers
     axis.ts         lap x-mapping (time/distance) with caches; time-variance computation
     math/           expression lexer/parser, 60-function library, vectorised evaluator
-    corners.ts      corner detection + per-lap corner metrics
+    corners.ts      user-defined corners → analysis windows + metrics; opt-in suggestions
     stats.ts        range stats, polynomial fits, nice ticks, FFT
     units.ts        unit conversions and display preferences
     colors.ts       validated categorical palettes, ramps
     format.ts, timezones.ts, channelMeta.ts, bridge.ts
   state/
-    store.ts        app state + actions (sessions, lap selection, cursor/zoom, workspaces, math)
+    store.ts        app state + actions: sessions, lap selection & colours, cursor/zoom, workspaces
+                    (read-only Starter + copy-on-write), undo/redo history, track profiles, library
     workspace.ts    workspace/worksheet/component types (plain JSON)
     layout.ts       split-tree operations (insert, move/dock, remove, resize)
     components.ts   component catalogue + defaults
     defaultWorkspace.ts, defaultMath.ts
     loader.ts       file → worker → Session; browser header summaries
-  charts/         one file per component (GraphView, TrackMapView, ScatterView, …)
+  charts/         one file per component (GraphView, TrackMapView, GpsTrackView, ScatterView, …)
     canvas.ts       HiDPI canvas, theme colours, M4 decimating trace renderer
-    data.ts, axes.ts, registry.tsx
-  ui/             app shell: Chrome (top bar, tabs, status), Sidebar, SheetView (layout + docking),
-                  Inspector, SessionBrowser, MathEditor, Dialogs, overlays (menus, pickers, prompts)
+    data.ts         display units, display smoothing (cached moving average), lap windows
+    trackGeo.ts     lap position paths + rotation/mirror projection (Track Map & GPS Track)
+    RotationDial.tsx, BoxZoom.tsx (rectangle zoom layer for XY charts), axes.ts, registry.tsx
+  ui/             app shell: Chrome (top bar, tabs, status), Sidebar, SheetView (layout, docking,
+                  shared right-click items), PropertiesModal, TrackProfileEditor, SessionBrowser,
+                  MathEditor, Dialogs, overlays (menus, channel/colour pickers, prompts)
   workers/parse.worker.ts
   actions.ts      keyboard shortcuts, menu actions, command palette, CSV export
 ```
@@ -81,8 +86,14 @@ Dense traces use M4 decimation (first/min/max/last per pixel column), so whole s
 ### Laps & distance
 Lap distance comes from the game's spline-based `Lap Distance` (unwrapped across the line and forced monotonic), so laps align by track position. Without it, distance is integrated from speed. Time variance samples both laps every 2 m and subtracts the time-at-distance.
 
+### Undo / redo
+Workspaces are updated immutably, so a history entry is just a snapshot of the `workspaces` array, the active workspace id and the track profiles. These share structure and cost almost nothing. Every structural edit calls `recordHistory(label)` before mutating; edits within 500 ms coalesce into one step (dragging a divider). Undo/redo swap snapshots, then save changed workspaces, delete removed ones (cancelling their pending saves), and recompute math if it changed. The Edit menu's Undo/Redo accelerators are routed to the renderer, which falls back to text undo inside inputs.
+
+### The Starter workspace
+`buildDefaultWorkspace()` generates the Starter on every launch with id `starter` and `locked: true`; it is never written to disk. `updateWorkspace()` on a locked workspace clones it into a new personal workspace, applies the edit there and switches to it (copy-on-write). View-only changes such as `activeSheet` are applied in memory without copying.
+
 ### Persistence
-Settings, workspaces, notes and the session cache are JSON files in Electron's `userData` folder, written atomically by the main process and debounced in the renderer.
+Settings, workspaces, the worksheet library, notes and the session cache are JSON files in Electron's `userData` folder. The main process writes them atomically, through a per-file queue with unique temp names; the renderer debounces the saves.
 
 ## Security model
 - `contextIsolation: true`, `nodeIntegration: false`.
@@ -104,7 +115,9 @@ Environment variables for `npm run screenshots`:
 - `PT_SCREENSHOT_BROWSE=<folder>` — also capture the session browser at that folder;
 - `PT_SCREENSHOT_OPEN=<file;file>` — open specific sessions instead of the sample.
 
-Screenshot runs use a throwaway profile and never touch your settings.
+Screenshot runs use a throwaway profile and never touch your settings. At the end, the run also executes end-to-end checks (remove → undo → redo, delete worksheet → undo, editing the read-only Starter) and prints `[check] PASS/FAIL` lines.
+
+`scripts/ensure-install.mjs` (used by both launchers) records the platform that installed `node_modules` and reinstalls if the folder was copied between Windows and macOS.
 
 ## Adding a component type
 
@@ -112,7 +125,7 @@ Screenshot runs use a throwaway profile and never touch your settings.
 2. Add defaults in `state/components.ts` (`createComponent`) and a catalogue entry.
 3. Write the view in `charts/YourView.tsx`, using `useElementSize`, `prepCanvas` and `useStoreListener` for cursor-driven redraws.
 4. Register it in `charts/registry.tsx` (`VIEWS` and `defaultTitle`).
-5. Add its properties form to `ui/Inspector.tsx`.
+5. Add its properties form to `ui/PropertiesModal.tsx` (`ComponentForm`).
 
 ## Adding a math function
 

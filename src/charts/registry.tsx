@@ -5,6 +5,7 @@ import { ChannelReportView } from './ChannelReportView';
 import { CornerReportView } from './CornerReportView';
 import { DetailsView } from './DetailsView';
 import { FftView } from './FftView';
+import { GpsTrackView } from './GpsTrackView';
 import { GraphView } from './GraphView';
 import { HistogramView } from './HistogramView';
 import { GaugesView, InputsView, TyresView } from './Instruments';
@@ -18,6 +19,7 @@ import { TrendView } from './TrendView';
 export const VIEWS: Record<ComponentType, FC<{ config: any }>> = {
   graph: GraphView,
   trackmap: TrackMapView,
+  gpstrack: GpsTrackView,
   scatter: ScatterView,
   histogram: HistogramView,
   mixture: MixtureView,
@@ -62,5 +64,7 @@ export function defaultTitle(c: ComponentConfig): string {
       return `${c.channel} spectrum`;
     case 'details':
       return 'Session & setup';
+    case 'gpstrack':
+      return 'GPS track — racing lines';
   }
 }

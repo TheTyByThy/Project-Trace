@@ -5,6 +5,7 @@ import { uid, type ComponentConfig, type ComponentType, type GraphPane } from '.
 export const COMPONENT_CATALOG: { type: ComponentType; label: string; icon: string; description: string }[] = [
   { type: 'graph', label: 'Time / Distance Graph', icon: '〰', description: 'Multi-channel traces against time or distance with lap overlays, variance and cursor.' },
   { type: 'trackmap', label: 'Track Map', icon: '◎', description: 'Track outline from car coordinates or GPS, coloured by any channel or time gain/loss.' },
+  { type: 'gpstrack', label: 'GPS Track', icon: '⌇', description: 'Thin racing lines for every selected lap — compare the lines you drove, corner by corner.' },
   { type: 'scatter', label: 'Scatter / XY Plot', icon: '⁘', description: 'Any channel against any other, coloured by lap or a third channel, with curve fits.' },
   { type: 'histogram', label: 'Histogram', icon: '▥', description: 'Distribution of a channel (% of time) with zone breakdowns — ideal for damper speeds.' },
   { type: 'mixture', label: 'Mixture Map', icon: '▦', description: '2-D histogram: % time or mean of a third channel in each X/Y cell.' },
@@ -59,7 +60,10 @@ export function createComponent(type: ComponentType, patch: Partial<ComponentCon
       c = { id, type, x: 'Engine RPM', y: 'Throttle Pos', z: '', xBins: 12, yBins: 10, mode: 'time', useZoom: true, showValues: true, ramp: 'blue' };
       break;
     case 'trackmap':
-      c = { id, type, colorBy: 'Ground Speed', ramp: 'blue', showSectors: true, showCorners: true, showZoom: true, lineWidth: 4, rotation: 0 };
+      c = { id, type, colorBy: 'Ground Speed', ramp: 'blue', customLow: '#3987e5', customHigh: '#e66767', showSectors: true, showCorners: true, showZoom: true, lineWidth: 4 };
+      break;
+    case 'gpstrack':
+      c = { id, type, lineWidth: 1.5, fitToZoom: true, followCursor: false, showRoad: true, showSectors: true, showCorners: true };
       break;
     case 'laps':
       c = { id, type, split: 'sectors', showStats: true };

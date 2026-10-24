@@ -10,8 +10,6 @@ export const CATEGORICAL: Record<Theme, string[]> = {
   light: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'],
 };
 
-/** Overlay laps get a dash pattern as secondary encoding so identity never relies on colour alone. */
-export const LAP_DASHES: number[][] = [[], [7, 4], [2, 3], [10, 3, 2, 3], [4, 4], [1, 2], [12, 4], [6, 2, 2, 2]];
 
 // Well-known channels get fixed slots so they look the same everywhere (colour follows the entity).
 const FIXED: [RegExp, number][] = [
@@ -81,17 +79,29 @@ const RAMPS: Record<string, Record<Theme, string[]>> = {
   },
 };
 
-export type RampName = 'blue' | 'orange' | 'diverging';
-export const RAMP_LABELS: Record<RampName, string> = { blue: 'Blue (sequential)', orange: 'Orange (sequential)', diverging: 'Blue ↔ Red (diverging)' };
+export type RampName = 'blue' | 'orange' | 'diverging' | 'custom';
+export const RAMP_LABELS: Record<RampName, string> = {
+  blue: 'Blue (sequential)',
+  orange: 'Orange (sequential)',
+  diverging: 'Blue ↔ Red (diverging)',
+  custom: 'Custom colours…',
+};
 
 const lutCache = new Map<string, string[]>();
 
+/** Hex stops of a ramp (custom ramps supply their own low → high colours). */
+export function rampStops(name: RampName, theme: Theme, custom?: string[]): string[] {
+  if (name === 'custom') return custom && custom.length >= 2 ? custom : RAMPS.blue[theme];
+  return RAMPS[name][theme];
+}
+
 /** 256-entry CSS colour lookup table for a ramp. */
-export function rampLUT(name: RampName, theme: Theme): string[] {
-  const key = name + theme;
+export function rampLUT(name: RampName, theme: Theme, custom?: string[]): string[] {
+  const stopsHex = rampStops(name, theme, custom);
+  const key = stopsHex.join();
   const hit = lutCache.get(key);
   if (hit) return hit;
-  const stops = RAMPS[name][theme].map(hex);
+  const stops = stopsHex.map(hex);
   const out: string[] = [];
   for (let i = 0; i < 256; i++) {
     const t = (i / 255) * (stops.length - 1);
@@ -104,14 +114,14 @@ export function rampLUT(name: RampName, theme: Theme): string[] {
   return out;
 }
 
-export function rampColor(name: RampName, theme: Theme, t: number): string {
-  const lut = rampLUT(name, theme);
+export function rampColor(name: RampName, theme: Theme, t: number, custom?: string[]): string {
+  const lut = rampLUT(name, theme, custom);
   const i = Math.max(0, Math.min(255, Math.round((Number.isFinite(t) ? t : 0) * 255)));
   return lut[i];
 }
 
-export function rampGradientCss(name: RampName, theme: Theme): string {
-  return `linear-gradient(90deg, ${RAMPS[name][theme].join(', ')})`;
+export function rampGradientCss(name: RampName, theme: Theme, custom?: string[]): string {
+  return `linear-gradient(90deg, ${rampStops(name, theme, custom).join(', ')})`;
 }
 
 export function withAlpha(color: string, a: number): string {

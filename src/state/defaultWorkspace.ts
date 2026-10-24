@@ -1,4 +1,5 @@
-// The default "Formula / AC" workspace: nine worksheets covering every component type.
+// The Starter workspace (also the template for new workspaces): ten worksheets covering every
+// component type. Corners are user-defined per track, so corner markers stay empty until you add some.
 
 import { DEFAULT_MATH_CHANNELS } from './defaultMath';
 import { createComponent, pane } from './components';
@@ -20,7 +21,7 @@ class SheetBuilder {
 const quad = ['FL', 'FR', 'RL', 'RR'];
 const q = (base: string) => quad.map((c) => `${base} ${c}`);
 
-export function buildDefaultWorkspace(name = 'Formula — Default'): Workspace {
+export function buildDefaultWorkspace(name = 'Starter'): Workspace {
   const sheets: Worksheet[] = [];
 
   {
@@ -68,6 +69,34 @@ export function buildDefaultWorkspace(name = 'Formula — Default'): Workspace {
             ),
           ],
           [0.58, 0.42],
+        ),
+      ),
+    );
+  }
+  {
+    const b = new SheetBuilder();
+    sheets.push(
+      b.sheet(
+        'Racing Lines',
+        split(
+          'row',
+          [
+            b.add('gpstrack', { title: 'Racing lines' } as Partial<ComponentConfig>),
+            split(
+              'col',
+              [
+                b.add('graph', {
+                  title: 'Line inputs',
+                  panes: [pane(['Ground Speed'], 1.3), pane(['Steering Angle']), pane(['Throttle Pos', 'Brake Pos']), pane(['CG Accel Lateral'], 0.8)],
+                  showVariance: true,
+                  showCorners: true,
+                } as Partial<ComponentConfig>),
+                b.add('corners'),
+              ],
+              [0.66, 0.34],
+            ),
+          ],
+          [0.5, 0.5],
         ),
       ),
     );

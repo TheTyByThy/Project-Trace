@@ -2,6 +2,17 @@
 
 All of these use **every selected lap** (or the reference lap, for the mixture map). Most can be limited to the **zoomed range** of the graphs: zoom into one corner and the scatter shows only that corner.
 
+**Zooming inside the chart** (scatter, lap trend, histogram, FFT):
+
+| Input | Action |
+|---|---|
+| **Drag a rectangle** | zoom into that area |
+| scroll | zoom around the mouse |
+| right-drag / middle-drag / Ctrl+drag | pan |
+| double-click | reset |
+
+A histogram re-bins the zoomed x-range for more detail.
+
 ## Scatter / XY plot
 
 ![Aero scatters](images/aero.png)
@@ -15,10 +26,11 @@ Plots one channel against another, sample by sample. Channels at different rates
 | **Gate** | only plot samples where a channel is non-zero, e.g. gate on `Throttle Brake Overlap` or a math channel like `'Brake Pos' > 10` |
 | **Curve fit** | linear, quadratic or cubic least-squares fit per lap, with the equation and **R²** |
 | **X-interval averages** | MoTeC's "interval average": the mean Y in N equal bands of X, drawn as a line; sparse bands are ignored |
-| **Equal aspect** | same scale on both axes; with two G channels it draws **friction circles** at 1 G, 2 G… (a G-G diagram) |
+| **Axes & scales** | **fixed X and Y min/max** in Properties (blank = automatic; *Auto* clears them). Right-click → *Axis ranges & scales…* jumps there. |
+| **Equal aspect** | same scale on both axes; with two G channels it draws **friction circles** at 1 G, 2 G… (a G-G diagram). Ignored while fixed ranges are set. |
 | **Only zoomed range** | |
 
-The cursor shows as a ring on each lap's point. Scroll to zoom, drag to pan, double-click to reset.
+The cursor shows as a ring on each lap's point.
 
 **Ideas:** downforce vs speed (quadratic fit → aero map); aero balance vs front ride height (interval averages); brake pressure vs longitudinal G (linear fit → braking efficiency); lateral G vs steering angle coloured by speed (understeer at speed); damper velocity front vs rear.
 
@@ -64,6 +76,7 @@ Use it on damper/suspension travel or ride heights to find body and wheel-hop fr
 One statistic per lap across the session, with each loaded session as a series:
 - **Lap time** (default), or any channel's **mean / max / min / start / end / change** over the lap;
 - invalid laps drawn hollow; option to show valid laps only;
-- **click a point** to make that lap the reference (Ctrl/⌘ + click to overlay).
+- **click a point** to make that lap the reference (Ctrl/⌘ + click to overlay);
+- **Y-axis range**: set a fixed min/max in Properties (right-click → *Y-axis range…*). Lap times are in seconds, e.g. 100–104 for 1:40–1:44. Or drag a rectangle to zoom.
 
 Ideas: tyre temperature build-up (`Tyre Temp Avg RR`, mean), fuel burn (`Fuel Level`, end), degradation (`Tire Rubber Grip RR`, mean), consistency (lap time).

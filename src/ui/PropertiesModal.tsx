@@ -1,0 +1,737 @@
+// Properties pop-out: a large centred window for editing the selected component. Opened from the
+// top-bar "Properties" button, Ctrl/⌘+I, or "Properties…" in any component's right-click menu.
+
+import { useEffect, useState } from 'react';
+import { channelColors, RAMP_LABELS, type RampName } from '../core/colors';
+import { COMPONENT_CATALOG, pane } from '../state/components';
+import { activeSheet, activeWorkspace, addComponent, removeComponentById, setChannelProps, setUi, updateComponent, useStore } from '../state/store';
+import type { ComponentConfig, GaugeDef, GraphConfig, GraphPane } from '../state/workspace';
+import { defaultTitle } from '../charts/registry';
+import { conv, findChannel } from '../charts/data';
+import { ChannelPickerButton, ColorField, openChannelPicker, openChannelProps, openColorPicker, openMenu } from './overlays';
+import { TrackProfileEditor } from './TrackProfileEditor';
+
+function Num({ value, onChange, placeholder }: { value: number | undefined; onChange: (v: number | undefined) => void; placeholder?: string }) {
+  const [s, setS] = useState(value == null ? '' : String(value));
+  useEffect(() => setS(value == null ? '' : String(value)), [value]);
+  const commit = () => {
+    const t = s.trim();
+    onChange(t === '' ? undefined : Number.isFinite(Number(t)) ? Number(t) : value);
+  };
+  return <input className="input num" value={s} placeholder={placeholder ?? 'auto'} onChange={(e) => setS(e.target.value)} onBlur={commit} onKeyDown={(e) => e.key === 'Enter' && commit()} />;
+}
+
+function Check({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="check">
+      <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} />
+      {label}
+    </label>
+  );
+}
+
+function Select<T extends string>({ value, options, onChange }: { value: T; options: [T, string][]; onChange: (v: T) => void }) {
+  return (
+    <select className="input" value={value} onChange={(e) => onChange(e.target.value as T)}>
+      {options.map(([v, l]) => (
+        <option key={v} value={v}>
+          {l}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+const F = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <label className="field">
+    {label}
+    {children}
+  </label>
+);
+
+const G = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <div className="insp-group">
+    <h4>{title}</h4>
+    {children}
+  </div>
+);
+
+const rampOptions = Object.entries(RAMP_LABELS) as [RampName, string][];
+
+/** Min/max inputs for one axis. */
+function AxisRange({ label, min, max, onChange }: { label: string; min?: number; max?: number; onChange: (min: number | undefined, max: number | undefined) => void }) {
+  return (
+    <div className="row">
+      <span style={{ width: 62, fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0 }} className="dim">
+        {label}
+      </span>
+      <Num value={min} placeholder="min (auto)" onChange={(v) => onChange(v, max)} />
+      <Num value={max} placeholder="max (auto)" onChange={(v) => onChange(min, v)} />
+      <button className="btn small" disabled={min == null && max == null} onClick={() => onChange(undefined, undefined)}>
+        Auto
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Graph: panes & channels (MoTeC-style)
+// ---------------------------------------------------------------------------------------------
+
+function PaneCard({ c, p, i, up }: { c: GraphConfig; p: GraphPane; i: number; up: (patch: Partial<GraphConfig>, label?: string) => void }) {
+  const sessions = useStore((s) => s.sessions);
+  const theme = useStore((s) => s.settings.theme);
+  const cprops = useStore((s) => activeWorkspace(s)?.channelProps) ?? {};
+  const colors = channelColors(p.channels, theme, cprops);
+  const setPane = (patch: Partial<GraphPane>, label?: string) => up({ panes: c.panes.map((x, k) => (k === i ? { ...x, ...patch } : x)) }, label);
+  const move = (d: number) => {
+    const panes = c.panes.slice();
+    const j = i + d;
+    if (j < 0 || j >= panes.length) return;
+    [panes[i], panes[j]] = [panes[j], panes[i]];
+    up({ panes }, 'Move pane');
+  };
+  const removeChannel = (name: string) => setPane({ channels: p.channels.filter((x) => x !== name) }, 'Remove channel');
+  const moveChannelTo = (name: string, target: number | 'new') => {
+    const panes = c.panes.map((x, k) => (k === i ? { ...x, channels: x.channels.filter((n) => n !== name) } : x));
+    if (target === 'new') panes.splice(i + 1, 0, pane([name]));
+    else panes[target] = { ...panes[target], channels: [...panes[target].channels, name] };
+    up({ panes: panes.filter((x) => x.channels.length) }, 'Move channel');
+  };
+  const rowMenu = (e: React.MouseEvent, name: string) => {
+    e.preventDefault();
+    openMenu(e, [
+      { header: name },
+      { label: 'Channel properties…', onClick: () => openChannelProps(name) },
+      { label: 'Colour…', onClick: () => openColorPicker(e, cprops[name]?.color, (col) => setChannelProps(name, { color: col }), { allowAuto: true, title: name }) },
+      { separator: true },
+      { label: 'Move to its own pane', disabled: p.channels.length <= 1, onClick: () => moveChannelTo(name, 'new') },
+      ...c.panes.map((_, k) => ({ label: `Move to pane ${k + 1}`, disabled: k === i, onClick: () => moveChannelTo(name, k) })),
+      { separator: true },
+      { label: 'Remove from graph', onClick: () => removeChannel(name) },
+    ]);
+  };
+  return (
+    <div className="pane-card">
+      <div className="ph">
+        <b>Pane {i + 1}</b>
+        <select className="input" style={{ height: 24, width: 200, fontSize: 12 }} value={p.scale} onChange={(e) => setPane({ scale: e.target.value as GraphPane['scale'] })}>
+          <option value="auto">Scale: automatic</option>
+          <option value="shared">Scale: shared (tiled)</option>
+          <option value="independent">Scale: independent (overlapped)</option>
+        </select>
+        <span className="muted" style={{ fontSize: 11 }}>
+          height
+        </span>
+        <input type="range" min={0.3} max={4} step={0.1} value={p.weight} onChange={(e) => setPane({ weight: Number(e.target.value) }, 'Resize pane')} style={{ width: 90 }} />
+        <span className="grow" />
+        <button className="btn small icon" title="Move up" onClick={() => move(-1)}>
+          ↑
+        </button>
+        <button className="btn small icon" title="Move down" onClick={() => move(1)}>
+          ↓
+        </button>
+        <button className="btn small icon" title="Remove pane" onClick={() => up({ panes: c.panes.filter((_, k) => k !== i) }, 'Remove pane')}>
+          ×
+        </button>
+      </div>
+      <table className="grid">
+        <thead>
+          <tr>
+            <th className="l" style={{ width: 50 }}>
+              Colour
+            </th>
+            <th className="l">Channel</th>
+            <th>Unit</th>
+            <th>Rate</th>
+            <th>Range</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {p.channels.map((name, ci) => {
+            const ch = findChannel(sessions, name);
+            const props = cprops[name] ?? {};
+            return (
+              <tr key={name} className="chan-props-row" onContextMenu={(e) => rowMenu(e, name)} onDoubleClick={() => openChannelProps(name)}>
+                <td className="l">
+                  <span
+                    className="lap-color-dot"
+                    style={{ background: colors[ci] }}
+                    title="Change colour"
+                    onClick={(e) => openColorPicker(e, props.color, (col) => setChannelProps(name, { color: col }), { allowAuto: true, title: name })}
+                  />
+                </td>
+                <td className="l">
+                  {name} {!ch && <span className="muted">(not in session)</span>}
+                </td>
+                <td className="muted">{ch ? conv(ch).unit : ''}</td>
+                <td className="muted num">{ch ? `${ch.rate} Hz` : ''}</td>
+                <td className="num muted">{props.min != null || props.max != null ? `${props.min ?? 'auto'} – ${props.max ?? 'auto'}` : 'auto'}</td>
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  <button className="btn small" onClick={() => openChannelProps(name)}>
+                    Properties…
+                  </button>{' '}
+                  <button className="btn small icon" title="Remove" onClick={() => removeChannel(name)}>
+                    ×
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <div className="row" style={{ padding: 8, flexWrap: 'wrap' }}>
+        <button className="btn small" onClick={(e) => openChannelPicker(e, (n) => !p.channels.includes(n) && setPane({ channels: [...p.channels, n] }, 'Add channel'))}>
+          + Add channel to this pane
+        </button>
+        {p.scale !== 'independent' && (
+          <>
+            <span className="muted" style={{ fontSize: 11 }}>
+              shared y-range
+            </span>
+            <div style={{ width: 90 }}>
+              <Num value={p.min} placeholder="min" onChange={(v) => setPane({ min: v })} />
+            </div>
+            <div style={{ width: 90 }}>
+              <Num value={p.max} placeholder="max" onChange={(v) => setPane({ max: v })} />
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function GraphForm({ c }: { c: GraphConfig }) {
+  const up = (p: Partial<GraphConfig>, label?: string) => updateComponent(c.id, p, label);
+  return (
+    <div className="props-grid">
+      <div>
+        <G title="Display">
+          <Check label="Time variance pane (F3)" value={c.showVariance} onChange={(v) => up({ showVariance: v })} />
+          <Check label="Sector & section lines" value={c.showSectors} onChange={(v) => up({ showSectors: v })} />
+          <Check label="Corner markers (your saved corners)" value={c.showCorners} onChange={(v) => up({ showCorners: v })} />
+          <F label="Y range">
+            <Select value={c.yRange} options={[['full', 'Whole lap'], ['visible', 'Visible (zoomed) area']]} onChange={(v) => up({ yRange: v })} />
+          </F>
+        </G>
+        <G title="Tips">
+          <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+            Drag the border between panes on the graph to change their heights. Right-click a channel row (or double-click it) for its properties. Drag channels
+            from the sidebar straight onto a pane.
+          </div>
+        </G>
+      </div>
+      <div>
+        <div className="row">
+          <h4 className="grow" style={{ margin: 0, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-3)' }}>
+            Panes & channels (top to bottom)
+          </h4>
+          <button className="btn small primary" onClick={(e) => openChannelPicker(e, (n) => up({ panes: [...c.panes, pane([n])] }, 'Add pane'))}>
+            + Add pane
+          </button>
+        </div>
+        {c.panes.map((p, i) => (
+          <PaneCard key={p.id} c={c} p={p} i={i} up={up} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Other components
+// ---------------------------------------------------------------------------------------------
+
+export function ComponentForm({ c }: { c: ComponentConfig }) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const up = (p: any) => updateComponent(c.id, p);
+  switch (c.type) {
+    case 'graph':
+      return <GraphForm c={c} />;
+    case 'trackmap':
+      return (
+        <div className="props-grid">
+          <div>
+            <G title="Colouring">
+              <F label="Colour by">
+                <ChannelPickerButton
+                  value={c.colorBy}
+                  onChange={(v) => up({ colorBy: v, ramp: v === 'delta' && c.ramp !== 'custom' ? 'diverging' : c.ramp === 'diverging' && v !== 'delta' ? 'blue' : c.ramp })}
+                  extras={[
+                    { value: 'lap', label: 'Lap colours' },
+                    { value: 'delta', label: 'Time gained / lost vs reference' },
+                  ]}
+                />
+              </F>
+              {c.colorBy !== 'lap' && (
+                <F label="Colour ramp">
+                  <Select value={c.ramp} options={rampOptions} onChange={(v) => up({ ramp: v })} />
+                </F>
+              )}
+              {c.colorBy !== 'lap' && c.ramp === 'custom' && (
+                <>
+                  <div className="field">
+                    {c.colorBy === 'delta' ? 'Gaining colour' : 'Low-value colour'}
+                    <ColorField value={c.customLow ?? '#3987e5'} onChange={(v) => up({ customLow: v ?? '#3987e5' })} />
+                  </div>
+                  <div className="field">
+                    {c.colorBy === 'delta' ? 'Losing colour' : 'High-value colour'}
+                    <ColorField value={c.customHigh ?? '#e66767'} onChange={(v) => up({ customHigh: v ?? '#e66767' })} />
+                  </div>
+                </>
+              )}
+              {c.colorBy === 'lap' && <div className="muted" style={{ fontSize: 12 }}>Lap colours are set by clicking a lap’s colour square in the sidebar.</div>}
+            </G>
+            <G title="Display">
+              <F label={`Line width (${c.lineWidth}px)`}>
+                <input type="range" min={1.5} max={10} step={0.5} value={c.lineWidth} onChange={(e) => up({ lineWidth: Number(e.target.value) })} />
+              </F>
+              <Check label="Sector & section markers" value={c.showSectors} onChange={(v) => up({ showSectors: v })} />
+              <Check label="Corner labels" value={c.showCorners} onChange={(v) => up({ showCorners: v })} />
+              <Check label="Highlight zoomed range" value={c.showZoom} onChange={(v) => up({ showZoom: v })} />
+            </G>
+          </div>
+          <div>
+            <TrackProfileEditor />
+          </div>
+        </div>
+      );
+    case 'gpstrack':
+      return (
+        <div className="props-grid">
+          <div>
+            <G title="Racing lines">
+              <F label={`Line width (${c.lineWidth}px)`}>
+                <input type="range" min={0.75} max={5} step={0.25} value={c.lineWidth} onChange={(e) => up({ lineWidth: Number(e.target.value) })} />
+              </F>
+              <Check label="Frame the graphs’ zoomed range" value={c.fitToZoom} onChange={(v) => up({ fitToZoom: v })} />
+              <Check label="Follow the cursor when zoomed in" value={c.followCursor} onChange={(v) => up({ followCursor: v })} />
+              <Check label="Show approximate track band (13 m)" value={c.showRoad} onChange={(v) => up({ showRoad: v })} />
+              <Check label="Sector & section markers" value={c.showSectors} onChange={(v) => up({ showSectors: v })} />
+              <Check label="Corner labels" value={c.showCorners} onChange={(v) => up({ showCorners: v })} />
+              <div className="muted" style={{ fontSize: 12 }}>
+                Lines use each lap’s colour — click a lap’s colour square in the sidebar to change it.
+              </div>
+            </G>
+          </div>
+          <div>
+            <TrackProfileEditor />
+          </div>
+        </div>
+      );
+    case 'corners':
+      return (
+        <div className="props-grid">
+          <div>
+            <G title="Corner report">
+              <F label="Metric">
+                <Select value={c.metric} options={[['minSpeed', 'Minimum speed'], ['entrySpeed', 'Entry speed'], ['exitSpeed', 'Exit speed'], ['time', 'Time through corner']]} onChange={(v) => up({ metric: v })} />
+              </F>
+              <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+                Each corner is analysed from halfway to the previous corner to halfway to the next (at most ±200 m from the apex you set).
+              </div>
+            </G>
+          </div>
+          <div>
+            <TrackProfileEditor />
+          </div>
+        </div>
+      );
+    case 'scatter':
+      return (
+        <div className="props-grid">
+          <div>
+            <G title="Channels">
+              <F label="X axis">
+                <ChannelPickerButton value={c.x} onChange={(v) => up({ x: v })} />
+              </F>
+              <F label="Y axis">
+                <ChannelPickerButton value={c.y} onChange={(v) => up({ y: v })} />
+              </F>
+              <F label="Colour">
+                <ChannelPickerButton value={c.color} onChange={(v) => up({ color: v })} extras={[{ value: 'lap', label: 'Lap colours' }]} />
+              </F>
+              {c.color !== 'lap' && (
+                <F label="Colour ramp">
+                  <Select value={c.ramp} options={rampOptions.filter(([k]) => k !== 'custom')} onChange={(v) => up({ ramp: v })} />
+                </F>
+              )}
+              <F label="Gate (only plot where this channel ≠ 0)">
+                <ChannelPickerButton value={c.gate ?? ''} placeholder="none" onChange={(v) => up({ gate: v === '__none' ? undefined : v })} extras={[{ value: '__none', label: 'No gate' }]} />
+              </F>
+            </G>
+          </div>
+          <div>
+            <G title="Axes & scales">
+              <AxisRange label="X axis" min={c.xMin} max={c.xMax} onChange={(a, b) => up({ xMin: a, xMax: b })} />
+              <AxisRange label="Y axis" min={c.yMin} max={c.yMax} onChange={(a, b) => up({ yMin: a, yMax: b })} />
+              <Check label="Equal aspect (G-G diagram; ignored when ranges are fixed)" value={c.equalAspect} onChange={(v) => up({ equalAspect: v })} />
+              <div className="muted" style={{ fontSize: 12 }}>
+                On the chart: drag a rectangle to zoom into it, scroll to zoom, right-drag to pan, double-click to reset.
+              </div>
+            </G>
+            <G title="Analysis">
+              <F label="Curve fit">
+                <Select value={c.fit} options={[['none', 'None'], ['linear', 'Linear'], ['poly2', 'Quadratic'], ['poly3', 'Cubic']]} onChange={(v) => up({ fit: v })} />
+              </F>
+              <Check label="X-interval averages" value={c.intervalAvg} onChange={(v) => up({ intervalAvg: v })} />
+              {c.intervalAvg && (
+                <F label="Intervals">
+                  <Num value={c.intervalCount} onChange={(v) => up({ intervalCount: Math.max(2, Math.round(v ?? 20)) })} />
+                </F>
+              )}
+              <F label={`Point size (${c.pointSize})`}>
+                <input type="range" min={1} max={6} step={0.5} value={c.pointSize} onChange={(e) => up({ pointSize: Number(e.target.value) })} />
+              </F>
+              <Check label="Only zoomed range" value={c.useZoom} onChange={(v) => up({ useZoom: v })} />
+            </G>
+          </div>
+        </div>
+      );
+    case 'trend':
+      return (
+        <div className="props-single">
+          <G title="Statistic">
+            <F label="Channel">
+              <ChannelPickerButton value={c.channel} placeholder="Lap time" onChange={(v) => up({ channel: v === '__lap' ? '' : v, yMin: undefined, yMax: undefined })} extras={[{ value: '__lap', label: 'Lap time' }]} />
+            </F>
+            {c.channel && (
+              <F label="Statistic per lap">
+                <Select value={c.stat} options={[['mean', 'Mean'], ['max', 'Max'], ['min', 'Min'], ['first', 'Start of lap'], ['last', 'End of lap'], ['delta', 'Change over lap']]} onChange={(v) => up({ stat: v })} />
+              </F>
+            )}
+            <Check label="Valid laps only" value={c.validOnly} onChange={(v) => up({ validOnly: v })} />
+          </G>
+          <G title="Y axis">
+            <AxisRange label="Y axis" min={c.yMin} max={c.yMax} onChange={(a, b) => up({ yMin: a, yMax: b })} />
+            <div className="muted" style={{ fontSize: 12 }}>
+              {c.channel ? 'In the channel’s display units.' : 'Lap time in seconds (e.g. 100 = 1:40.000).'} Drag a rectangle on the chart to zoom; double-click to reset.
+            </div>
+          </G>
+        </div>
+      );
+    case 'histogram':
+      return (
+        <div className="props-single">
+          <G title="Histogram">
+            <F label="Channel">
+              <ChannelPickerButton value={c.channel} onChange={(v) => up({ channel: v, min: undefined, max: undefined })} />
+            </F>
+            <F label="Bins">
+              <Num value={c.bins} onChange={(v) => up({ bins: Math.max(1, Math.round(v ?? 30)) })} />
+            </F>
+            <AxisRange label="X range" min={c.min} max={c.max} onChange={(a, b) => up({ min: a, max: b })} />
+            <F label="Zone boundaries (comma separated)">
+              <input
+                className="input"
+                defaultValue={c.zones.join(', ')}
+                key={c.zones.join(',')}
+                onBlur={(e) =>
+                  up({
+                    zones: e.target.value
+                      .split(/[,\s]+/)
+                      .filter(Boolean)
+                      .map(Number)
+                      .filter(Number.isFinite)
+                      .sort((a, b) => a - b),
+                  })
+                }
+              />
+            </F>
+            <Check label="Cumulative" value={c.cumulative} onChange={(v) => up({ cumulative: v })} />
+            <Check label="Only zoomed range" value={c.useZoom} onChange={(v) => up({ useZoom: v })} />
+          </G>
+        </div>
+      );
+    case 'mixture':
+      return (
+        <div className="props-single">
+          <G title="Mixture map">
+            <F label="X axis">
+              <ChannelPickerButton value={c.x} onChange={(v) => up({ x: v })} />
+            </F>
+            <F label="Y axis">
+              <ChannelPickerButton value={c.y} onChange={(v) => up({ y: v })} />
+            </F>
+            <F label="Cell value">
+              <ChannelPickerButton
+                value={c.z}
+                placeholder="% of time"
+                onChange={(v) => up({ z: v === '__none' ? '' : v, mode: v === '__none' ? 'time' : c.mode === 'time' ? 'mean' : c.mode })}
+                extras={[{ value: '__none', label: '% of time' }]}
+              />
+            </F>
+            {c.z && (
+              <F label="Statistic">
+                <Select value={c.mode} options={[['mean', 'Mean'], ['max', 'Max'], ['min', 'Min'], ['time', '% of time']]} onChange={(v) => up({ mode: v })} />
+              </F>
+            )}
+            <div className="row">
+              <F label="X bins">
+                <Num value={c.xBins} onChange={(v) => up({ xBins: Math.max(1, Math.round(v ?? 12)) })} />
+              </F>
+              <F label="Y bins">
+                <Num value={c.yBins} onChange={(v) => up({ yBins: Math.max(1, Math.round(v ?? 10)) })} />
+              </F>
+            </div>
+            <F label="Colour ramp">
+              <Select value={c.ramp} options={rampOptions.filter(([k]) => k !== 'diverging' && k !== 'custom')} onChange={(v) => up({ ramp: v })} />
+            </F>
+            <Check label="Show cell values" value={c.showValues} onChange={(v) => up({ showValues: v })} />
+            <Check label="Only zoomed range" value={c.useZoom} onChange={(v) => up({ useZoom: v })} />
+          </G>
+        </div>
+      );
+    case 'laps':
+      return (
+        <div className="props-single">
+          <G title="Lap report">
+            <F label="Split columns">
+              <Select value={c.split} options={[['sectors', 'Game sectors'], ['sections', 'Custom sections'], ['none', 'None']]} onChange={(v) => up({ split: v })} />
+            </F>
+            <Check label="Max speed & fuel columns" value={c.showStats} onChange={(v) => up({ showStats: v })} />
+          </G>
+        </div>
+      );
+    case 'channels':
+      return (
+        <div className="props-single">
+          <G title="Channels">
+            <div className="row" style={{ flexWrap: 'wrap', gap: 4 }}>
+              {c.channels.map((ch) => (
+                <span key={ch} className="chip" onContextMenu={(e) => (e.preventDefault(), openChannelProps(ch))}>
+                  <span className="n">{ch}</span>
+                  <button title="Channel properties" onClick={() => openChannelProps(ch)}>
+                    ⚙
+                  </button>
+                  <button onClick={() => up({ channels: c.channels.filter((x) => x !== ch) })}>×</button>
+                </span>
+              ))}
+              <button className="btn small ghost" onClick={(e) => openChannelPicker(e, (n) => !c.channels.includes(n) && up({ channels: [...c.channels, n] }))}>
+                + channel
+              </button>
+            </div>
+          </G>
+          <G title="Statistics">
+            {(['min', 'max', 'mean', 'std', 'first', 'last'] as const).map((s) => (
+              <Check key={s} label={s} value={c.stats.includes(s)} onChange={(v) => up({ stats: v ? [...c.stats, s] : c.stats.filter((x) => x !== s) })} />
+            ))}
+            <Check label="Only zoomed range" value={c.useZoom} onChange={(v) => up({ useZoom: v })} />
+          </G>
+        </div>
+      );
+    case 'gauges':
+      return (
+        <div className="props-single">
+          <G title="Gauges">
+            <F label="Columns">
+              <Num value={c.columns} onChange={(v) => up({ columns: Math.max(1, Math.round(v ?? 3)) })} />
+            </F>
+            {c.gauges.map((g, i) => {
+              const set = (p: Partial<GaugeDef>) => up({ gauges: c.gauges.map((x, k) => (k === i ? { ...x, ...p } : x)) });
+              return (
+                <div key={i} className="pane-editor">
+                  <ChannelPickerButton value={g.channel} onChange={(v) => set({ channel: v, min: undefined, max: undefined })} />
+                  <div className="row">
+                    <select className="input" style={{ height: 24 }} value={g.style} onChange={(e) => set({ style: e.target.value as GaugeDef['style'] })}>
+                      <option value="dial">Dial</option>
+                      <option value="bar">Bar</option>
+                      <option value="digital">Digital</option>
+                    </select>
+                    <Num value={g.min} placeholder="min" onChange={(v) => set({ min: v })} />
+                    <Num value={g.max} placeholder="max" onChange={(v) => set({ max: v })} />
+                    <button className="btn small icon" onClick={() => up({ gauges: c.gauges.filter((_, k) => k !== i) })}>
+                      ×
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            <button className="btn small" onClick={(e) => openChannelPicker(e, (n) => up({ gauges: [...c.gauges, { channel: n, style: 'dial' }] }))}>
+              + Add gauge
+            </button>
+          </G>
+        </div>
+      );
+    case 'inputs':
+      return (
+        <div className="props-single">
+          <G title="Driver inputs">
+            <Check label="Show compare lap (second selected lap)" value={c.showCompare} onChange={(v) => up({ showCompare: v })} />
+          </G>
+        </div>
+      );
+    case 'tyres':
+      return (
+        <div className="props-single">
+          <G title="Tyres & brakes">
+            <F label="Values">
+              <Select value={c.mode} options={[['cursor', 'At cursor'], ['mean', 'Lap mean'], ['max', 'Lap max']]} onChange={(v) => up({ mode: v })} />
+            </F>
+          </G>
+        </div>
+      );
+    case 'details':
+      return (
+        <div className="props-single">
+          <G title="Session & setup">
+            <F label="Tab">
+              <Select value={c.tab} options={[['info', 'Session'], ['setup', 'Car setup'], ['notes', 'Notes']]} onChange={(v) => up({ tab: v })} />
+            </F>
+            <Check label="Setup: differences only" value={c.diffOnly} onChange={(v) => up({ diffOnly: v })} />
+          </G>
+        </div>
+      );
+    case 'fft':
+      return (
+        <div className="props-single">
+          <G title="Frequency analysis">
+            <F label="Channel">
+              <ChannelPickerButton value={c.channel} onChange={(v) => up({ channel: v })} />
+            </F>
+            <F label="Max frequency (Hz)">
+              <Num value={c.maxHz} onChange={(v) => up({ maxHz: Math.max(0.5, v ?? 25) })} />
+            </F>
+            <Check label="Log scale" value={c.logScale} onChange={(v) => up({ logScale: v })} />
+            <Check label="Only zoomed range" value={c.useZoom} onChange={(v) => up({ useZoom: v })} />
+          </G>
+        </div>
+      );
+  }
+}
+
+export function PropertiesModal() {
+  const activeId = useStore((s) => s.activeComponentId);
+  const sheet = useStore((s) => activeSheet(s));
+  const c = activeId ? sheet?.components[activeId] : undefined;
+  const close = () => setUi({ properties: false });
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && !(e.target as HTMLElement)?.closest('.popover') && close();
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, []);
+  const comps = Object.values(sheet?.components ?? {});
+  const meta = c ? COMPONENT_CATALOG.find((x) => x.type === c.type) : undefined;
+  return (
+    <div className="modal-back" onMouseDown={close}>
+      <div className="modal props-modal" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h2 style={{ flex: '0 0 auto' }}>Properties</h2>
+          <select
+            className="input"
+            style={{ width: 320 }}
+            value={c?.id ?? ''}
+            onChange={(e) => useStore.setState({ activeComponentId: e.target.value || null })}
+            title="Component on this worksheet"
+          >
+            <option value="">Choose a component…</option>
+            {comps.map((x) => (
+              <option key={x.id} value={x.id}>
+                {COMPONENT_CATALOG.find((m) => m.type === x.type)?.icon} {x.title || defaultTitle(x)}
+              </option>
+            ))}
+          </select>
+          {c && (
+            <input
+              className="input"
+              style={{ width: 260 }}
+              placeholder={`Title: ${defaultTitle(c)}`}
+              value={c.title ?? ''}
+              onChange={(e) => updateComponent(c.id, { title: e.target.value || undefined }, 'Rename component')}
+            />
+          )}
+          <span className="grow" />
+          {c && (
+            <button
+              className="btn"
+              onClick={() => {
+                removeComponentById(c.id);
+              }}
+            >
+              Remove component
+            </button>
+          )}
+          <button className="btn icon ghost" onClick={close} title="Close (Esc)">
+            ✕
+          </button>
+        </div>
+        {c ? (
+          <>
+            {meta && (
+              <div className="muted" style={{ padding: '8px 16px 0', fontSize: 12 }}>
+                {meta.icon} <b style={{ color: 'var(--text-2)' }}>{meta.label}</b> — {meta.description}
+              </div>
+            )}
+            <ComponentForm c={c} />
+          </>
+        ) : (
+          <div className="props-single">
+            <div className="muted" style={{ marginBottom: 10 }}>
+              Choose a component above (or right-click any component → <b>Properties…</b>). Or add a new one to this worksheet:
+            </div>
+            <div className="cards" style={{ padding: 0 }}>
+              {COMPONENT_CATALOG.map((it) => (
+                <div key={it.type} className="card" onClick={() => addComponent(it.type)}>
+                  <div className="t">
+                    {it.icon} {it.label}
+                  </div>
+                  <div className="s">{it.description}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="modal-foot">
+          <span className="muted grow" style={{ fontSize: 12 }}>
+            Changes apply immediately · Ctrl/⌘+Z undoes
+          </span>
+          <button className="btn primary" onClick={close}>
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Docked side panel (Ctrl/⌘+I) showing the same properties as the pop-out, for the selected component. */
+export function InspectorPanel() {
+  const activeId = useStore((s) => s.activeComponentId);
+  const sheet = useStore((s) => activeSheet(s));
+  const c = activeId ? sheet?.components[activeId] : undefined;
+  if (!c)
+    return (
+      <div className="insp-body">
+        <div className="muted" style={{ fontSize: 12 }}>
+          Click a component to edit its properties here, or right-click it → <b>Properties…</b> for the large pop-out. Add components to this worksheet:
+        </div>
+        {COMPONENT_CATALOG.map((it) => (
+          <button key={it.type} className="btn" style={{ justifyContent: 'flex-start' }} onClick={() => addComponent(it.type)}>
+            <span style={{ width: 18, textAlign: 'center' }}>{it.icon}</span>
+            {it.label}
+          </button>
+        ))}
+      </div>
+    );
+  const meta = COMPONENT_CATALOG.find((x) => x.type === c.type);
+  return (
+    <div className="insp-panel">
+      <div className="insp-body" style={{ paddingBottom: 0 }}>
+        <div className="row">
+          <span style={{ fontSize: 16 }}>{meta?.icon}</span>
+          <b className="grow">{meta?.label}</b>
+          <button className="btn small" title="Open in the large pop-out" onClick={() => setUi({ properties: true })}>
+            ⤢ Pop out
+          </button>
+          <button className="btn small" onClick={() => removeComponentById(c.id)}>
+            Remove
+          </button>
+        </div>
+        <input className="input" placeholder={defaultTitle(c)} value={c.title ?? ''} onChange={(e) => updateComponent(c.id, { title: e.target.value || undefined }, 'Rename component')} />
+      </div>
+      <ComponentForm c={c} />
+    </div>
+  );
+}
