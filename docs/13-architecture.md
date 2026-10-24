@@ -1,0 +1,129 @@
+# 13 · Architecture (for developers)
+
+## Stack
+
+| Layer | Choice | Why |
+|---|---|---|
+| Shell | **Electron 41** | one codebase for Windows and macOS, native dialogs, packaging to .exe/.dmg |
+| UI | **React 19 + TypeScript**, bundled by **Vite** | typed, fast builds |
+| State | **Zustand** | tiny; supports imperative subscriptions for 60 fps cursor updates |
+| Charts | **custom Canvas 2D renderers** | full control of MoTeC-style behaviour (panes, overlays, distance axis) and speed on millions of samples |
+| Parsing | **Web Worker** with a byte-level parser | keeps the UI responsive while reading 80 MB files |
+| Tests | **Vitest** | parser, math engine and `.ld` ↔ CSV cross-checks against real data |
+
+There are no runtime dependencies beyond Electron itself; everything else is bundled.
+
+## Source map
+
+```
+electron/
+  main.cjs        window, app:// protocol (serves dist/), IPC: filesystem, dialogs,
+                  settings/workspace persistence, folder watching, menus, screenshot automation
+  preload.cjs     contextBridge → window.pt (the only way the UI touches the OS)
+src/
+  core/           framework-free logic
+    types.ts        Session, Lap, ChannelInfo, ParsedFile…
+    header.ts       header/metadata parsing shared by browser summaries and full parse
+    csvParser.ts    byte-level multi-rate CSV parser (native-rate channels)
+    ldParser.ts     MoTeC .ld reader + .ldx parser
+    session.ts      laps (beacons → lap number → lap distance), validity, sectors, distance mapping
+    channel.ts      sampling, interpolation, resampling helpers
+    axis.ts         lap x-mapping (time/distance) with caches; time-variance computation
+    math/           expression lexer/parser, 60-function library, vectorised evaluator
+    corners.ts      corner detection + per-lap corner metrics
+    stats.ts        range stats, polynomial fits, nice ticks, FFT
+    units.ts        unit conversions and display preferences
+    colors.ts       validated categorical palettes, ramps
+    format.ts, timezones.ts, channelMeta.ts, bridge.ts
+  state/
+    store.ts        app state + actions (sessions, lap selection, cursor/zoom, workspaces, math)
+    workspace.ts    workspace/worksheet/component types (plain JSON)
+    layout.ts       split-tree operations (insert, move/dock, remove, resize)
+    components.ts   component catalogue + defaults
+    defaultWorkspace.ts, defaultMath.ts
+    loader.ts       file → worker → Session; browser header summaries
+  charts/         one file per component (GraphView, TrackMapView, ScatterView, …)
+    canvas.ts       HiDPI canvas, theme colours, M4 decimating trace renderer
+    data.ts, axes.ts, registry.tsx
+  ui/             app shell: Chrome (top bar, tabs, status), Sidebar, SheetView (layout + docking),
+                  Inspector, SessionBrowser, MathEditor, Dialogs, overlays (menus, pickers, prompts)
+  workers/parse.worker.ts
+  actions.ts      keyboard shortcuts, menu actions, command palette, CSV export
+```
+
+## Data flow
+
+```
+file ──► main: fs.readFile ──► renderer ──► Worker: parseTelemetryCsv / parseLd
+                                                 │  (ArrayBuffers transferred, zero-copy)
+                                                 ▼
+                     buildSession(): channels (native rate) + derived Distance
+                                     laps (beacons / Lap Number / Lap Distance) + validity
+                                     sectors (Last Sector Time reconstruction) + lap distance maps
+                                                 │
+                     applyMathChannels(): dependency-ordered, vectorised evaluation
+                                                 ▼
+                                   zustand store (sessions, dataVersion++)
+                                                 │
+            components read selected laps → lapSeries(lap, channel, mode) → canvas
+```
+
+### Native-rate channels
+Each channel is stored on a uniform grid `t = t0 + i / rate` at its logged rate (150/30/10/1 Hz for Telemetrick). `lapSeries()` maps a lap's sample range to x-positions (time-in-lap or lap distance) and caches the result per lap, rate and mode, so overlays of channels at different rates line up correctly.
+
+### Rendering
+Charts use two stacked canvases:
+- **base**: grid and traces, redrawn when data, laps, zoom, size or theme change;
+- **overlay**: cursor, measurement, legends with live values, drop targets. It is redrawn from an **imperative store subscription**, so moving the cursor never re-renders React.
+
+Dense traces use M4 decimation (first/min/max/last per pixel column), so whole sessions draw in milliseconds.
+
+### Laps & distance
+Lap distance comes from the game's spline-based `Lap Distance` (unwrapped across the line and forced monotonic), so laps align by track position. Without it, distance is integrated from speed. Time variance samples both laps every 2 m and subtracts the time-at-distance.
+
+### Persistence
+Settings, workspaces, notes and the session cache are JSON files in Electron's `userData` folder, written atomically by the main process and debounced in the renderer.
+
+## Security model
+- `contextIsolation: true`, `nodeIntegration: false`.
+- The renderer only reaches the OS through the explicit `window.pt` bridge.
+- The UI is served from a custom privileged `app://` scheme with path-traversal checks and a strict CSP.
+- External links open in the system browser.
+
+## Testing & verification
+
+```bash
+npm test            # 20 tests: CSV parser, MoTeC CSV/generic CSV, laps/sectors, math engine,
+                    #           .ld ↔ CSV equality (skipped if the .ld isn't on this machine)
+npm run typecheck   # strict TypeScript
+npm run screenshots # launches the real app headlessly, opens the sample session and saves
+                    # a PNG of every worksheet + dialogs to screenshots-out/
+```
+
+Environment variables for `npm run screenshots`:
+- `PT_SCREENSHOT_BROWSE=<folder>` — also capture the session browser at that folder;
+- `PT_SCREENSHOT_OPEN=<file;file>` — open specific sessions instead of the sample.
+
+Screenshot runs use a throwaway profile and never touch your settings.
+
+## Adding a component type
+
+1. Add its config interface to `state/workspace.ts` and the `ComponentType` union.
+2. Add defaults in `state/components.ts` (`createComponent`) and a catalogue entry.
+3. Write the view in `charts/YourView.tsx`, using `useElementSize`, `prepCanvas` and `useStoreListener` for cursor-driven redraws.
+4. Register it in `charts/registry.tsx` (`VIEWS` and `defaultTitle`).
+5. Add its properties form to `ui/Inspector.tsx`.
+
+## Adding a math function
+
+Add an entry to `FUNCTIONS` in `core/math/functions.ts`. It needs a name, signature, doc, category, argument count and an `impl` over `number | Float64Array`. It appears in the editor's reference automatically.
+
+## Packaging
+
+`electron-builder` config lives in `package.json → build`:
+- Windows: NSIS installer + zip;
+- macOS: dmg + zip;
+- `sample-data/` ships as an extra resource;
+- the icon is `build/icon.png`, generated by `scripts/make-icon.mjs`.
+
+CI: `.github/workflows/build.yml` builds both platforms on `workflow_dispatch` or `v*` tags and uploads the installers as artifacts.
