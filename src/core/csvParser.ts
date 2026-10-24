@@ -90,6 +90,8 @@ class ColumnBuffer {
   vals: Float64Array = new Float64Array(1024);
   n = 0;
   text = 0;
+  /** A few distinct text values (for columns that turn out to be all text). */
+  textValues: string[] = [];
   push(row: number, v: number) {
     if (this.n === this.rows.length) {
       const nr = new Uint32Array(this.rows.length * 2);
@@ -144,6 +146,7 @@ export function parseTelemetryCsv(buffer: ArrayBuffer, fileName = '', onProgress
   const timeCol = hdr.timeCol;
   const cols: ColumnBuffer[] = [];
   for (let c = 0; c < ncol; c++) cols.push(new ColumnBuffer());
+  const textDecoder = new TextDecoder('utf-8');
   let times = new Float64Array(1 << 16);
   let nrows = 0;
   const total = bytes.length;
@@ -207,6 +210,10 @@ export function parseTelemetryCsv(buffer: ArrayBuffer, fileName = '', onProgress
         // Non-numeric cell (text/bool). Track it so all-text columns can be skipped.
         const cb = cols[c];
         cb.text++;
+        if (cb.textValues.length < 6) {
+          const str = textDecoder.decode(bytes.subarray(s, e)).replace(/^"|"$/g, '').trim();
+          if (str && !cb.textValues.includes(str)) cb.textValues.push(str);
+        }
         continue;
       }
       cols[c].push(nrows, v);
@@ -254,7 +261,11 @@ export function parseTelemetryCsv(buffer: ArrayBuffer, fileName = '', onProgress
     if (!name) continue;
     const cb = cols[c];
     if (cb.n < 2) {
-      if (cb.text > 0) warnings.push(`Skipped text column "${name}".`);
+      // Not plottable (text, or fewer than two numbers): keep it in the session details instead of
+      // dropping it, so every field in the file is visible somewhere.
+      const vals = cb.textValues.length ? cb.textValues : cb.n === 1 ? [String(cb.vals[0])] : [];
+      const unit = hdr.units[c] ? ` ${hdr.units[c]}` : '';
+      hdr.meta.extra[name] = vals.length ? vals.join(' · ') + (cb.textValues.length >= 6 ? ' …' : '') + unit : '(no data)';
       continue;
     }
     const unit = hdr.units[c] ?? '';

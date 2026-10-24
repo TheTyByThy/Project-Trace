@@ -3,8 +3,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { create } from 'zustand';
-import { CATEGORIES } from '../core/channelMeta';
-import { CATEGORICAL } from '../core/colors';
+import { groupByCategory } from '../core/channelMeta';
+import { CATEGORICAL, WHITE } from '../core/colors';
 import { activeWorkspace, setChannelProps, useStore } from '../state/store';
 
 export interface MenuItem {
@@ -48,7 +48,7 @@ export function ColorField({ value, onChange, allowAuto = false }: { value?: str
   return (
     <div className="color-field">
       <div className="row" style={{ gap: 5, flexWrap: 'wrap' }}>
-        {CATEGORICAL[theme].map((c) => (
+        {[WHITE[theme], ...CATEGORICAL[theme]].map((c) => (
           <span
             key={c}
             className="swatch big"
@@ -228,12 +228,13 @@ export function ChannelList({
       }
     const ql = q.trim().toLowerCase();
     const list = [...seen.values()].filter((c) => !ql || c.name.toLowerCase().includes(ql) || c.category.toLowerCase().includes(ql));
-    const out: { cat: string; items: { name: string; unit: string }[] }[] = [];
-    for (const cat of CATEGORIES) {
-      const items = list.filter((c) => c.category === cat);
-      if (items.length) out.push({ cat, items });
+    const byCat = new Map<string, { name: string; unit: string }[]>();
+    for (const c of list) {
+      const arr = byCat.get(c.category) ?? [];
+      arr.push({ name: c.name, unit: c.unit });
+      byCat.set(c.category, arr);
     }
-    return out;
+    return groupByCategory(byCat);
   }, [sessions, q]);
   const extraItems = (extras ?? []).filter((e) => !q || e.label.toLowerCase().includes(q.toLowerCase()));
   const flat = [...extraItems.map((e) => e.value), ...groups.flatMap((g) => g.items.map((i) => i.name))];

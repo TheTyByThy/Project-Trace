@@ -79,7 +79,8 @@ There are 15 component types:
 | Scatter / XY Plot | Channel vs channel with fits, interval averages, axis ranges |
 | Histogram | Distribution with zone breakdowns |
 | Mixture Map | 2-D histogram (% time or a third channel) |
-| Lap Report | Lap & sector/section times, ideal lap |
+| Lap Report | Lap & sector/section times of the selected laps only |
+| Stint Report | Every lap of every open session: lap & sector/section times, ideal lap |
 | Channel Report | Min/max/avg/std per lap |
 | Corner Report | Per-corner speeds/times vs reference (your corners) |
 | Lap Trend | A statistic per lap across the session |
@@ -117,14 +118,14 @@ What's inside depends on the component:
 | Scatter | **Axes & scales**: fixed X and Y min/max (blank = automatic) and equal aspect, plus channels, colour, gate, fit, interval averages. |
 | Lap Trend | Statistic and **Y-axis min/max**. |
 | Track Map | Colouring, including **custom low/high colours**, display options, and the **track profile** (rotation, corners, sections). |
-| GPS Track | Line width, framing, follow-cursor, track band, plus the track profile. |
+| GPS Track | Line width, framing, follow-cursor, scale bar, legend, offset readout, plus the track profile. |
 | Corner Report | Metric, plus the track profile. |
 
 ## Channel properties
 
 ![Scatter properties](images/properties-scatter.png)
 
-Open from a graph legend (right-click a channel name), the Channels sidebar, or the graph Properties' channel table:
+Open from the Channels sidebar or the graph Properties' channel table:
 - **Colour**: palette swatches, a **Custom…** colour picker or a hex value, or *Auto*. This colour is used by the reference lap when it shows channel colours (see [04](04-time-distance-graph.md#lap-colours)).
 - **Fixed min / max** (display units), **decimal places**, **display unit override**.
 

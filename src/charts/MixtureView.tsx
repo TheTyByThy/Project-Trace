@@ -6,9 +6,8 @@ import { sampleAt } from '../core/channel';
 import { rampColor } from '../core/colors';
 import { formatValue } from '../core/format';
 import { lapLabel } from '../core/session';
-import { selectedLaps, updateComponent, useStore } from '../state/store';
+import { selectedLaps, useStore } from '../state/store';
 import type { MixtureConfig } from '../state/workspace';
-import { openChannelPicker, openMenu } from '../ui/overlays';
 import { drawAxes, makeAxes, type Axes } from './axes';
 import { chartTheme, prepCanvas, useElementSize, useStoreListener } from './canvas';
 import { conv, findChannel, lapWindow, sampleGrid } from './data';
@@ -162,20 +161,6 @@ export function MixtureView({ config }: { config: MixtureConfig }) {
       <canvas ref={baseRef} />
       <canvas
         ref={overRef}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          openMenu(e, [
-            { label: `X: ${config.x}…`, onClick: () => openChannelPicker(e, (n) => updateComponent(config.id, { x: n })) },
-            { label: `Y: ${config.y}…`, onClick: () => openChannelPicker(e, (n) => updateComponent(config.id, { y: n })) },
-            {
-              label: `Z: ${config.z || '(time %)'}…`,
-              onClick: () => openChannelPicker(e, (n) => updateComponent(config.id, { z: n === '__none' ? '' : n, mode: n === '__none' ? 'time' : 'mean' }), [{ value: '__none', label: 'None — % of time' }]),
-            },
-            { separator: true },
-            { label: 'Cell values', checked: config.showValues, onClick: () => updateComponent(config.id, { showValues: !config.showValues }) },
-            { label: 'Only zoomed range', checked: config.useZoom, onClick: () => updateComponent(config.id, { useZoom: !config.useZoom }) },
-          ]);
-        }}
       />
     </div>
   );

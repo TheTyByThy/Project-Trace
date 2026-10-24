@@ -21,7 +21,7 @@ Plots one channel against another, sample by sample. Channels at different rates
 
 | Option | |
 |---|---|
-| **X / Y** | any channels (right-click → *Swap X and Y*) |
+| **X / Y** | any channels (Properties → *Swap X and Y*) |
 | **Colour** | *Lap colours* (with different marker shapes per lap) or **a third channel** on a colour ramp, with a legend |
 | **Gate** | only plot samples where a channel is non-zero, e.g. gate on `Throttle Brake Overlap` or a math channel like `'Brake Pos' > 10` |
 | **Curve fit** | linear, quadratic or cubic least-squares fit per lap, with the equation and **R²** |
@@ -77,6 +77,6 @@ One statistic per lap across the session, with each loaded session as a series:
 - **Lap time** (default), or any channel's **mean / max / min / start / end / change** over the lap;
 - invalid laps drawn hollow; option to show valid laps only;
 - **click a point** to make that lap the reference (Ctrl/⌘ + click to overlay);
-- **Y-axis range**: set a fixed min/max in Properties (right-click → *Y-axis range…*). Lap times are in seconds, e.g. 100–104 for 1:40–1:44. Or drag a rectangle to zoom.
+- **Y-axis range**: set a fixed min/max in Properties. Lap times are in seconds, e.g. 100–104 for 1:40–1:44. Or drag a rectangle to zoom.
 
 Ideas: tyre temperature build-up (`Tyre Temp Avg RR`, mean), fuel burn (`Fuel Level`, end), degradation (`Tire Rubber Grip RR`, mean), consistency (lap time).

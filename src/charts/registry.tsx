@@ -24,6 +24,7 @@ export const VIEWS: Record<ComponentType, FC<{ config: any }>> = {
   histogram: HistogramView,
   mixture: MixtureView,
   laps: LapReportView,
+  lapreport: LapReportView,
   channels: ChannelReportView,
   corners: CornerReportView,
   trend: TrendView,
@@ -47,7 +48,9 @@ export function defaultTitle(c: ComponentConfig): string {
     case 'trackmap':
       return c.colorBy === 'lap' ? 'Track map' : c.colorBy === 'delta' ? 'Track map — gain/loss' : `Track map — ${c.colorBy}`;
     case 'laps':
-      return 'Lap times';
+      return 'Stint report';
+    case 'lapreport':
+      return 'Lap report';
     case 'channels':
       return 'Channel report';
     case 'corners':

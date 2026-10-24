@@ -7,9 +7,8 @@ import { CATEGORICAL } from '../core/colors';
 import { formatLapTime, formatValue, prettyTrack } from '../core/format';
 import { rangeStats } from '../core/stats';
 import { lapKey, type Lap, type Session } from '../core/types';
-import { openProperties, selectLap, updateComponent, useStore } from '../state/store';
+import { selectLap, useStore } from '../state/store';
 import type { TrendConfig } from '../state/workspace';
-import { openChannelPicker, openMenu } from '../ui/overlays';
 import { drawAxes, drawMarker, makeAxes, padRange, type Axes } from './axes';
 import { BoxZoomLayer, type View } from './BoxZoom';
 import { chartTheme, prepCanvas, useElementSize } from './canvas';
@@ -157,25 +156,6 @@ export function TrendView({ config }: { config: TrendConfig }) {
         onClick={(x, y, e) => {
           const hit = hitsRef.current.find((p) => (p.x - x) ** 2 + (p.y - y) ** 2 < 100);
           if (hit) selectLap(hit.key, e.ctrlKey || e.metaKey ? 'toggle' : 'replace');
-        }}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          openMenu(e, [
-            {
-              label: `Channel: ${config.channel || 'Lap time'}…`,
-              onClick: () => openChannelPicker(e, (n) => updateComponent(config.id, { channel: n === '__lap' ? '' : n, yMin: undefined, yMax: undefined }), [{ value: '__lap', label: 'Lap time' }]),
-            },
-            ...(['mean', 'max', 'min', 'first', 'last', 'delta'] as const).map((s) => ({
-              label: `Statistic: ${s}`,
-              checked: config.stat === s,
-              disabled: !config.channel,
-              onClick: () => updateComponent(config.id, { stat: s }),
-            })),
-            { label: 'Valid laps only', checked: config.validOnly, onClick: () => updateComponent(config.id, { validOnly: !config.validOnly }) },
-            { separator: true },
-            { label: 'Y-axis range…', onClick: () => openProperties(config.id) },
-            { label: 'Reset zoom', shortcut: 'double-click', onClick: () => ((viewRef.current = null), draw()) },
-          ]);
         }}
       />
     </div>

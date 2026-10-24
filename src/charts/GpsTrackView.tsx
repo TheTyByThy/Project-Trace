@@ -9,13 +9,10 @@ import { crossingTime, lapDistAt, lapLabel, lapTimeAtDist } from '../core/sessio
 import { selectedLaps, setCursor, trackProfile, trackRotation, useStore, type SelectedLap } from '../state/store';
 import type { GpsTrackConfig } from '../state/workspace';
 import { openMenu } from '../ui/overlays';
-import { updateComponent } from '../state/store';
 import { chartTheme, prepCanvas, useElementSize, useStoreListener } from './canvas';
 import { RotationDial } from './RotationDial';
 import { trackMapMenuItems } from './TrackMapView';
 import { lapPath, makeProjector, niceLength, positionAt, type LapPath } from './trackGeo';
-
-const ROAD_WIDTH_M = 13;
 
 export function GpsTrackView({ config }: { config: GpsTrackConfig }) {
   const [wrapRef, size] = useElementSize<HTMLDivElement>();
@@ -90,7 +87,7 @@ export function GpsTrackView({ config }: { config: GpsTrackConfig }) {
     }
     if (!Number.isFinite(minX)) return msg('No position data in the zoomed range');
     const pad = 30;
-    const legendH = 26;
+    const legendH = config.showLegend === false ? 6 : 26;
     const spanX = Math.max(20, maxX - minX);
     const spanY = Math.max(20, maxY - minY);
     const fit = Math.min((w - 2 * pad) / spanX, (h - 2 * pad - legendH) / spanY);
@@ -129,12 +126,7 @@ export function GpsTrackView({ config }: { config: GpsTrackConfig }) {
       ctx.stroke();
     };
 
-    if (config.showRoad) {
-      ctx.strokeStyle = T.road;
-      ctx.lineWidth = Math.max(5, ROAD_WIDTH_M * sc);
-      strokePath(path);
-    }
-    // Faint full laps for context, then the (zoomed) lines on top, reference last.
+    // Only the raw car positions are drawn (no track edges). Faint full laps for context, then the (zoomed) lines on top, reference last.
     const order = lines.slice(1).concat(lines.slice(0, 1));
     if (zoomed)
       for (const { l, p } of order) {
@@ -178,22 +170,25 @@ export function GpsTrackView({ config }: { config: GpsTrackConfig }) {
     }
 
     // Scale bar
-    const len = niceLength(90 / sc);
-    const bx = w - 16 - len * sc;
-    const by = h - legendH - 10;
-    ctx.strokeStyle = T.text2;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(bx, by - 4);
-    ctx.lineTo(bx, by);
-    ctx.lineTo(bx + len * sc, by);
-    ctx.lineTo(bx + len * sc, by - 4);
-    ctx.stroke();
-    ctx.fillStyle = T.text2;
-    ctx.textAlign = 'center';
-    ctx.fillText(len >= 1000 ? `${len / 1000} km` : `${len} m`, bx + (len * sc) / 2, by - 10);
+    if (config.showScale !== false) {
+      const len = niceLength(90 / sc);
+      const bx = w - 16 - len * sc;
+      const by = h - legendH - 10;
+      ctx.strokeStyle = T.text2;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(bx, by - 4);
+      ctx.lineTo(bx, by);
+      ctx.lineTo(bx + len * sc, by);
+      ctx.lineTo(bx + len * sc, by - 4);
+      ctx.stroke();
+      ctx.fillStyle = T.text2;
+      ctx.textAlign = 'center';
+      ctx.fillText(len >= 1000 ? `${len / 1000} km` : `${len} m`, bx + (len * sc) / 2, by - 10);
+    }
 
     // Legend
+    if (config.showLegend === false) return;
     let x = 10;
     const ly = h - legendH / 2;
     ctx.textAlign = 'left';
@@ -252,7 +247,7 @@ export function GpsTrackView({ config }: { config: GpsTrackConfig }) {
         rows.push({ color: l.color, text: `${lapLabel(l.lap)}: ${Math.abs(cross).toFixed(1)} m ${side} of ref` });
       }
     }
-    if (rows.length) {
+    if (rows.length && config.showOffsets !== false) {
       ctx.font = T.font;
       const bw = Math.max(...rows.map((r) => ctx.measureText(r.text).width)) + 30;
       ctx.fillStyle = withAlpha(T.surface, 0.85);
@@ -266,7 +261,7 @@ export function GpsTrackView({ config }: { config: GpsTrackConfig }) {
         ctx.fillText(r.text, 32, 16 + i * 16);
       });
     }
-  }, [size]);
+  }, [size, config.showOffsets]);
 
   useEffect(() => {
     drawBase();
@@ -289,7 +284,7 @@ export function GpsTrackView({ config }: { config: GpsTrackConfig }) {
       e.preventDefault();
       const r = el.getBoundingClientRect();
       const mx = e.clientX - r.left - size.w / 2;
-      const my = e.clientY - r.top - (size.h - 26) / 2;
+      const my = e.clientY - r.top - (size.h - (config.showLegend === false ? 6 : 26)) / 2;
       const v = viewRef.current;
       const ns = Math.max(0.5, Math.min(400, v.scale * Math.pow(1.0018, -e.deltaY)));
       const k = ns / v.scale;
@@ -355,13 +350,7 @@ export function GpsTrackView({ config }: { config: GpsTrackConfig }) {
         onDoubleClick={resetView}
         onContextMenu={(e) => {
           e.preventDefault();
-          openMenu(e, [
-            { label: 'Frame the graphs’ zoomed range', checked: config.fitToZoom, onClick: () => updateComponent(config.id, { fitToZoom: !config.fitToZoom }) },
-            { label: 'Follow the cursor when zoomed in', checked: config.followCursor, onClick: () => updateComponent(config.id, { followCursor: !config.followCursor }) },
-            { label: 'Show approximate track band', checked: config.showRoad, onClick: () => updateComponent(config.id, { showRoad: !config.showRoad }) },
-            { separator: true },
-            ...trackMapMenuItems(e, venue, config.id, null, { showSectors: config.showSectors, showCorners: config.showCorners }, resetView),
-          ]);
+          openMenu(e, trackMapMenuItems(venue, config.id, { showSectors: config.showSectors, showCorners: config.showCorners }));
         }}
       />
       {venue && <RotationDial venue={venue} />}

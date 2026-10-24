@@ -9,9 +9,10 @@ export const COMPONENT_CATALOG: { type: ComponentType; label: string; icon: stri
   { type: 'scatter', label: 'Scatter / XY Plot', icon: '⁘', description: 'Any channel against any other, coloured by lap or a third channel, with curve fits.' },
   { type: 'histogram', label: 'Histogram', icon: '▥', description: 'Distribution of a channel (% of time) with zone breakdowns — ideal for damper speeds.' },
   { type: 'mixture', label: 'Mixture Map', icon: '▦', description: '2-D histogram: % time or mean of a third channel in each X/Y cell.' },
-  { type: 'laps', label: 'Lap Report', icon: '⏱', description: 'Lap and sector times with best sectors, ideal lap and validity.' },
+  { type: 'lapreport', label: 'Lap Report', icon: '⏱', description: 'Lap and sector times of the selected laps only — the reference and its comparisons.' },
+  { type: 'laps', label: 'Stint Report', icon: '☷', description: 'Every lap of every open session: lap and sector times, best sectors, ideal lap and validity.' },
   { type: 'channels', label: 'Channel Report', icon: '☰', description: 'Min / max / mean / std of chosen channels for every selected lap.' },
-  { type: 'corners', label: 'Corner Report', icon: '↺', description: 'Auto-detected corners with min/entry/exit speed and time per lap.' },
+  { type: 'corners', label: 'Corner Report', icon: '↺', description: 'Your corners and the straights between them: speeds, time and total gain/loss per lap.' },
   { type: 'trend', label: 'Lap Trend', icon: '📈', description: 'A per-lap statistic across the session (lap time, max temp, fuel…).' },
   { type: 'gauges', label: 'Gauges', icon: '◔', description: 'Dial, bar and digital gauges showing values at the cursor.' },
   { type: 'inputs', label: 'Driver Inputs', icon: '🎮', description: 'Pedals, steering wheel, gear and speed at the cursor.' },
@@ -60,12 +61,15 @@ export function createComponent(type: ComponentType, patch: Partial<ComponentCon
       c = { id, type, x: 'Engine RPM', y: 'Throttle Pos', z: '', xBins: 12, yBins: 10, mode: 'time', useZoom: true, showValues: true, ramp: 'blue' };
       break;
     case 'trackmap':
-      c = { id, type, colorBy: 'Ground Speed', ramp: 'blue', customLow: '#3987e5', customHigh: '#e66767', showSectors: true, showCorners: true, showZoom: true, lineWidth: 4 };
+      c = { id, type, colorBy: 'Ground Speed', ramp: 'blue', customLow: '#1baf7a', customHigh: '#e66767', showSectors: true, showCorners: true, showZoom: true, fitToZoom: true, lineWidth: 4 };
       break;
     case 'gpstrack':
-      c = { id, type, lineWidth: 1.5, fitToZoom: true, followCursor: false, showRoad: true, showSectors: true, showCorners: true };
+      c = { id, type, lineWidth: 1.5, fitToZoom: true, followCursor: false, showSectors: true, showCorners: true };
       break;
     case 'laps':
+      c = { id, type, split: 'sectors', showStats: true };
+      break;
+    case 'lapreport':
       c = { id, type, split: 'sectors', showStats: true };
       break;
     case 'channels':
@@ -102,7 +106,7 @@ export function createComponent(type: ComponentType, patch: Partial<ComponentCon
       c = { id, type, channel: '', stat: 'mean', validOnly: false };
       break;
     case 'corners':
-      c = { id, type, metric: 'minSpeed' };
+      c = { id, type, metric: 'time', showStraights: true, showTotals: true };
       break;
     case 'fft':
       c = { id, type, channel: 'Damper Travel FL', maxHz: 25, useZoom: true, logScale: false };

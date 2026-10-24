@@ -1,13 +1,25 @@
 // Colour system. Categorical slots come from a palette validated for colour-vision deficiency
 // (adjacent-pair CVD ΔE ≥ 8, normal-vision ΔE ≥ 15, ≥ 3:1 contrast against the chart surface),
 // stepped separately for the dark and light themes. Sequential ramps are single-hue; the diverging
-// ramp is blue ↔ neutral grey ↔ red (used for time gained/lost).
+// ramps are blue ↔ grey ↔ red and green ↔ grey ↔ red (the latter for time gained/lost).
 
 export type Theme = 'dark' | 'light';
 
 export const CATEGORICAL: Record<Theme, string[]> = {
   dark: ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'],
   light: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'],
+};
+
+/** "White" lap colour: white on the dark theme, near-black ink on the light theme (white is invisible there). */
+export const WHITE: Record<Theme, string> = { dark: '#ffffff', light: '#1b1d21' };
+
+/**
+ * Lap colours by selection slot: the reference keeps blue, the first comparison lap is white and later
+ * comparisons continue through the categorical palette.
+ */
+export const LAP_COLORS: Record<Theme, string[]> = {
+  dark: [CATEGORICAL.dark[0], WHITE.dark, ...CATEGORICAL.dark.slice(1)],
+  light: [CATEGORICAL.light[0], WHITE.light, ...CATEGORICAL.light.slice(1)],
 };
 
 
@@ -57,7 +69,8 @@ export function channelColors(names: string[], theme: Theme, overrides: Record<s
 }
 
 export function lapColor(slot: number, theme: Theme): string {
-  return CATEGORICAL[theme][slot % 8];
+  const pal = LAP_COLORS[theme];
+  return pal[slot % pal.length];
 }
 
 // ---- ramps ----
@@ -77,13 +90,19 @@ const RAMPS: Record<string, Record<Theme, string[]>> = {
     dark: ['#2a78d6', '#5598e7', '#9fb6d6', '#6b6b66', '#d9a0a0', '#e66767', '#d03b3b'],
     light: ['#104281', '#3987e5', '#9ec5f4', '#dddcd8', '#f2a7a7', '#e34948', '#a52a2a'],
   },
+  // Time gained (green) ↔ neutral ↔ time lost (red), for the track map's gain/loss colouring.
+  gainloss: {
+    dark: ['#14a05a', '#3fbf7a', '#93cfa9', '#6b6b66', '#d9a0a0', '#e66767', '#d03b3b'],
+    light: ['#0b6b3a', '#1baf7a', '#9fdcbc', '#dddcd8', '#f2a7a7', '#e34948', '#a52a2a'],
+  },
 };
 
-export type RampName = 'blue' | 'orange' | 'diverging' | 'custom';
+export type RampName = 'blue' | 'orange' | 'diverging' | 'gainloss' | 'custom';
 export const RAMP_LABELS: Record<RampName, string> = {
   blue: 'Blue (sequential)',
   orange: 'Orange (sequential)',
   diverging: 'Blue ↔ Red (diverging)',
+  gainloss: 'Green ↔ Red (gain / loss)',
   custom: 'Custom colours…',
 };
 

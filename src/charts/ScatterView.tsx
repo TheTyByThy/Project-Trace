@@ -10,9 +10,8 @@ import { rampColor, withAlpha } from '../core/colors';
 import { formatValue } from '../core/format';
 import { lapLabel } from '../core/session';
 import { evalPoly, polyFit } from '../core/stats';
-import { openProperties, selectedLaps, updateComponent, useStore } from '../state/store';
+import { selectedLaps, useStore } from '../state/store';
 import type { ScatterConfig } from '../state/workspace';
-import { openChannelPicker, openMenu } from '../ui/overlays';
 import { drawAxes, drawMarker, makeAxes, padRange, type Axes } from './axes';
 import { BoxZoomLayer, type View } from './BoxZoom';
 import { chartTheme, prepCanvas, useElementSize, useStoreListener } from './canvas';
@@ -272,29 +271,6 @@ export function ScatterView({ config }: { config: ScatterConfig }) {
     viewRef.current = null;
   }, [config.x, config.y, config.equalAspect, config.xMin, config.xMax, config.yMin, config.yMax]);
 
-  const onContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    openMenu(e, [
-      { label: `X: ${config.x}…`, onClick: () => openChannelPicker(e, (n) => updateComponent(config.id, { x: n })) },
-      { label: `Y: ${config.y}…`, onClick: () => openChannelPicker(e, (n) => updateComponent(config.id, { y: n })) },
-      {
-        label: `Colour: ${config.color === 'lap' ? 'by lap' : config.color}…`,
-        onClick: () => openChannelPicker(e, (n) => updateComponent(config.id, { color: n }), [{ value: 'lap', label: 'Lap colours' }]),
-      },
-      { label: 'Swap X and Y', onClick: () => updateComponent(config.id, { x: config.y, y: config.x, xMin: config.yMin, xMax: config.yMax, yMin: config.xMin, yMax: config.xMax }) },
-      { label: 'Axis ranges & scales…', onClick: () => openProperties(config.id) },
-      { separator: true },
-      { label: 'Fit: none', checked: config.fit === 'none', onClick: () => updateComponent(config.id, { fit: 'none' }) },
-      { label: 'Fit: linear', checked: config.fit === 'linear', onClick: () => updateComponent(config.id, { fit: 'linear' }) },
-      { label: 'Fit: quadratic', checked: config.fit === 'poly2', onClick: () => updateComponent(config.id, { fit: 'poly2' }) },
-      { label: 'Fit: cubic', checked: config.fit === 'poly3', onClick: () => updateComponent(config.id, { fit: 'poly3' }) },
-      { label: 'X-interval averages', checked: config.intervalAvg, onClick: () => updateComponent(config.id, { intervalAvg: !config.intervalAvg }) },
-      { label: 'Equal aspect', checked: config.equalAspect, onClick: () => updateComponent(config.id, { equalAspect: !config.equalAspect }) },
-      { label: 'Only zoomed range', checked: config.useZoom, onClick: () => updateComponent(config.id, { useZoom: !config.useZoom }) },
-      { separator: true },
-      { label: 'Reset zoom', shortcut: 'double-click', onClick: () => ((viewRef.current = null), drawBase(), drawOverlay()) },
-    ]);
-  };
 
   return (
     <div ref={wrapRef} className="chart">
@@ -307,7 +283,6 @@ export function ScatterView({ config }: { config: ScatterConfig }) {
           drawBase();
           drawOverlay();
         }}
-        onContextMenu={onContextMenu}
       />
     </div>
   );

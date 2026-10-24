@@ -41,6 +41,8 @@ export interface MenuState {
   smoothing: boolean;
   canUndo: boolean;
   canRedo: boolean;
+  /** First key combo of each shortcut action (src/shortcuts.ts), shown next to menu items. */
+  shortcuts: Record<string, string>;
 }
 
 export interface PtBridge {

@@ -1,12 +1,11 @@
-// Corner report: the corners you have defined for this track (saved in its track profile), with
-// per-lap minimum / entry / exit speed or time through the corner. Click a corner to zoom to it.
+// Corner report: the corners you have defined for this track (saved in its track profile) and the
+// straights between them, with per-lap minimum / entry / exit speed or time, plus the total time spent
+// in corners vs on straights (and the gain/loss against the reference). Click a row to zoom to it.
 
-import { cornerMetrics, cornerWindows, suggestCorners, type CornerLapMetrics } from '../core/corners';
-import { xToTime } from '../core/axis';
+import { cornerMetrics, cornerWindows, suggestCorners, trackSegments, type CornerLapMetrics, type TrackSegment } from '../core/corners';
 import { formatValue } from '../core/format';
-import { lapDistAt, lapLabel } from '../core/session';
+import { lapLabel } from '../core/session';
 import { convertUnit } from '../core/units';
-import { openMenu, promptText } from '../ui/overlays';
 import { selectedLaps, setCursor, setTrackProfile, setUi, setXMode, setZoom, trackProfile, updateComponent, useStore } from '../state/store';
 import type { CornersConfig } from '../state/workspace';
 
@@ -58,35 +57,21 @@ export function CornerReportView({ config }: { config: CornersConfig }) {
   const metric = METRICS.find((m) => m.key === config.metric) ?? METRICS[0];
   const sc = convertUnit('kph', speedUnit) ?? { k: 1, b: 0 };
   const value = (m: CornerLapMetrics | null) => (m ? (metric.time ? m.time : m[metric.key as 'minSpeed'] * sc.k + sc.b) : NaN);
-  const corners = prof.corners.slice().sort((a, b) => a.dist - b.dist);
+  const segments = trackSegments(windows, ref.session.trackLength);
+  const shownSegments = config.showStraights === false ? segments.filter((g) => g.kind === 'corner') : segments;
+  // Metrics for every lap × segment (time feeds the totals).
+  const metrics = new Map<TrackSegment, (CornerLapMetrics | null)[]>(segments.map((g) => [g, laps.map((l) => cornerMetrics(l.session, l.lap, g))]));
+  const totals = (kind: TrackSegment['kind']) =>
+    laps.map((_, li) => segments.filter((g) => g.kind === kind).reduce((acc, g) => acc + (metrics.get(g)![li]?.time ?? NaN), 0));
+  const cornerTotals = totals('corner');
+  const straightTotals = totals('straight');
 
-  const cornerMenu = (e: React.MouseEvent, idx: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const c = corners[idx];
-    const st = useStore.getState();
-    openMenu(e, [
-      { header: c.name },
-      {
-        label: 'Rename…',
-        onClick: async () => {
-          const n = await promptText(`Rename ${c.name}`, c.name);
-          if (n) setTrackProfile(venue, { corners: corners.map((x, i) => (i === idx ? { ...x, name: n } : x)) }, 'Rename corner');
-        },
-      },
-      {
-        label: 'Move to cursor',
-        disabled: st.cursor == null || ref.lap.index === -1,
-        onClick: () => {
-          const d = Math.round(lapDistAt(ref.lap, xToTime(ref.lap, st.cursor!, st.xMode)));
-          setTrackProfile(venue, { corners: corners.map((x, i) => (i === idx ? { ...x, dist: d } : x)).sort((a, b) => a.dist - b.dist) }, 'Move corner');
-        },
-      },
-      { label: 'Delete corner', onClick: () => setTrackProfile(venue, { corners: corners.filter((_, i) => i !== idx) }, 'Delete corner') },
-      { separator: true },
-      { label: 'Edit all corners…', onClick: () => setUi({ trackProfile: true }) },
-    ]);
-  };
+  const deltaSpan = (d: number, better: boolean, dps: number) => (
+    <span style={{ color: better ? 'var(--gain)' : 'var(--loss)', marginLeft: 6, fontSize: 11 }}>
+      {d > 0 ? '+' : '−'}
+      {Math.abs(d).toFixed(dps)}
+    </span>
+  );
 
   return (
     <div className="html-panel">
@@ -100,14 +85,52 @@ export function CornerReportView({ config }: { config: CornersConfig }) {
         </div>
         <span className="grow" />
         <span className="muted" style={{ fontSize: 11 }}>
-          {metric.time ? 's' : speedUnit} · ref {lapLabel(ref.lap)} · right-click a corner to edit
+          {metric.time ? 's' : speedUnit} · ref {lapLabel(ref.lap)} · click a row to zoom to it
         </span>
       </div>
+      {config.showTotals !== false && (
+        <table className="grid">
+          <thead>
+            <tr>
+              <th className="l">Total time</th>
+              {laps.map((l, i) => (
+                <th key={l.key} style={{ borderLeft: `3px solid ${l.color}` }}>
+                  L{l.lap.number}
+                  {i === 0 ? ' (ref)' : ''}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {(
+              [
+                ['In corners', cornerTotals],
+                ['On straights', straightTotals],
+              ] as const
+            ).map(([label, vals]) => (
+              <tr key={label}>
+                <td className="l">
+                  <b>{label}</b>
+                </td>
+                {vals.map((v, i) => {
+                  const d = v - vals[0];
+                  return (
+                    <td key={i} className="num">
+                      {formatValue(v, 2)}
+                      {i > 0 && Number.isFinite(d) && Math.abs(d) > 0.005 && deltaSpan(d, d < 0, 2)}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
       <table className="grid">
         <thead>
           <tr>
-            <th className="l">Corner</th>
-            <th>At</th>
+            <th className="l">{config.showStraights === false ? 'Corner' : 'Corner / straight'}</th>
+            <th>Range</th>
             {laps.map((l, i) => (
               <th key={l.key} style={{ borderLeft: `3px solid ${l.color}` }}>
                 L{l.lap.number}
@@ -118,38 +141,34 @@ export function CornerReportView({ config }: { config: CornersConfig }) {
           </tr>
         </thead>
         <tbody>
-          {windows.map((w, idx) => {
-            const vals = laps.map((l) => value(cornerMetrics(l.session, l.lap, w)));
+          {shownSegments.map((g) => {
+            const vals = metrics.get(g)!.map(value);
             const refV = vals[0];
             const others = vals.slice(1).filter(Number.isFinite);
             const bestOther = others.length ? (metric.higherIsBetter ? Math.max(...others) : Math.min(...others)) : NaN;
+            const straight = g.kind === 'straight';
             return (
               <tr
-                key={w.name + w.apex}
+                key={g.kind + g.name + g.entry}
                 className="click"
+                style={straight ? { color: 'var(--text-2)' } : undefined}
                 onClick={() => {
                   setXMode('distance');
-                  setZoom([w.entry - 40, w.exit + 40]);
-                  setCursor(w.apex);
+                  setZoom([g.entry - 40, g.exit + 40]);
+                  setCursor(g.apex);
                 }}
-                onContextMenu={(e) => cornerMenu(e, idx)}
               >
-                <td className="l">
-                  <b>{w.name}</b>
+                <td className="l">{straight ? <i>{g.name}</i> : <b>{g.name}</b>}</td>
+                <td className="num muted">
+                  {g.entry.toFixed(0)}–{g.exit.toFixed(0)} m
                 </td>
-                <td className="num muted">{w.apex.toFixed(0)} m</td>
                 {vals.map((v, i) => {
                   const d = i === 0 ? 0 : v - refV;
                   const better = metric.higherIsBetter ? d > 0 : d < 0;
                   return (
                     <td key={i} className="num">
                       {formatValue(v, metric.time ? 2 : 1)}
-                      {i > 0 && Number.isFinite(d) && Math.abs(d) > (metric.time ? 0.005 : 0.05) && (
-                        <span style={{ color: better ? 'var(--gain)' : 'var(--loss)', marginLeft: 6, fontSize: 11 }}>
-                          {d > 0 ? '+' : '−'}
-                          {Math.abs(d).toFixed(metric.time ? 2 : 1)}
-                        </span>
-                      )}
+                      {i > 0 && Number.isFinite(d) && Math.abs(d) > (metric.time ? 0.005 : 0.05) && deltaSpan(d, better, metric.time ? 2 : 1)}
                     </td>
                   );
                 })}

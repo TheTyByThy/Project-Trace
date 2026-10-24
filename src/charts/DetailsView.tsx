@@ -31,6 +31,9 @@ function InfoTable({ s }: { s: Session }) {
     ['Sample rate', `${s.baseRate} Hz (channels at ${[...new Set([...s.channels.values()].filter((c) => !c.isMath).map((c) => c.rate))].sort((a, b) => b - a).join(' / ')} Hz)`],
     ['Channels', `${[...s.channels.values()].filter((c) => !c.isMath && !c.isDerived).length} logged, ${[...s.channels.values()].filter((c) => c.isMath).length} math`],
     ['Format', m.format],
+    ...(m.lapCountHeader != null ? ([['Laps (file header)', String(m.lapCountHeader)]] as [string, React.ReactNode][]) : []),
+    ...(m.lapTimesHeader.length ? ([['Lap times (file header)', m.lapTimesHeader.map((t) => formatLapTime(t)).join(', ')]] as [string, React.ReactNode][]) : []),
+    ...(m.logDate || m.logTime ? ([['Log date / time (file header)', `${m.logDate} ${m.logTime}`.trim()]] as [string, React.ReactNode][]) : []),
     [
       'File',
       <span key="f">
@@ -42,6 +45,8 @@ function InfoTable({ s }: { s: Session }) {
     ],
   ];
   const details = Object.entries(m.details).filter(([k]) => !['Team'].includes(k));
+  // Every other header field (and text-only channels) that isn't shown above.
+  const extra = Object.entries(m.extra);
   return (
     <>
       <div className="details-kv">
@@ -62,6 +67,19 @@ function InfoTable({ s }: { s: Session }) {
                 <div className="v num">
                   {v.value} {v.unit}
                 </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      {extra.length > 0 && (
+        <>
+          <div className="section-title">Other fields</div>
+          <div className="details-kv">
+            {extra.map(([k, v]) => (
+              <div key={k} style={{ display: 'contents' }}>
+                <div className="k">{k}</div>
+                <div className="v">{v || '—'}</div>
               </div>
             ))}
           </div>

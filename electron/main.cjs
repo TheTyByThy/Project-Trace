@@ -3,7 +3,7 @@
 // and a small, explicit IPC surface for filesystem access, dialogs and persistence.
 // The renderer never gets Node access; everything goes through preload.cjs.
 
-const { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, Menu, nativeImage } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
@@ -12,6 +12,10 @@ const { pathToFileURL } = require('node:url');
 const IS_DEV = !!process.env.PT_DEV_URL;
 const DIST_DIR = path.join(__dirname, '..', 'dist');
 const SCREENSHOT_DIR = process.env.PT_SCREENSHOT_DIR || '';
+
+// Windows groups taskbar buttons (and picks their icon) by this id; without it an unpackaged run shows
+// up as a generic Electron app.
+if (process.platform === 'win32') app.setAppUserModelId('com.projecttrace.app');
 
 // Screenshot automation runs with a throwaway profile so it never touches real settings.
 if (SCREENSHOT_DIR) {
@@ -92,6 +96,8 @@ const sessionKey = (name) => name.replace(/\.(csv|txt|ld)$/i, '').toLowerCase();
 let mainWindow = null;
 let pendingOpenFiles = [];
 
+const ICON_PATH = path.join(__dirname, '..', 'build', 'icon.png');
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1680,
@@ -100,7 +106,7 @@ function createWindow() {
     minHeight: 680,
     backgroundColor: '#0f1216',
     title: 'Project-Trace',
-    icon: fs.existsSync(path.join(__dirname, '..', 'build', 'icon.png')) ? path.join(__dirname, '..', 'build', 'icon.png') : undefined,
+    icon: fs.existsSync(ICON_PATH) ? ICON_PATH : undefined,
     show: !SCREENSHOT_DIR,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -141,7 +147,24 @@ function sendMenu(action) {
 }
 
 // The renderer pushes the data needed for the dynamic menus (workspaces, saved worksheets…).
-let menuState = { workspaces: [], activeWorkspaceId: '', library: [], refColors: 'channel', smoothing: false };
+let menuState = { workspaces: [], activeWorkspaceId: '', library: [], refColors: 'channel', smoothing: false, shortcuts: {} };
+
+/**
+ * Menu accelerator for a renderer shortcut (the user can rebind them). The renderer handles the key
+ * itself, so the accelerator is display-only. Single-key shortcuts (J, S, W…) get no accelerator at
+ * all: on macOS a key the page doesn't swallow (e.g. typed into a text field) would otherwise trigger
+ * the menu item.
+ */
+function acc(id) {
+  const combo = (menuState.shortcuts || {})[id];
+  if (!combo) return {};
+  const parts = combo === '+' ? ['+'] : combo.split('+');
+  const key = parts[parts.length - 1];
+  const hasMod = parts.includes('Mod');
+  if (!hasMod && !/^F\d+$/.test(key)) return {};
+  const map = { Mod: 'CmdOrCtrl', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', Escape: 'Esc' };
+  return { accelerator: parts.map((p) => map[p] || p).join('+'), registerAccelerator: false };
+}
 
 function buildMenu() {
   const isMac = process.platform === 'darwin';
@@ -152,13 +175,13 @@ function buildMenu() {
     {
       label: 'File',
       submenu: [
-        { label: 'Session Browser…', accelerator: 'CmdOrCtrl+O', click: () => sendMenu('open-browser') },
-        { label: 'Open Telemetry Files…', accelerator: 'CmdOrCtrl+Shift+O', click: () => sendMenu('open-files') },
+        { label: 'Session Browser…', ...acc('open-browser'), click: () => sendMenu('open-browser') },
+        { label: 'Open Telemetry Files…', ...acc('open-files'), click: () => sendMenu('open-files') },
         { type: 'separator' },
-        { label: 'Export Visible Data to CSV…', accelerator: 'CmdOrCtrl+E', click: () => sendMenu('export-csv') },
-        { label: 'Save Screenshot (PNG)…', accelerator: 'CmdOrCtrl+Shift+S', click: () => sendMenu('screenshot') },
+        { label: 'Export Visible Data to CSV…', ...acc('export-csv'), click: () => sendMenu('export-csv') },
+        { label: 'Save Screenshot (PNG)…', ...acc('screenshot'), click: () => sendMenu('screenshot') },
         { type: 'separator' },
-        { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => sendMenu('settings') },
+        { label: 'Settings…', ...acc('settings'), click: () => sendMenu('settings') },
         { type: 'separator' },
         isMac ? { role: 'close' } : { role: 'quit' },
       ],
@@ -232,34 +255,33 @@ function buildMenu() {
     {
       label: 'Analysis',
       submenu: [
-        { label: 'Math Channels…', accelerator: 'CmdOrCtrl+M', click: () => sendMenu('math') },
+        { label: 'Math Channels…', ...acc('math'), click: () => sendMenu('math') },
         { label: 'Track Profile (corners, sections, rotation)…', click: () => sendMenu('track-profile') },
         { type: 'separator' },
-        { label: 'Toggle Time / Distance', accelerator: 'D', registerAccelerator: false, click: () => sendMenu('toggle-x') },
-        { label: 'Toggle Time Variance', accelerator: 'F3', registerAccelerator: false, click: () => sendMenu('toggle-variance') },
-        { label: 'Smoothing', type: 'checkbox', checked: !!s.smoothing, accelerator: 'S', registerAccelerator: false, click: () => sendMenu('toggle-smoothing') },
+        { label: 'Toggle Time / Distance', ...acc('toggle-x'), click: () => sendMenu('toggle-x') },
+        { label: 'Toggle Time Variance', ...acc('toggle-variance'), click: () => sendMenu('toggle-variance') },
+        { label: 'Smoothing', type: 'checkbox', checked: !!s.smoothing, ...acc('toggle-smoothing'), click: () => sendMenu('toggle-smoothing') },
         {
           label: 'Reference Lap in Channel Colours',
           type: 'checkbox',
           checked: s.refColors !== 'lap',
-          accelerator: 'J',
-          registerAccelerator: false,
+          ...acc('toggle-ref-colors'),
           click: () => sendMenu('toggle-ref-colors'),
         },
         { type: 'separator' },
-        { label: 'Zoom to Whole Lap', accelerator: 'W', registerAccelerator: false, click: () => sendMenu('zoom-lap') },
-        { label: 'Fastest Lap as Reference', accelerator: 'F', registerAccelerator: false, click: () => sendMenu('fastest-lap') },
-        { label: 'Previous Lap', accelerator: 'Up', registerAccelerator: false, click: () => sendMenu('prev-lap') },
-        { label: 'Next Lap', accelerator: 'Down', registerAccelerator: false, click: () => sendMenu('next-lap') },
+        { label: 'Reset View (whole lap)', ...acc('reset-view'), click: () => sendMenu('reset-view') },
+        { label: 'Fastest Lap as Reference', ...acc('fastest-lap'), click: () => sendMenu('fastest-lap') },
+        { label: 'Previous Lap', ...acc('prev-lap'), click: () => sendMenu('prev-lap') },
+        { label: 'Next Lap', ...acc('next-lap'), click: () => sendMenu('next-lap') },
       ],
     },
     {
       label: 'View',
       submenu: [
         { label: 'Properties Pop-out…', click: () => sendMenu('properties') },
-        { label: 'Toggle Properties Panel', accelerator: 'CmdOrCtrl+I', click: () => sendMenu('toggle-inspector') },
-        { label: 'Command Palette…', accelerator: 'CmdOrCtrl+K', click: () => sendMenu('palette') },
-        { label: 'Toggle Sidebar', accelerator: 'CmdOrCtrl+B', click: () => sendMenu('toggle-sidebar') },
+        { label: 'Toggle Properties Panel', ...acc('toggle-inspector'), click: () => sendMenu('toggle-inspector') },
+        { label: 'Command Palette…', ...acc('palette'), click: () => sendMenu('palette') },
+        { label: 'Toggle Sidebar', ...acc('toggle-sidebar'), click: () => sendMenu('toggle-sidebar') },
         { type: 'separator' },
         { role: 'reload' },
         { role: 'toggleDevTools' },
@@ -274,7 +296,7 @@ function buildMenu() {
     {
       label: 'Help',
       submenu: [
-        { label: 'Keyboard Shortcuts', accelerator: 'F1', click: () => sendMenu('shortcuts') },
+        { label: 'Keyboard Shortcuts…', ...acc('shortcuts'), click: () => sendMenu('shortcuts') },
         { label: 'Open Documentation Folder', click: () => shell.openPath(path.join(__dirname, '..', 'docs')) },
         { label: 'Open Settings Folder', click: () => shell.openPath(userDir()) },
       ],
@@ -560,6 +582,9 @@ if (!gotLock) {
   });
 
   app.whenReady().then(() => {
+    // Use the Project-Trace icon (same artwork as the logo in the top bar) for the dock even when the
+    // app runs unpackaged from the launcher, where Electron would otherwise show its own icon.
+    if (process.platform === 'darwin' && app.dock && fs.existsSync(ICON_PATH)) app.dock.setIcon(nativeImage.createFromPath(ICON_PATH));
     protocol.handle('app', (request) => {
       const url = new URL(request.url);
       let rel = decodeURIComponent(url.pathname).replace(/^\/+/, '');
@@ -579,7 +604,7 @@ if (!gotLock) {
     });
   });
 
-  app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin' || SCREENSHOT_DIR) app.quit();
-  });
+  // Project-Trace is a single-window app: closing the window quits on every platform (on macOS this
+  // also lets the launcher's Terminal window close behind it).
+  app.on('window-all-closed', () => app.quit());
 }

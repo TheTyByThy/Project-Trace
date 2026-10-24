@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { handleGlobalKey, handleMenuAction } from './actions';
+import { bindings } from './shortcuts';
 import { pt } from './core/bridge';
 import { suggestCorners } from './core/corners';
 import { lapKey } from './core/types';
@@ -74,6 +75,7 @@ function useMenuSync() {
         smoothing: s.settings.smoothing.enabled,
         canUndo: s.history.past.length > 0,
         canRedo: s.history.future.length > 0,
+        shortcuts: Object.fromEntries(Object.entries(bindings(s.settings.shortcuts)).map(([id, keys]) => [id, keys[0] ?? ''])),
       };
       const key = JSON.stringify(state);
       if (key === lastKey) return;

@@ -69,10 +69,8 @@ function ComponentFrame({ config, maximized, onMaximize }: { config: ComponentCo
   const ref = useRef<HTMLDivElement>(null);
   const View = VIEWS[config.type];
   const meta = COMPONENT_CATALOG.find((m) => m.type === config.type);
-  const title = config.title || defaultTitle(config);
-  // Items every component offers on right-click (appended to the component's own menu).
+  // Items every component offers on right-click (appended to the component's own short menu).
   const frameItems = (): MenuItem[] => [
-    { header: title },
     { label: 'Properties…', onClick: () => openProperties(config.id) },
     { label: maximized ? 'Restore' : 'Maximise', shortcut: 'double-click header', onClick: onMaximize },
     { label: 'Remove component', onClick: () => removeComponentById(config.id) },
@@ -111,16 +109,7 @@ function ComponentFrame({ config, maximized, onMaximize }: { config: ComponentCo
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          openMenu(e, [
-            ...frameItems(),
-            { separator: true },
-            ...(['right', 'bottom'] as const).map((z) => ({
-              label: `Split ${z === 'right' ? 'right' : 'below'} with…`,
-              onClick: () =>
-                openMenu(e, COMPONENT_CATALOG.map((it) => ({ label: `${it.icon}  ${it.label}`, onClick: () => addComponent(it.type, config.id, z) }))),
-            })),
-            { label: 'Replace with…', onClick: () => openMenu(e, COMPONENT_CATALOG.map((it) => ({ label: `${it.icon}  ${it.label}`, onClick: () => addComponent(it.type, config.id, 'center') }))) },
-          ]);
+          openMenu(e, frameItems());
         }}
       >
         <span className="muted" style={{ fontSize: 12 }}>

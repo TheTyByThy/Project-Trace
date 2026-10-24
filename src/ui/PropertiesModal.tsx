@@ -4,8 +4,8 @@
 import { useEffect, useState } from 'react';
 import { channelColors, RAMP_LABELS, type RampName } from '../core/colors';
 import { COMPONENT_CATALOG, pane } from '../state/components';
-import { activeSheet, activeWorkspace, addComponent, removeComponentById, setChannelProps, setUi, updateComponent, useStore } from '../state/store';
-import type { ComponentConfig, GaugeDef, GraphConfig, GraphPane } from '../state/workspace';
+import { activeSheet, activeWorkspace, addComponent, removeComponentById, setChannelProps, setGraphMarkers, setUi, updateComponent, useStore } from '../state/store';
+import { TYRE_FIELDS, type ComponentConfig, type GaugeDef, type GraphConfig, type GraphPane } from '../state/workspace';
 import { defaultTitle } from '../charts/registry';
 import { conv, findChannel } from '../charts/data';
 import { ChannelPickerButton, ColorField, openChannelPicker, openChannelProps, openColorPicker, openMenu } from './overlays';
@@ -210,11 +210,21 @@ function GraphForm({ c }: { c: GraphConfig }) {
       <div>
         <G title="Display">
           <Check label="Time variance pane (F3)" value={c.showVariance} onChange={(v) => up({ showVariance: v })} />
-          <Check label="Sector & section lines" value={c.showSectors} onChange={(v) => up({ showSectors: v })} />
-          <Check label="Corner markers (your saved corners)" value={c.showCorners} onChange={(v) => up({ showCorners: v })} />
+          <Check label="Legends with live values" value={c.showLegend !== false} onChange={(v) => up({ showLegend: v })} />
+          <Check label="Horizontal grid lines" value={c.showGrid !== false} onChange={(v) => up({ showGrid: v })} />
           <F label="Y range">
             <Select value={c.yRange} options={[['full', 'Whole lap'], ['visible', 'Visible (zoomed) area']]} onChange={(v) => up({ yRange: v })} />
           </F>
+          <F label={`Reference line width (${c.refLineWidth ?? 1.5}px)`}>
+            <input type="range" min={0.5} max={4} step={0.25} value={c.refLineWidth ?? 1.5} onChange={(e) => up({ refLineWidth: Number(e.target.value) })} />
+          </F>
+          <F label={`Comparison line width (${c.lapLineWidth ?? 1.2}px)`}>
+            <input type="range" min={0.5} max={4} step={0.25} value={c.lapLineWidth ?? 1.2} onChange={(e) => up({ lapLineWidth: Number(e.target.value) })} />
+          </F>
+        </G>
+        <G title="Markers (all time / distance graphs)">
+          <Check label="Sector & section lines" value={c.showSectors} onChange={(v) => setGraphMarkers({ showSectors: v })} />
+          <Check label="Corner lines (your saved corners)" value={c.showCorners} onChange={(v) => setGraphMarkers({ showCorners: v })} />
         </G>
         <G title="Tips">
           <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
@@ -258,7 +268,9 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
               <F label="Colour by">
                 <ChannelPickerButton
                   value={c.colorBy}
-                  onChange={(v) => up({ colorBy: v, ramp: v === 'delta' && c.ramp !== 'custom' ? 'diverging' : c.ramp === 'diverging' && v !== 'delta' ? 'blue' : c.ramp })}
+                  onChange={(v) =>
+                    up({ colorBy: v, ramp: v === 'delta' && c.ramp !== 'custom' ? 'gainloss' : (c.ramp === 'diverging' || c.ramp === 'gainloss') && v !== 'delta' ? 'blue' : c.ramp })
+                  }
                   extras={[
                     { value: 'lap', label: 'Lap colours' },
                     { value: 'delta', label: 'Time gained / lost vs reference' },
@@ -274,7 +286,7 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
                 <>
                   <div className="field">
                     {c.colorBy === 'delta' ? 'Gaining colour' : 'Low-value colour'}
-                    <ColorField value={c.customLow ?? '#3987e5'} onChange={(v) => up({ customLow: v ?? '#3987e5' })} />
+                    <ColorField value={c.customLow ?? '#1baf7a'} onChange={(v) => up({ customLow: v ?? '#1baf7a' })} />
                   </div>
                   <div className="field">
                     {c.colorBy === 'delta' ? 'Losing colour' : 'High-value colour'}
@@ -288,9 +300,17 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
               <F label={`Line width (${c.lineWidth}px)`}>
                 <input type="range" min={1.5} max={10} step={0.5} value={c.lineWidth} onChange={(e) => up({ lineWidth: Number(e.target.value) })} />
               </F>
-              <Check label="Sector & section markers" value={c.showSectors} onChange={(v) => up({ showSectors: v })} />
+              <Check label="Sector & section lines" value={c.showSectors} onChange={(v) => up({ showSectors: v })} />
               <Check label="Corner labels" value={c.showCorners} onChange={(v) => up({ showCorners: v })} />
-              <Check label="Highlight zoomed range" value={c.showZoom} onChange={(v) => up({ showZoom: v })} />
+              <Check label="Start / finish line" value={c.showStartFinish !== false} onChange={(v) => up({ showStartFinish: v })} />
+              <Check label="Zoom in on the graphs’ selected range" value={c.fitToZoom !== false} onChange={(v) => up({ fitToZoom: v })} />
+              <Check label="Dim the track outside the selected range" value={c.showZoom} onChange={(v) => up({ showZoom: v })} />
+              <Check label="Track outline under the line" value={c.showOutline !== false} onChange={(v) => up({ showOutline: v })} />
+              <Check label="Car positions at the cursor" value={c.showCars !== false} onChange={(v) => up({ showCars: v })} />
+              <Check label="Legend" value={c.showLegend !== false} onChange={(v) => up({ showLegend: v })} />
+              <div className="muted" style={{ fontSize: 12 }}>
+                Scroll to zoom, drag to pan, double-click to reset the view. Drag the dial ring to rotate.
+              </div>
             </G>
           </div>
           <div>
@@ -308,9 +328,11 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
               </F>
               <Check label="Frame the graphs’ zoomed range" value={c.fitToZoom} onChange={(v) => up({ fitToZoom: v })} />
               <Check label="Follow the cursor when zoomed in" value={c.followCursor} onChange={(v) => up({ followCursor: v })} />
-              <Check label="Show approximate track band (13 m)" value={c.showRoad} onChange={(v) => up({ showRoad: v })} />
               <Check label="Sector & section markers" value={c.showSectors} onChange={(v) => up({ showSectors: v })} />
               <Check label="Corner labels" value={c.showCorners} onChange={(v) => up({ showCorners: v })} />
+              <Check label="Scale bar" value={c.showScale !== false} onChange={(v) => up({ showScale: v })} />
+              <Check label="Lap legend" value={c.showLegend !== false} onChange={(v) => up({ showLegend: v })} />
+              <Check label="Offset from the reference line at the cursor" value={c.showOffsets !== false} onChange={(v) => up({ showOffsets: v })} />
               <div className="muted" style={{ fontSize: 12 }}>
                 Lines use each lap’s colour — click a lap’s colour square in the sidebar to change it.
               </div>
@@ -329,8 +351,11 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
               <F label="Metric">
                 <Select value={c.metric} options={[['minSpeed', 'Minimum speed'], ['entrySpeed', 'Entry speed'], ['exitSpeed', 'Exit speed'], ['time', 'Time through corner']]} onChange={(v) => up({ metric: v })} />
               </F>
+              <Check label="Straights between corners" value={c.showStraights !== false} onChange={(v) => up({ showStraights: v })} />
+              <Check label="Total time in corners vs on straights" value={c.showTotals !== false} onChange={(v) => up({ showTotals: v })} />
               <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
-                Each corner is analysed from halfway to the previous corner to halfway to the next (at most ±200 m from the apex you set).
+                Each corner runs from halfway to the previous corner to halfway to the next (at most ±200 m from the apex), unless you set an exact range in
+                advanced mode. Anything not inside a corner counts as a straight.
               </div>
             </G>
           </div>
@@ -373,6 +398,9 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
               </div>
             </G>
             <G title="Analysis">
+              <button className="btn small" onClick={() => up({ x: c.y, y: c.x, xMin: c.yMin, xMax: c.yMax, yMin: c.xMin, yMax: c.xMax })}>
+                ⇄ Swap X and Y
+              </button>
               <F label="Curve fit">
                 <Select value={c.fit} options={[['none', 'None'], ['linear', 'Linear'], ['poly2', 'Quadratic'], ['poly3', 'Cubic']]} onChange={(v) => up({ fit: v })} />
               </F>
@@ -485,13 +513,21 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
         </div>
       );
     case 'laps':
+    case 'lapreport':
       return (
         <div className="props-single">
-          <G title="Lap report">
+          <G title={c.type === 'laps' ? 'Stint report (every lap)' : 'Lap report (selected laps)'}>
             <F label="Split columns">
               <Select value={c.split} options={[['sectors', 'Game sectors'], ['sections', 'Custom sections'], ['none', 'None']]} onChange={(v) => up({ split: v })} />
             </F>
+            <Check label="Split / sector columns" value={c.showSplits !== false} onChange={(v) => up({ showSplits: v })} />
+            <Check label={c.type === 'laps' ? 'Δ to best lap column' : 'Δ to reference column'} value={c.showDelta !== false} onChange={(v) => up({ showDelta: v })} />
+            {c.type === 'laps' && <Check label="Ideal lap row" value={c.showIdeal !== false} onChange={(v) => up({ showIdeal: v })} />}
+            <Check label="Lap tags (out / in / invalid)" value={c.showTags !== false} onChange={(v) => up({ showTags: v })} />
             <Check label="Max speed & fuel columns" value={c.showStats} onChange={(v) => up({ showStats: v })} />
+            <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+              Green background = best in its stint; purple = best of every lap open at this track.
+            </div>
           </G>
         </div>
       );
@@ -560,6 +596,12 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
         <div className="props-single">
           <G title="Driver inputs">
             <Check label="Show compare lap (second selected lap)" value={c.showCompare} onChange={(v) => up({ showCompare: v })} />
+            <Check label="Throttle & brake" value={c.showPedals !== false} onChange={(v) => up({ showPedals: v })} />
+            <Check label="Clutch" value={c.showClutch !== false} onChange={(v) => up({ showClutch: v })} />
+            <Check label="Steering wheel" value={c.showSteering !== false} onChange={(v) => up({ showSteering: v })} />
+            <Check label="Gear" value={c.showGear !== false} onChange={(v) => up({ showGear: v })} />
+            <Check label="Speed" value={c.showSpeed !== false} onChange={(v) => up({ showSpeed: v })} />
+            <Check label="RPM bar" value={c.showRpm !== false} onChange={(v) => up({ showRpm: v })} />
           </G>
         </div>
       );
@@ -570,6 +612,23 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
             <F label="Values">
               <Select value={c.mode} options={[['cursor', 'At cursor'], ['mean', 'Lap mean'], ['max', 'Lap max']]} onChange={(v) => up({ mode: v })} />
             </F>
+            <Check label="Caption under the tyres" value={c.showCaption !== false} onChange={(v) => up({ showCaption: v })} />
+          </G>
+          <G title="Information shown for each tyre">
+            {TYRE_FIELDS.map((f) => {
+              const cur = c.fields ?? TYRE_FIELDS.filter((x) => x.default).map((x) => x.key);
+              return (
+                <Check
+                  key={f.key}
+                  label={f.label}
+                  value={cur.includes(f.key)}
+                  onChange={(v) => up({ fields: v ? TYRE_FIELDS.map((x) => x.key).filter((k) => k === f.key || cur.includes(k)) : cur.filter((k) => k !== f.key) })}
+                />
+              );
+            })}
+            <button className="btn small" disabled={!c.fields} onClick={() => up({ fields: undefined })}>
+              Reset to defaults
+            </button>
           </G>
         </div>
       );

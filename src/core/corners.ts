@@ -11,6 +11,9 @@ import { convertUnit } from './units';
 export interface TrackCorner {
   name: string;
   dist: number; // lap distance of the apex (m)
+  /** Advanced mode: exact start / end of the corner (lap distance, m). Otherwise derived from neighbours. */
+  start?: number;
+  end?: number;
 }
 
 export interface CornerWindow {
@@ -20,19 +23,52 @@ export interface CornerWindow {
   exit: number;
 }
 
-/** Analysis window per corner: halfway to the neighbouring corners, capped at ±200 m. */
+/**
+ * Analysis window per corner: the exact range when one is set (advanced mode), otherwise halfway to
+ * the neighbouring corners, capped at ±200 m.
+ */
 export function cornerWindows(corners: TrackCorner[], trackLength: number): CornerWindow[] {
   const sorted = corners.slice().sort((a, b) => a.dist - b.dist);
   return sorted.map((c, i) => {
     const prev = sorted[i - 1]?.dist ?? (trackLength ? sorted[sorted.length - 1].dist - trackLength : -Infinity);
     const next = sorted[i + 1]?.dist ?? (trackLength ? sorted[0].dist + trackLength : Infinity);
-    return {
-      name: c.name,
-      apex: c.dist,
-      entry: Math.max(c.dist - 200, (prev + c.dist) / 2, 0),
-      exit: Math.min(c.dist + 200, (c.dist + next) / 2, trackLength || Infinity),
-    };
+    const autoEntry = Math.max(c.dist - 200, (prev + c.dist) / 2, 0);
+    const autoExit = Math.min(c.dist + 200, (c.dist + next) / 2, trackLength || Infinity);
+    const entry = c.start != null && Number.isFinite(c.start) ? Math.max(0, c.start) : autoEntry;
+    const exit = c.end != null && Number.isFinite(c.end) ? c.end : autoExit;
+    return { name: c.name, apex: c.dist, entry: Math.min(entry, exit), exit: Math.max(entry, exit) };
   });
+}
+
+export interface TrackSegment {
+  kind: 'corner' | 'straight';
+  name: string;
+  entry: number;
+  exit: number;
+  /** Apex for corners; the midpoint for straights. */
+  apex: number;
+}
+
+/**
+ * The lap split into corners and the straights between them. Anything not inside a corner window is
+ * a straight (named after its neighbours); the first and last straights end at the start/finish line.
+ */
+export function trackSegments(windows: CornerWindow[], trackLength: number): TrackSegment[] {
+  const out: TrackSegment[] = [];
+  const end = trackLength || (windows.length ? windows[windows.length - 1].exit : 0);
+  let pos = 0;
+  let prevName = 'S/F';
+  const straight = (a: number, b: number, nextName: string) => {
+    if (b - a >= 1) out.push({ kind: 'straight', name: `${prevName} → ${nextName}`, entry: a, exit: b, apex: (a + b) / 2 });
+  };
+  for (const w of windows) {
+    straight(pos, w.entry, w.name);
+    out.push({ kind: 'corner', name: w.name, entry: Math.max(pos, w.entry), exit: w.exit, apex: w.apex });
+    pos = Math.max(pos, w.exit);
+    prevName = w.name;
+  }
+  straight(pos, end, 'S/F');
+  return out;
 }
 
 /** Propose corner apexes as significant local minima of speed vs distance (opt-in helper). */
@@ -91,12 +127,16 @@ export interface CornerLapMetrics {
 }
 
 /** Speeds (kph) and time through one corner window for a lap. */
-export function cornerMetrics(s: Session, lap: Lap, w: CornerWindow): CornerLapMetrics | null {
+export function cornerMetrics(s: Session, lap: Lap, w: { entry: number; exit: number }): CornerLapMetrics | null {
   if (!s.key.speed) return null;
   const ch = s.channels.get(s.key.speed)!;
   const conv = convertUnit(ch.unit || 'kph', 'kph') ?? { k: 1, b: 0 };
-  const ta = crossingTime(lap, w.entry);
-  const tb = crossingTime(lap, w.exit);
+  // Segments touching the start/finish line run from the lap's first / to its last sample.
+  const D = lap.distD;
+  let ta = crossingTime(lap, w.entry);
+  let tb = crossingTime(lap, w.exit);
+  if (!Number.isFinite(ta) && D.length && w.entry <= D[0] + 1) ta = lap.start;
+  if (!Number.isFinite(tb) && D.length && lap.complete && w.exit >= D[D.length - 1] - 1) tb = lap.end;
   if (!Number.isFinite(ta) || !Number.isFinite(tb) || tb <= ta) return null;
   const i0 = Math.max(0, Math.floor((ta - ch.t0) * ch.rate));
   const i1 = Math.min(ch.n - 1, Math.ceil((tb - ch.t0) * ch.rate));

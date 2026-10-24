@@ -22,18 +22,19 @@ Press **F1** in the app for this list. On macOS, use **⌘** wherever **Ctrl** i
 
 ## Analysis
 
+Every key below can be changed in **Help → Keyboard Shortcuts** (F1): click **+ Add** next to an action and press the new keys; click a key to remove it.
+
 | Keys | Action |
 |---|---|
 | D | Toggle time / distance x-axis |
 | **J** | Reference lap: per-channel colours ⇄ single lap colour |
-| **W** | Zoom to the whole reference lap (in whole-session view: the lap under the cursor) |
 | **S** | Toggle trace smoothing |
 | F3 or V | Toggle the time-variance pane on this worksheet's graphs |
 | F | Fastest lap as reference |
 | **↑ / ↓** (also PgUp / PgDn, [ / ]) | Previous / next lap as reference |
 | ← / → | Move the cursor (hold Shift for larger steps) |
 | + / − | Zoom in / out around the cursor |
-| Esc, Home | Reset zoom and clear the range measurement |
+| Esc, W, Home | Reset view: whole lap, clear the range measurement |
 
 ## Mouse: graphs
 
@@ -60,10 +61,10 @@ Press **F1** in the app for this list. On macOS, use **⌘** wherever **Ctrl** i
 | Track map, GPS track | click near the track | move the cursor there |
 | Track map, GPS track | drag / scroll / double-click | pan / zoom / reset |
 | Track map, GPS track | **drag the dial ring** (Shift = 15° steps) | rotate; **Save** / **Reset** under the dial |
-| Corner report | click a row / right-click | zoom to the corner / rename, move, delete |
+| Corner report | click a row | zoom to the corner or straight (edit corners in Properties) |
 | Lap lists | click / Ctrl + click / Shift + click | show only / overlay / set reference |
 | Lap lists | click a selected lap's colour square | change its colour |
-| Any component | right-click | its options + **Properties…** / Maximise / **Remove component** |
+| Any component | right-click | its main options (graphs: add channel, marker lines, add corner / split) + **Properties…** / Maximise / **Remove component** |
 | Component header | drag | dock elsewhere (edges split, centre swaps) |
 | Component header | double-click | maximise / restore |
 | Sidebar channel | drag onto a component / double-click | add / apply it |

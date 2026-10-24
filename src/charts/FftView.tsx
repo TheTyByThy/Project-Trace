@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { fftMagnitude } from '../core/stats';
-import { selectedLaps, updateComponent, useStore } from '../state/store';
+import { selectedLaps, useStore } from '../state/store';
 import type { FftConfig } from '../state/workspace';
-import { openChannelPicker, openMenu } from '../ui/overlays';
 import { drawAxes, makeAxes, type Axes } from './axes';
 import { BoxZoomLayer, type View } from './BoxZoom';
 import { chartTheme, prepCanvas, useElementSize } from './canvas';
@@ -110,15 +109,6 @@ export function FftView({ config }: { config: FftConfig }) {
         onView={(v) => {
           viewRef.current = v;
           draw();
-        }}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          openMenu(e, [
-            { label: 'Reset zoom', shortcut: 'double-click', onClick: () => ((viewRef.current = null), draw()) },
-            { label: `Channel: ${config.channel}…`, onClick: () => openChannelPicker(e, (n) => updateComponent(config.id, { channel: n })) },
-            { label: 'Log scale', checked: config.logScale, onClick: () => updateComponent(config.id, { logScale: !config.logScale }) },
-            { label: 'Only zoomed range', checked: config.useZoom, onClick: () => updateComponent(config.id, { useZoom: !config.useZoom }) },
-          ]);
         }}
       />
     </div>

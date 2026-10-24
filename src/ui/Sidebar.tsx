@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { xToTime } from '../core/axis';
-import { CATEGORIES } from '../core/channelMeta';
+import { groupByCategory } from '../core/channelMeta';
 import { sampleAt } from '../core/channel';
 import { formatDelta, formatLapTime, formatValue, prettyCar, prettyTrack } from '../core/format';
 import { fastestLap } from '../core/session';
@@ -33,6 +33,9 @@ function SessionCard({ s }: { s: Session }) {
   useStore((st) => st.settings.theme);
   const colorOf = new Map(selectedLaps().map((l) => [l.key, l.color]));
   const fl = fastestLap(s);
+  // Best of every open session at this track: the stint best is purple only when it is also this.
+  const sessions = useStore((st) => st.sessions);
+  const overallBest = Math.min(...sessions.filter((o) => o.meta.venue === s.meta.venue).map((o) => fastestLap(o)?.time ?? Infinity));
   const tr = prettyTrack(s.meta.venue);
   const wholeKey = lapKey({ sessionId: s.id, lapIndex: -1 });
   return (
@@ -84,11 +87,15 @@ function SessionCard({ s }: { s: Session }) {
             <span
               className="lap-check"
               style={sel ? { background: colorOf.get(key), borderColor: colorOf.get(key), cursor: 'pointer' } : undefined}
-              title={sel ? 'Click to change this lap’s colour' : 'Add as overlay'}
+              title={sel ? 'Click to remove this lap · right-click to change its colour' : 'Add as comparison lap'}
               onClick={(e) => {
                 e.stopPropagation();
+                selectLap(key, 'toggle');
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 if (sel) openColorPicker(e, colorOf.get(key), (c) => setLapColor(key, c), { allowAuto: true, title: `Lap ${lap.number} colour` });
-                else selectLap(key, 'toggle');
               }}
             />
             <span
@@ -107,7 +114,7 @@ function SessionCard({ s }: { s: Session }) {
               {lap.kind === 'in' && <span className="tag">in</span>}
               {lap.kind === 'partial' && <span className="tag">part</span>}
               {lap.invalid && <span className="tag bad">inv</span>}
-              {isBest && <span className="tag best">best</span>}
+              {isBest && fl && <span className={'tag ' + (fl.time <= overallBest + 1e-6 ? 'best' : 'pb')}>best</span>}
             </span>
             <span className="num" style={{ color: lap.complete ? 'var(--text)' : 'var(--text-3)', textDecoration: lap.invalid ? 'line-through' : undefined }}>
               {formatLapTime(lap.time)}
@@ -206,7 +213,7 @@ function ChannelsPanel() {
         arr.push({ name: n, unit: c.unit, constant: c.constant, session: s });
         map.set(c.category, arr);
       }
-    return CATEGORIES.filter((c) => map.has(c)).map((c) => ({ cat: c, items: map.get(c)! }));
+    return groupByCategory(map);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessions, q, hideConstant, st.dataVersion]);
   return (

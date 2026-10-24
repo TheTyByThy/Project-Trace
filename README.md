@@ -87,11 +87,11 @@ No telemetry yet? Click **Bundled sample session** to explore a 6-lap Singapore 
 ![Zoom and range measurement](docs/images/zoom-measure.png)
 
 - Stacked **panes** that share the x-axis. Drag the border between any two panes to give the important ones more height.
-- **Lap colouring like MoTeC**: every overlay lap is solid in **its own lap colour**. The **reference lap** shows per-channel colours or its lap colour (press **J**). Click a lap's colour square to pick **any colour** for it.
+- **Lap colouring like MoTeC**: every overlay lap is solid in **its own lap colour**. The **reference lap** shows per-channel colours or its lap colour (press **J**). Right-click a lap's colour square to pick **any colour** for it (a click removes the lap).
 - Every legend shows each lap's value **and its Δ to the reference** at the cursor.
 - Three cursor modes (Settings): **classic** (click = cursor, drag = zoom), **scrub** (drag moves the cursor, double-click-drag zooms) or **follow mouse**. Shift-drag measures a range (min/avg/max/Δ). **W** zooms to the whole lap.
 - **Time variance** pane (F3), **Time ⇄ Distance** axis (D), sector lines, and your own corner and section markers.
-- **Smoothing** toggle in the top bar (off = raw data), with an adjustable amount.
+- **Smoothing** toggle in the top bar (on at 50 ms by default; off = raw data), with an adjustable amount.
 
 → [Graph guide](docs/04-time-distance-graph.md)
 
@@ -104,7 +104,7 @@ No telemetry yet? Click **Bundled sample session** to explore a 6-lap Singapore 
 - **GPS Track**:
   - thin racing lines for every selected lap in their lap colours;
   - automatically frames whatever you've zoomed into on the graphs, so zoom into a corner and compare the lines;
-  - a metric scale bar, a track band and follow-cursor;
+  - a metric scale bar and follow-cursor (raw car positions, no track edges);
   - live **"Lap 3: 0.8 m left of ref"** line-offset readouts.
 - **Rotation dial** on both maps: drag the ring to spin the map, then **Save** it as the track's default or **Reset** to the saved rotation.
 - **Corners are yours**: put the cursor on an apex, right-click → **Add corner at cursor…**. Corners are saved to the track and appear on graphs, maps and the corner report.
@@ -264,7 +264,7 @@ Useful commands: `npm test`, `npm run typecheck`, `npm run dev` (hot reload), an
 | Window doesn't appear when started from a VS Code terminal | Use `npm start` (not `electron .`); it clears VS Code's `ELECTRON_RUN_AS_NODE`. |
 | I deleted something by accident | **Ctrl/⌘+Z** (Edit → Undo). For a whole tab: **Worksheet → Reset Worksheet to Starter Version**. |
 | The in-game time looks off by some hours | Pick the right zone for that track in the Session Browser's details pane, or **Settings → In-game clock → Raw UTC**. |
-| The track map is rotated or mirrored | Drag the dial ring, then **Save**; mirror via right-click → **Mirror** (both saved per track). |
+| The track map is rotated or mirrored | Drag the dial ring, then **Save**; mirror in the track profile (both saved per track). |
 | A math channel says "n/a" | The session doesn't contain one of its input channels (normal for non-AC data). |
 
 ---

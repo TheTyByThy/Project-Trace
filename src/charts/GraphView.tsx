@@ -18,8 +18,8 @@ import {
   activeWorkspace,
   addCorner,
   selectedLaps,
-  setChannelProps,
   setCursor,
+  setGraphMarkers,
   setMeasure,
   setTrackProfile,
   setZoom,
@@ -27,11 +27,10 @@ import {
   updateComponent,
   useStore,
   viewRange,
-  zoomToLap,
   type SelectedLap,
 } from '../state/store';
-import type { GraphConfig, GraphPane } from '../state/workspace';
-import { openChannelPicker, openChannelProps, openMenu, promptText } from '../ui/overlays';
+import type { GraphConfig } from '../state/workspace';
+import { openChannelPicker, openMenu, promptText } from '../ui/overlays';
 import { chartTheme, drawTrace, fmtTick, lowerBound, prepCanvas, useElementSize, useStoreListener } from './canvas';
 import { channelDps, conv, displayData, lapRange } from './data';
 
@@ -172,47 +171,60 @@ export function GraphView({ config }: { config: GraphConfig }) {
       return;
     }
 
-    // ---- x grid ----
+    // ---- x axis labels (no vertical grid lines: sector and corner markers are the reference lines) ----
     const { step: xStep, ticks: xTicks } = niceTicks(v0, v1, Math.max(3, Math.floor((plotR - plotL) / 90)));
-    ctx.strokeStyle = T.grid;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (const t of xTicks) {
-      const X = Math.round(px(t)) + 0.5;
-      ctx.moveTo(X, TOP);
-      ctx.lineTo(X, h - BOTTOM);
-    }
-    ctx.stroke();
     ctx.fillStyle = T.text3;
     ctx.textAlign = 'center';
     for (const t of xTicks) ctx.fillText(xMode === 'time' ? formatAxisTime(t, xStep) : formatAxisDistance(t, xStep, distUnit), px(t), h - BOTTOM / 2);
     ctx.textAlign = 'right';
     ctx.fillText(xMode === 'time' ? (ref.lap.index === -1 ? 'session time' : 'lap time') : distUnit, plotL - 6, h - BOTTOM / 2);
 
-    // ---- sector / section / corner markers ----
+    // ---- sector / section / corner markers (colour-coded, low opacity; labels along the top) ----
     if (ref.lap.index !== -1) {
       const prof = trackProfile(ref.session.meta.venue);
-      const markers: { x: number; label: string; strong: boolean }[] = [];
+      const pal = CATEGORICAL[theme];
+      const markers: { x: number; label: string; color: string }[] = [];
       const toX = (d: number) => (xMode === 'distance' ? d : crossingTime(ref.lap, d) - ref.lap.start);
       if (config.showSectors) {
-        ref.session.sectorSplits.forEach((d, i) => markers.push({ x: toX(d), label: `S${i + 2}`, strong: true }));
-        prof.sections.forEach((s) => markers.push({ x: toX(s.dist), label: s.name, strong: false }));
+        ref.session.sectorSplits.forEach((d, i) => markers.push({ x: toX(d), label: `S${i + 2}`, color: pal[6] }));
+        prof.sections.forEach((s) => markers.push({ x: toX(s.dist), label: s.name, color: pal[2] }));
       }
-      if (config.showCorners) prof.corners.forEach((c) => markers.push({ x: toX(c.dist), label: c.name, strong: false }));
+      if (config.showCorners)
+        for (const c of prof.corners) {
+          // Corners with an exact range (advanced mode) get a faint band over that range.
+          if (c.start != null && c.end != null) {
+            const a = px(toX(c.start));
+            const b = px(toX(c.end));
+            if (Number.isFinite(a) && Number.isFinite(b)) {
+              ctx.fillStyle = withAlpha(pal[3], 0.07);
+              ctx.fillRect(Math.max(plotL, a), TOP, Math.min(plotR, b) - Math.max(plotL, a), h - TOP - BOTTOM);
+            }
+          }
+          markers.push({ x: toX(c.dist), label: c.name, color: pal[3] });
+        }
+      ctx.lineWidth = 1;
       for (const m of markers) {
         if (!Number.isFinite(m.x) || m.x < v0 || m.x > v1) continue;
         const X = Math.round(px(m.x)) + 0.5;
-        ctx.strokeStyle = m.strong ? T.gridStrong : T.grid;
-        ctx.setLineDash(m.strong ? [4, 3] : [2, 3]);
+        ctx.strokeStyle = withAlpha(m.color, 0.45);
         ctx.beginPath();
         ctx.moveTo(X, TOP);
         ctx.lineTo(X, h - BOTTOM);
         ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.fillStyle = T.text3;
-        ctx.textAlign = 'left';
-        ctx.fillText(m.label, X + 3, h - BOTTOM - 7);
       }
+      // Labels sit at the top of the first pane (the variance pane when it is shown).
+      ctx.font = `600 ${T.font}`;
+      ctx.textAlign = 'center';
+      for (const m of markers) {
+        if (!Number.isFinite(m.x) || m.x < v0 || m.x > v1) continue;
+        const X = px(m.x);
+        const tw = ctx.measureText(m.label).width + 8;
+        ctx.fillStyle = withAlpha(m.color, 0.22);
+        ctx.fillRect(X - tw / 2, TOP + 1, tw, 14);
+        ctx.fillStyle = T.text;
+        ctx.fillText(m.label, X, TOP + 8);
+      }
+      ctx.font = T.font;
     }
 
     // ---- panes ----
@@ -237,7 +249,7 @@ export function GraphView({ config }: { config: GraphConfig }) {
         P.vMin = -mx;
         P.vMax = mx;
         const py = (val: number) => P.top + 6 + ((P.vMax - val) / (P.vMax - P.vMin)) * (ph - 12);
-        drawYAxis(ctx, T, P, py, -mx, mx);
+        drawYAxis(ctx, T, P, py, -mx, mx, config.showGrid !== false);
         ctx.strokeStyle = T.gridStrong;
         ctx.beginPath();
         ctx.moveTo(plotL, Math.round(py(0)) + 0.5);
@@ -320,7 +332,7 @@ export function GraphView({ config }: { config: GraphConfig }) {
       if (first) {
         P.vMin = first.min;
         P.vMax = first.max;
-        drawYAxis(ctx, T, P, (v) => P.top + ((first.max - v) / (first.max - first.min)) * ph, first.min, first.max);
+        drawYAxis(ctx, T, P, (v) => P.top + ((first.max - v) / (first.max - first.min)) * ph, first.min, first.max, config.showGrid !== false);
       }
 
       ctx.save();
@@ -338,7 +350,7 @@ export function GraphView({ config }: { config: GraphConfig }) {
           const ser = lapSeries(l.lap, ch, xMode);
           const isRef = l === laps[0];
           ctx.strokeStyle = isRef ? (refColors === 'channel' ? t.color : l.color) : l.color;
-          ctx.lineWidth = isRef ? 1.5 : 1.2;
+          ctx.lineWidth = isRef ? config.refLineWidth ?? 1.5 : config.lapLineWidth ?? 1.2;
           drawTrace(ctx, { xs: ser.xs, data: displayData(ch), off: ser.i0, k: t.k, b: t.b, x0: v0, x1: v1, px, py, step: ch.discrete });
         }
       }
@@ -443,7 +455,7 @@ export function GraphView({ config }: { config: GraphConfig }) {
 
     // legends
     const refColorsMode = st.settings.refColors;
-    for (const P of L.panes) {
+    for (const P of config.showLegend === false ? [] : L.panes) {
       const rows: LegendRow[] = [];
       if (P.kind === 'variance') {
         rows.push({
@@ -492,9 +504,11 @@ export function GraphView({ config }: { config: GraphConfig }) {
           });
         }
       }
-      drawLegend(ctx, T, P, rows);
+      // Leave room for the marker labels along the top of the first pane.
+      const labelRoom = P === L.panes[0] && (config.showSectors || config.showCorners) ? 16 : 0;
+      drawLegend(ctx, T, P, rows, labelRoom);
     }
-  }, [size]);
+  }, [size, config.showLegend, config.showSectors, config.showCorners]);
 
   useEffect(() => {
     drawBase();
@@ -650,7 +664,6 @@ export function GraphView({ config }: { config: GraphConfig }) {
     else if (!panes[paneIdx].channels.includes(name)) panes[paneIdx].channels.push(name);
     updateComponent(config.id, { panes } as Partial<GraphConfig>, 'Add channel');
   };
-  const setPanes = (panes: GraphPane[], label = 'Edit graph') => updateComponent(config.id, { panes } as Partial<GraphConfig>, label);
 
   /** Ask for a name and save a corner / section split at the cursor for this track. */
   const markAtCursor = async (kind: 'corner' | 'section') => {
@@ -664,76 +677,28 @@ export function GraphView({ config }: { config: GraphConfig }) {
       const name = await promptText(`Corner name at ${dist} m`, `T${prof.corners.length + 1}`);
       if (name) addCorner(venue, { name, dist });
     } else {
-      const name = await promptText(`Section split name at ${dist} m`, `Split ${prof.sections.length + 1}`);
+      const name = await promptText(`Split name at ${dist} m`, `Split ${prof.sections.length + 1}`);
       if (name) setTrackProfile(venue, { sections: [...prof.sections, { name, dist }].sort((a, b) => a.dist - b.dist) }, 'Add section');
     }
   };
 
   const onContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    const { x, y } = local(e);
+    const { y } = local(e);
     const P = paneAtY(y);
-    const legend = P?.legendRows.find((r) => y >= r.y && y < r.y + r.h && x < LEFT + 420);
     const pIdx = P && P.kind === 'channels' ? P.index : -1;
-    const T = useStore.getState().settings.theme;
     const st = useStore.getState();
     const canMark = st.cursor != null && !!selectedLaps(st)[0] && selectedLaps(st)[0].lap.index !== -1;
-    if (legend && P && P.kind === 'channels') {
-      const name = legend.name;
-      openMenu(e, [
-        { header: name },
-        { label: 'Channel properties…', onClick: () => openChannelProps(name) },
-        {
-          label: 'Remove from graph',
-          onClick: () => setPanes(config.panes.map((p, i) => (i === pIdx ? { ...p, channels: p.channels.filter((c) => c !== name) } : p)).filter((p) => p.channels.length), 'Remove channel'),
-        },
-        {
-          label: 'Move to its own pane',
-          disabled: config.panes[pIdx]?.channels.length <= 1,
-          onClick: () => {
-            const panes = config.panes.map((p, i) => (i === pIdx ? { ...p, channels: p.channels.filter((c) => c !== name) } : p));
-            panes.splice(pIdx + 1, 0, newPane([name]));
-            setPanes(panes, 'Move channel');
-          },
-        },
-        { separator: true },
-        { header: 'Colour' },
-        { swatches: CATEGORICAL[T].map((c) => ({ color: c, onClick: () => setChannelProps(name, { color: c }) })) },
-        { label: 'Automatic colour', onClick: () => setChannelProps(name, { color: undefined }) },
-      ]);
-      return;
-    }
-    const scale = pIdx >= 0 ? config.panes[pIdx].scale : 'auto';
+    // Kept deliberately short; everything else lives in Properties (appended by the frame).
     openMenu(e, [
       { label: 'Add channel to this pane…', disabled: pIdx < 0, onClick: () => openChannelPicker(e, (n) => addChannel(n, pIdx)) },
       { label: 'Add channel in new pane…', onClick: () => openChannelPicker(e, (n) => addChannel(n, 'new')) },
       { separator: true },
-      { label: 'Time variance pane', checked: config.showVariance, shortcut: 'F3', onClick: () => updateComponent(config.id, { showVariance: !config.showVariance } as Partial<GraphConfig>) },
-      { label: 'Sector & section lines', checked: config.showSectors, onClick: () => updateComponent(config.id, { showSectors: !config.showSectors } as Partial<GraphConfig>) },
-      { label: 'Corner markers', checked: config.showCorners, onClick: () => updateComponent(config.id, { showCorners: !config.showCorners } as Partial<GraphConfig>) },
-      { label: 'Y range: whole lap', checked: config.yRange === 'full', onClick: () => updateComponent(config.id, { yRange: 'full' } as Partial<GraphConfig>) },
-      { label: 'Y range: visible area', checked: config.yRange === 'visible', onClick: () => updateComponent(config.id, { yRange: 'visible' } as Partial<GraphConfig>) },
+      { label: 'Sector & section lines', checked: config.showSectors, onClick: () => setGraphMarkers({ showSectors: !config.showSectors }) },
+      { label: 'Corner lines', checked: config.showCorners, onClick: () => setGraphMarkers({ showCorners: !config.showCorners }) },
       { separator: true },
       { label: 'Add corner at cursor…', disabled: !canMark, onClick: () => markAtCursor('corner') },
-      { label: 'Add section split at cursor…', disabled: !canMark, onClick: () => markAtCursor('section') },
-      ...(pIdx >= 0
-        ? [
-            { separator: true },
-            { header: 'This pane' },
-            { label: 'Scale: automatic', checked: scale === 'auto', onClick: () => setPanes(config.panes.map((p, i) => (i === pIdx ? { ...p, scale: 'auto' as const } : p))) },
-            { label: 'Scale: shared (tiled)', checked: scale === 'shared', onClick: () => setPanes(config.panes.map((p, i) => (i === pIdx ? { ...p, scale: 'shared' as const } : p))) },
-            {
-              label: 'Scale: independent (overlapped)',
-              checked: scale === 'independent',
-              onClick: () => setPanes(config.panes.map((p, i) => (i === pIdx ? { ...p, scale: 'independent' as const } : p))),
-            },
-            { label: 'Remove pane', onClick: () => setPanes(config.panes.filter((_, i) => i !== pIdx), 'Remove pane') },
-          ]
-        : []),
-      { separator: true },
-      { label: 'Zoom to whole lap', shortcut: 'W', onClick: zoomToLap },
-      { label: 'Reset zoom', shortcut: 'Esc', onClick: () => setZoom(null) },
-      { label: 'Clear range measurement', disabled: !st.measure, onClick: () => setMeasure(null) },
+      { label: 'Add split at cursor…', disabled: !canMark, onClick: () => markAtCursor('section') },
     ]);
   };
 
@@ -790,20 +755,22 @@ export function GraphView({ config }: { config: GraphConfig }) {
   );
 }
 
-function drawYAxis(ctx: CanvasRenderingContext2D, T: ReturnType<typeof chartTheme>, P: PaneLayout, py: (v: number) => number, mn: number, mx: number) {
+function drawYAxis(ctx: CanvasRenderingContext2D, T: ReturnType<typeof chartTheme>, P: PaneLayout, py: (v: number) => number, mn: number, mx: number, grid = true) {
   const ph = P.bottom - P.top;
   const { step, ticks } = niceTicks(mn, mx, Math.max(2, Math.floor(ph / 26)));
-  ctx.strokeStyle = T.grid;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  const w = ctx.canvas.width / (window.devicePixelRatio || 1);
-  for (const t of ticks) {
-    const Y = Math.round(py(t)) + 0.5;
-    if (Y < P.top + 2 || Y > P.bottom - 2) continue;
-    ctx.moveTo(LEFT, Y);
-    ctx.lineTo(w - RIGHT, Y);
+  if (grid) {
+    ctx.strokeStyle = T.grid;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const w = ctx.canvas.width / (window.devicePixelRatio || 1);
+    for (const t of ticks) {
+      const Y = Math.round(py(t)) + 0.5;
+      if (Y < P.top + 2 || Y > P.bottom - 2) continue;
+      ctx.moveTo(LEFT, Y);
+      ctx.lineTo(w - RIGHT, Y);
+    }
+    ctx.stroke();
   }
-  ctx.stroke();
   ctx.fillStyle = T.text3;
   ctx.textAlign = 'right';
   for (const t of ticks) {
@@ -824,11 +791,11 @@ interface LegendRow {
   values: LegendValue[];
 }
 
-function drawLegend(ctx: CanvasRenderingContext2D, T: ReturnType<typeof chartTheme>, P: PaneLayout, rows: LegendRow[]) {
+function drawLegend(ctx: CanvasRenderingContext2D, T: ReturnType<typeof chartTheme>, P: PaneLayout, rows: LegendRow[], offset = 0) {
   P.legendRows = [];
   if (!rows.length) return;
   const rowH = 15;
-  const maxRows = Math.max(1, Math.floor((P.bottom - P.top - 6) / rowH));
+  const maxRows = Math.max(1, Math.floor((P.bottom - P.top - 6 - offset) / rowH));
   const shown = rows.slice(0, maxRows);
   ctx.font = T.font;
   let wMax = 0;
@@ -841,7 +808,7 @@ function drawLegend(ctx: CanvasRenderingContext2D, T: ReturnType<typeof chartThe
     return { lw };
   });
   const x0 = LEFT + 6;
-  const y0 = P.top + 4;
+  const y0 = P.top + 4 + offset;
   ctx.fillStyle = withAlpha(T.surface.startsWith('#') ? T.surface : '#15181d', 0.82);
   ctx.fillRect(x0 - 3, y0 - 1, Math.min(wMax + 6, ctx.canvas.width), shown.length * rowH + 3);
   shown.forEach((r, i) => {

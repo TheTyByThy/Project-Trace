@@ -14,7 +14,6 @@ import {
   selectedLaps,
   setCursor,
   setTrackProfile,
-  setWorkingRotation,
   trackProfile,
   trackRotation,
   updateComponent,
@@ -22,7 +21,7 @@ import {
   type SelectedLap,
 } from '../state/store';
 import type { TrackMapConfig } from '../state/workspace';
-import { openChannelPicker, openMenu, promptText } from '../ui/overlays';
+import { openMenu, promptText, type MenuItem } from '../ui/overlays';
 import { chartTheme, prepCanvas, useElementSize, useStoreListener } from './canvas';
 import { channelDps, conv, lapRange } from './data';
 import { RotationDial } from './RotationDial';
@@ -33,6 +32,7 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
   const baseRef = useRef<HTMLCanvasElement>(null);
   const overRef = useRef<HTMLCanvasElement>(null);
   const viewRef = useRef({ scale: 1, ox: 0, oy: 0 });
+  const lastZoomRef = useRef('');
   const xfRef = useRef<{ toScreen: (x: number, y: number) => [number, number]; ref: SelectedLap; path: LapPath } | null>(null);
   const dragRef = useRef<{ x: number; y: number; ox: number; oy: number; moved: boolean } | null>(null);
 
@@ -70,11 +70,21 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
 
     const prof = trackProfile(ref.session.meta.venue);
     const proj = makeProjector(trackRotation(ref.session.meta.venue, st), prof.mirror);
+    // Selecting a range on a graph frames that part of the track (like the GPS track does).
+    const zoomed = config.fitToZoom !== false && st.zoom && ref.lap.index !== -1;
+    const zta = zoomed ? xToTime(ref.lap, st.zoom![0], st.xMode) : -Infinity;
+    const ztb = zoomed ? xToTime(ref.lap, st.zoom![1], st.xMode) : Infinity;
+    const zkey = zoomed ? `${st.zoom![0].toFixed(2)}|${st.zoom![1].toFixed(2)}|${st.xMode}` : '';
+    if (zkey !== lastZoomRef.current) {
+      viewRef.current = { scale: 1, ox: 0, oy: 0 };
+      lastZoomRef.current = zkey;
+    }
     let minX = Infinity,
       maxX = -Infinity,
       minY = Infinity,
       maxY = -Infinity;
     for (let i = 0; i < path.t.length; i++) {
+      if (path.t[i] < zta || path.t[i] > ztb) continue;
       const [a, b] = proj(path.x[i], path.y[i]);
       if (a < minX) minX = a;
       if (a > maxX) maxX = a;
@@ -82,8 +92,9 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
       if (b > maxY) maxY = b;
     }
     const pad = 26;
-    const legendH = 34;
-    const fit = Math.min((w - 2 * pad) / Math.max(1, maxX - minX), (h - 2 * pad - legendH) / Math.max(1, maxY - minY));
+    const legendH = config.showLegend === false ? 8 : 34;
+    if (!Number.isFinite(minX)) return msg('No position data in the zoomed range');
+    const fit = Math.min((w - 2 * pad) / Math.max(zoomed ? 30 : 1, maxX - minX), (h - 2 * pad - legendH) / Math.max(zoomed ? 30 : 1, maxY - minY));
     const v = viewRef.current;
     const sc = fit * v.scale;
     const cx = (minX + maxX) / 2;
@@ -110,12 +121,14 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     const lw = config.lineWidth;
-    ctx.strokeStyle = T.road;
-    ctx.lineWidth = lw + 7;
-    strokeRange(0, n - 1);
+    if (config.showOutline !== false) {
+      ctx.strokeStyle = T.road;
+      ctx.lineWidth = lw + 7;
+      strokeRange(0, n - 1);
+    }
 
-    const custom = [config.customLow ?? '#3987e5', config.customHigh ?? '#e66767'];
-    let legend: { kind: 'ramp'; label: string; min: string; max: string; ramp: RampName } | { kind: 'laps' } | { kind: 'delta'; label: string } | null = null;
+    const custom = [config.customLow ?? '#1baf7a', config.customHigh ?? '#e66767'];
+    let legend: { kind: 'ramp'; label: string; min: string; max: string; ramp: RampName } | { kind: 'laps' } | { kind: 'delta'; cmp: SelectedLap } | null = null;
     const colorSegments = (values: Float64Array, lo: number, hi: number, ramp: RampName, i0 = 0, i1 = n - 1) => {
       const lut = rampLUT(ramp, theme, custom);
       const span = hi - lo || 1;
@@ -156,8 +169,8 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
       for (let i = 0; i < n; i++) colorValues[i] = m ? interp(vr.dist, rate, lapDistAt(ref.lap, path.t[i])) : 0;
       lo = -lim;
       hi = lim;
-      rampName = config.ramp === 'custom' ? 'custom' : 'diverging';
-      legend = { kind: 'delta', label: `${lapLabel(cmp.lap)} vs ref ${lapLabel(ref.lap)}` };
+      rampName = config.ramp === 'custom' ? 'custom' : 'gainloss';
+      legend = { kind: 'delta', cmp };
     } else if (config.colorBy !== 'lap' && config.colorBy !== 'delta') {
       const ch = ref.session.channels.get(config.colorBy);
       if (ch) {
@@ -206,12 +219,15 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
           break;
         }
       if (i0 >= 0 && i1 > i0) {
+        // Dim everything outside the selection; the selected part is redrawn at full strength.
         ctx.strokeStyle = withAlpha(T.surface, 0.62);
         ctx.lineWidth = lw + 8;
         strokeRange(0, n - 1);
-        ctx.strokeStyle = T.cursor;
-        ctx.lineWidth = lw + 4;
-        strokeRange(i0, i1);
+        if (config.showOutline !== false) {
+          ctx.strokeStyle = T.road;
+          ctx.lineWidth = lw + 7;
+          strokeRange(i0, i1);
+        }
         if (colorValues) colorSegments(colorValues, lo, hi, rampName, i0, i1);
         else {
           ctx.strokeStyle = ref.color;
@@ -248,7 +264,7 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
       ctx.font = T.font;
     };
     if (ref.lap.index !== -1) {
-      tickAt(0, 'S/F', true);
+      if (config.showStartFinish !== false) tickAt(0, 'S/F', true);
       if (config.showSectors) {
         ref.session.sectorSplits.forEach((d, i) => tickAt(d, `S${i + 2}`, true));
         prof.sections.forEach((s) => tickAt(s.dist, s.name, false));
@@ -274,6 +290,7 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
     }
 
     // Legend
+    if (config.showLegend === false) return;
     const ly = h - legendH / 2 - 2;
     ctx.textAlign = 'left';
     if (legend?.kind === 'ramp' || legend?.kind === 'delta') {
@@ -289,7 +306,26 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
       ctx.fillText(legend.kind === 'ramp' ? legend.max : 'losing ▶', 10 + bw, ly + 13);
       ctx.textAlign = 'left';
       ctx.fillStyle = T.text2;
-      ctx.fillText(legend.label, 18 + bw, ly);
+      if (legend.kind === 'ramp') ctx.fillText(legend.label, 18 + bw, ly);
+      else {
+        // Comparison lap colour "vs" reference lap colour, as colour blocks.
+        let x = 20 + bw;
+        const block = (color: string) => {
+          ctx.fillStyle = color;
+          ctx.fillRect(x, ly - 6, 22, 12);
+          ctx.strokeStyle = T.border;
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x + 0.5, ly - 5.5, 21, 11);
+          x += 28;
+        };
+        block(legend.cmp.color);
+        ctx.fillStyle = T.text2;
+        ctx.fillText('vs', x, ly);
+        x += ctx.measureText('vs').width + 6;
+        block(ref.color);
+        ctx.fillStyle = T.text2;
+        ctx.fillText('reference', x, ly);
+      }
     } else if (legend?.kind === 'laps') {
       let x = 10;
       for (const l of laps.slice(0, 6)) {
@@ -312,7 +348,7 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
     if (!ctx || !xf) return;
     const T = chartTheme();
     const st = useStore.getState();
-    if (st.cursor == null) return;
+    if (st.cursor == null || config.showCars === false) return;
     const laps = selectedLaps(st);
     for (const l of laps.slice(1).concat(laps.slice(0, 1))) {
       const isRef = l.key === xf.ref.key;
@@ -336,7 +372,7 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
         ctx.stroke();
       }
     }
-  }, [size]);
+  }, [size, config.showCars]);
 
   useEffect(() => {
     drawBase();
@@ -355,7 +391,7 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
       e.preventDefault();
       const r = el.getBoundingClientRect();
       const mx = e.clientX - r.left - size.w / 2;
-      const my = e.clientY - r.top - (size.h - 34) / 2;
+      const my = e.clientY - r.top - (size.h - (config.showLegend === false ? 8 : 34)) / 2;
       const v = viewRef.current;
       const ns = Math.max(0.5, Math.min(40, v.scale * Math.pow(1.0015, -e.deltaY)));
       const k = ns / v.scale;
@@ -386,10 +422,7 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
 
   const onContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    openMenu(e, trackMapMenuItems(e, venue, config.id, config.colorBy, { showSectors: config.showSectors, showCorners: config.showCorners, showZoom: config.showZoom }, () => {
-      viewRef.current = { scale: 1, ox: 0, oy: 0 };
-      redraw();
-    }));
+    openMenu(e, trackMapMenuItems(venue, config.id, { showSectors: config.showSectors, showCorners: config.showCorners }));
   };
 
   return (
@@ -441,48 +474,34 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
   );
 }
 
-/** Context-menu items shared by the Track Map and GPS Track. */
-export function trackMapMenuItems(
-  e: React.MouseEvent,
-  venue: string,
-  componentId: string,
-  colorBy: string | null,
-  flags: { showSectors: boolean; showCorners: boolean; showZoom?: boolean },
-  resetView: () => void,
-) {
+/** Context-menu items shared by the Track Map and GPS Track (kept short; the rest is in Properties). */
+export function trackMapMenuItems(venue: string, componentId: string, flags: { showSectors: boolean; showCorners: boolean }): MenuItem[] {
   const st = useStore.getState();
   const ref = selectedLaps(st)[0];
   const prof = trackProfile(venue);
   const canMark = !!ref && st.cursor != null && ref.lap.index !== -1;
   const distAtCursor = () => Math.round(lapDistAt(ref!.lap, xToTime(ref!.lap, st.cursor!, st.xMode)));
   return [
-    ...(colorBy != null
-      ? [
-          { header: 'Colour by' },
-          { label: 'Lap colours', checked: colorBy === 'lap', onClick: () => updateComponent(componentId, { colorBy: 'lap' }) },
-          { label: 'Time gained / lost (needs 2 laps)', checked: colorBy === 'delta', onClick: () => updateComponent(componentId, { colorBy: 'delta' }) },
-          { label: 'Channel…', checked: !['lap', 'delta'].includes(colorBy), onClick: () => openChannelPicker(e, (n) => updateComponent(componentId, { colorBy: n })) },
-          { separator: true },
-        ]
-      : []),
-    { label: 'Add corner at cursor…', disabled: !canMark, onClick: async () => {
-      const dist = distAtCursor();
-      const name = await promptText(`Corner name at ${dist} m`, `T${prof.corners.length + 1}`);
-      if (name) addCorner(venue, { name, dist });
-    } },
-    { label: 'Add section split at cursor…', disabled: !canMark, onClick: async () => {
-      const dist = distAtCursor();
-      const name = await promptText(`Section split name at ${dist} m`, `Split ${prof.sections.length + 1}`);
-      if (name) setTrackProfile(venue, { sections: [...prof.sections, { name, dist }].sort((a, b) => a.dist - b.dist) }, 'Add section');
-    } },
-    { label: 'Edit corners, sections & rotation…', disabled: !venue, onClick: () => useStore.setState((s) => ({ ui: { ...s.ui, trackProfile: true } })) },
+    { label: 'Sector & section lines', checked: flags.showSectors, onClick: () => updateComponent(componentId, { showSectors: !flags.showSectors }) },
+    { label: 'Corner lines', checked: flags.showCorners, onClick: () => updateComponent(componentId, { showCorners: !flags.showCorners }) },
     { separator: true },
-    { label: 'Rotate 90°', disabled: !venue, onClick: () => setWorkingRotation(venue, trackRotation(venue) + 90) },
-    { label: 'Mirror (this track)', checked: prof.mirror, disabled: !venue, onClick: () => setTrackProfile(venue, { mirror: !prof.mirror }, 'Mirror track') },
-    { label: 'Reset view', onClick: resetView },
-    { separator: true },
-    { label: 'Sector & section markers', checked: flags.showSectors, onClick: () => updateComponent(componentId, { showSectors: !flags.showSectors }) },
-    { label: 'Corner labels', checked: flags.showCorners, onClick: () => updateComponent(componentId, { showCorners: !flags.showCorners }) },
-    ...(flags.showZoom != null ? [{ label: 'Highlight zoomed range', checked: flags.showZoom, onClick: () => updateComponent(componentId, { showZoom: !flags.showZoom }) }] : []),
+    {
+      label: 'Add corner at cursor…',
+      disabled: !canMark,
+      onClick: async () => {
+        const dist = distAtCursor();
+        const name = await promptText(`Corner name at ${dist} m`, `T${prof.corners.length + 1}`);
+        if (name) addCorner(venue, { name, dist });
+      },
+    },
+    {
+      label: 'Add split at cursor…',
+      disabled: !canMark,
+      onClick: async () => {
+        const dist = distAtCursor();
+        const name = await promptText(`Split name at ${dist} m`, `Split ${prof.sections.length + 1}`);
+        if (name) setTrackProfile(venue, { sections: [...prof.sections, { name, dist }].sort((a, b) => a.dist - b.dist) }, 'Add section');
+      },
+    },
   ];
 }

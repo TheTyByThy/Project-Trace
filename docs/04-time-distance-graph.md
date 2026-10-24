@@ -28,7 +28,7 @@ Like MoTeC:
   - entirely in **its lap colour**.
 
   Press **J** (or **Analysis → Reference Lap in Channel Colours**, or Settings) to toggle. The status bar shows the current mode.
-- **Change any lap's colour**: click its coloured square in the sidebar (or right-click the lap → *Lap colour…*). The picker offers palette swatches, a full custom colour picker and a hex field.
+- **Change any lap's colour**: right-click its coloured square in the sidebar (or right-click the lap → *Lap colour…*). Clicking the square of a selected lap removes it. The first comparison lap is white by default. The picker offers palette swatches, a full custom colour picker and a hex field.
 - **Channel colours** (used by the reference lap) are set in *Channel properties*.
 
 ![Reference lap in lap colour](images/ref-lap-colour.png)
@@ -65,7 +65,7 @@ Everything else is the same in every mode:
 | Zoom at the mouse | scroll wheel | |
 | Pan | right-drag, middle-drag, Ctrl/⌘ + drag, Shift + wheel, trackpad swipe | |
 | **Whole lap** | | **W** |
-| Reset zoom | **Reset zoom** button | Esc or Home |
+| Reset view | **Reset view** button | Esc, W or Home |
 | **Measure range** | **Shift + drag** | Esc clears |
 
 - The **cursor** is shared by every component: legends, the track-map and GPS-track dots, gauges, inputs, tyres and the Channels list all follow it.
@@ -85,7 +85,7 @@ Smoothing affects only graph traces and their legend values. Discrete channels (
 
 ## Time variance (F3)
 
-The variance pane shows **overlay lap time − reference lap time** along the lap, so rising means the overlay is losing time. Toggle per graph (right-click / Properties) or for the whole sheet (**Δ Variance**, **F3**, **V**). It needs two or more laps.
+The variance pane shows **overlay lap time − reference lap time** along the lap, so rising means the overlay is losing time. Toggle per graph (Properties) or for the whole sheet (**Δ Variance**, **F3**, **V**). It needs two or more laps.
 
 ## Markers, corners and sections
 

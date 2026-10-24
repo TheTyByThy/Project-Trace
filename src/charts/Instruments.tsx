@@ -9,8 +9,8 @@ import { formatValue } from '../core/format';
 import { rangeStats } from '../core/stats';
 import type { ChannelInfo, Session } from '../core/types';
 import { selectedLaps, updateComponent, useStore, type SelectedLap } from '../state/store';
-import type { GaugeDef, GaugesConfig, InputsConfig, TyresConfig } from '../state/workspace';
-import { openChannelPicker, openMenu } from '../ui/overlays';
+import { TYRE_FIELDS, type GaugeDef, type GaugesConfig, type InputsConfig, type TyreField, type TyresConfig } from '../state/workspace';
+import { openChannelPicker } from '../ui/overlays';
 import { chartTheme, prepCanvas, roundRect, useElementSize, useStoreListener } from './canvas';
 import { channelDps, conv } from './data';
 
@@ -42,7 +42,7 @@ function useInstrumentCanvas(draw: (ctx: CanvasRenderingContext2D, w: number, h:
 // Gauges
 // ---------------------------------------------------------------------------------------------
 
-function GaugeCell({ g, onEdit }: { g: GaugeDef; onEdit: (e: React.MouseEvent) => void }) {
+function GaugeCell({ g }: { g: GaugeDef }) {
   const { wrapRef, ref } = useInstrumentCanvas(
     (ctx, w, h) => {
       const T = chartTheme();
@@ -154,7 +154,7 @@ function GaugeCell({ g, onEdit }: { g: GaugeDef; onEdit: (e: React.MouseEvent) =
     [g],
   );
   return (
-    <div ref={wrapRef} style={{ position: 'relative', minHeight: 0, minWidth: 0 }} onContextMenu={onEdit}>
+    <div ref={wrapRef} style={{ position: 'relative', minHeight: 0, minWidth: 0 }}>
       <canvas ref={ref} style={{ position: 'absolute', inset: 0 }} />
     </div>
   );
@@ -162,21 +162,6 @@ function GaugeCell({ g, onEdit }: { g: GaugeDef; onEdit: (e: React.MouseEvent) =
 
 export function GaugesView({ config }: { config: GaugesConfig }) {
   const rows = Math.ceil(config.gauges.length / Math.max(1, config.columns));
-  const edit = (i: number) => (e: React.MouseEvent) => {
-    e.preventDefault();
-    const g = config.gauges[i];
-    const set = (patch: Partial<GaugeDef>) => updateComponent(config.id, { gauges: config.gauges.map((x, k) => (k === i ? { ...x, ...patch } : x)) });
-    openMenu(e, [
-      { header: g.channel },
-      { label: 'Change channel…', onClick: () => openChannelPicker(e, (n) => set({ channel: n, min: undefined, max: undefined })) },
-      { label: 'Dial', checked: g.style === 'dial', onClick: () => set({ style: 'dial' }) },
-      { label: 'Bar', checked: g.style === 'bar', onClick: () => set({ style: 'bar' }) },
-      { label: 'Digital', checked: g.style === 'digital', onClick: () => set({ style: 'digital' }) },
-      { separator: true },
-      { label: 'Remove gauge', onClick: () => updateComponent(config.id, { gauges: config.gauges.filter((_, k) => k !== i) }) },
-      { label: 'Add gauge…', onClick: () => openChannelPicker(e, (n) => updateComponent(config.id, { gauges: [...config.gauges, { channel: n, style: 'digital' }] })) },
-    ]);
-  };
   if (!config.gauges.length)
     return (
       <div className="empty-state">
@@ -199,7 +184,7 @@ export function GaugesView({ config }: { config: GaugesConfig }) {
       }}
     >
       {config.gauges.map((g, i) => (
-        <GaugeCell key={i + g.channel + g.style} g={g} onEdit={edit(i)} />
+        <GaugeCell key={i + g.channel + g.style} g={g} />
       ))}
     </div>
   );
@@ -238,9 +223,13 @@ export function InputsView({ config }: { config: InputsConfig }) {
       // AC logs clutch as engagement (100 = pedal released); show pedal travel instead.
       const clutchInverted = /^clutch pos$/i.test(k.clutch ?? '');
       const bars = [
-        { label: 'THR', role: 'throttle' as const, color: pal[2], invert: false },
-        { label: 'BRK', role: 'brake' as const, color: pal[7], invert: false },
-        { label: 'CLU', role: 'clutch' as const, color: pal[4], invert: clutchInverted },
+        ...(config.showPedals !== false
+          ? [
+              { label: 'THR', role: 'throttle' as const, color: pal[2], invert: false },
+              { label: 'BRK', role: 'brake' as const, color: pal[7], invert: false },
+            ]
+          : []),
+        ...(config.showClutch !== false ? [{ label: 'CLU', role: 'clutch' as const, color: pal[4], invert: clutchInverted }] : []),
       ];
       const pedal = (s: Session, role: 'throttle' | 'brake' | 'clutch', tt: number | null, invert: boolean) => {
         const raw = val(s, s.key[role], tt);
@@ -275,9 +264,10 @@ export function InputsView({ config }: { config: InputsConfig }) {
         ctx.fillText(Number.isFinite(v) ? v.toFixed(0) : '—', x + bw / 2, h - 8);
       });
       // Steering wheel
-      const left = 12 + 3 * (bw + 10) + 10;
+      const left = 12 + bars.length * (bw + 10) + 10;
       const rem = w - left - 10;
-      const r = Math.max(16, Math.min(rem * 0.3, h * 0.36));
+      const showWheel = config.showSteering !== false;
+      const r = showWheel ? Math.max(16, Math.min(rem * 0.3, h * 0.36)) : 0;
       const cx = left + r + 6;
       const cy = h / 2 - 6;
       const steer = val(sel.session, k.steering, t);
@@ -308,15 +298,17 @@ export function InputsView({ config }: { config: InputsConfig }) {
         }
         ctx.restore();
       };
-      // AC reports steering as wheel degrees, positive = left; rotate the drawing to match.
-      drawWheel(-steer, T.text2, false);
-      if (cmp) drawWheel(-val(cmp.session, cmp.session.key.steering, tc), cmp.color, true);
-      ctx.fillStyle = T.text;
-      ctx.textAlign = 'center';
-      ctx.font = T.mono;
-      ctx.fillText(Number.isFinite(steer) ? `${Math.round(steer) || 0}°` : '—', cx, cy + r + 18);
+      if (showWheel) {
+        // AC reports steering as wheel degrees, positive = left; rotate the drawing to match.
+        drawWheel(-steer, T.text2, false);
+        if (cmp) drawWheel(-val(cmp.session, cmp.session.key.steering, tc), cmp.color, true);
+        ctx.fillStyle = T.text;
+        ctx.textAlign = 'center';
+        ctx.font = T.mono;
+        ctx.fillText(Number.isFinite(steer) ? `${Math.round(steer) || 0}°` : '—', cx, cy + r + 18);
+      }
       // Gear / speed / rpm
-      const gx = cx + r + 24;
+      const gx = showWheel ? cx + r + 24 : left;
       const gw = w - gx - 10;
       if (gw > 40) {
         const gear = val(sel.session, k.gear, t);
@@ -328,13 +320,15 @@ export function InputsView({ config }: { config: InputsConfig }) {
         ctx.textAlign = 'center';
         ctx.fillStyle = T.text;
         ctx.font = `700 ${Math.min(h * 0.38, gw * 0.5)}px "SF Mono", Consolas, monospace`;
-        ctx.fillText(Number.isFinite(gear) ? (gear === 0 ? 'N' : gear < 0 ? 'R' : String(Math.round(gear))) : '—', gx + gw / 2, h * 0.32);
-        ctx.font = `600 ${Math.min(22, gw * 0.18)}px "SF Mono", Consolas, monospace`;
-        ctx.fillText(Number.isFinite(speed) ? speed.toFixed(0) : '—', gx + gw / 2, h * 0.62);
-        ctx.font = T.font;
-        ctx.fillStyle = T.text3;
-        ctx.fillText(spc.unit || 'speed', gx + gw / 2, h * 0.62 + 16);
-        if (rpmCh) {
+        if (config.showGear !== false) ctx.fillText(Number.isFinite(gear) ? (gear === 0 ? 'N' : gear < 0 ? 'R' : String(Math.round(gear))) : '—', gx + gw / 2, h * 0.32);
+        if (config.showSpeed !== false) {
+          ctx.font = `600 ${Math.min(22, gw * 0.18)}px "SF Mono", Consolas, monospace`;
+          ctx.fillText(Number.isFinite(speed) ? speed.toFixed(0) : '—', gx + gw / 2, h * 0.62);
+          ctx.font = T.font;
+          ctx.fillStyle = T.text3;
+          ctx.fillText(spc.unit || 'speed', gx + gw / 2, h * 0.62 + 16);
+        }
+        if (rpmCh && config.showRpm !== false) {
           const f = Math.max(0, Math.min(1, rpm / (rpmCh.max || 1)));
           ctx.fillStyle = T.road;
           roundRect(ctx, gx + 4, h - 22, gw - 8, 8, 4);
@@ -347,13 +341,10 @@ export function InputsView({ config }: { config: InputsConfig }) {
         }
       }
     },
-    [config.showCompare],
+    [config.showCompare, config.showPedals, config.showClutch, config.showSteering, config.showGear, config.showSpeed, config.showRpm],
   );
   return (
-    <div ref={wrapRef} className="chart" onContextMenu={(e) => {
-      e.preventDefault();
-      openMenu(e, [{ label: 'Show compare lap', checked: config.showCompare, onClick: () => updateComponent(config.id, { showCompare: !config.showCompare }) }]);
-    }}>
+    <div ref={wrapRef} className="chart">
       <canvas ref={ref} />
     </div>
   );
@@ -368,6 +359,34 @@ const CORNERS = ['FL', 'FR', 'RL', 'RR'] as const;
 function findCh(s: Session, base: string, corner: string): ChannelInfo | undefined {
   for (const b of [base, base.replace('Tire', 'Tyre'), base.replace('Tyre', 'Tire')]) {
     const c = s.channels.get(`${b} ${corner}`);
+    if (c) return c;
+  }
+  return undefined;
+}
+
+/** Text lines the tyre panel can show: label, candidate channel bases (first match wins), decimals. */
+const TYRE_LINES: Partial<Record<TyreField, { label: string; bases: string[]; dps: number }>> = {
+  pressure: { label: 'P', bases: ['Tire Pressure'], dps: 1 },
+  brakeTemp: { label: 'Brk', bases: ['Brake Temp'], dps: 0 },
+  load: { label: 'Load', bases: ['Tire Load'], dps: 0 },
+  slipAngle: { label: 'Slip', bases: ['Tire Slip Angle'], dps: 1 },
+  slipRatio: { label: 'SR', bases: ['Tire Slip Ratio', 'ndSlip'], dps: 2 },
+  wear: { label: 'Wear', bases: ['Tire Wear', 'VirtualKm'], dps: 2 },
+  grip: { label: 'Grip', bases: ['Tire Rubber Grip'], dps: 1 },
+  dirt: { label: 'Dirt', bases: ['Tire Dirt Level'], dps: 1 },
+  grain: { label: 'Grain', bases: ['Tire Grain'], dps: 1 },
+  blister: { label: 'Blist', bases: ['Tire Blister'], dps: 1 },
+  camber: { label: 'Cam', bases: ['Camber'], dps: 2 },
+  travel: { label: 'Trav', bases: ['Suspension Travel', 'Ride Height'], dps: 1 },
+  wheelSpeed: { label: 'ω', bases: ['Wheel Angular Speed'], dps: 0 },
+  latForce: { label: 'Fy', bases: ['Tire Lat Fy'], dps: 0 },
+  longForce: { label: 'Fx', bases: ['Tire Long Fx'], dps: 0 },
+  loadedRadius: { label: 'Rad', bases: ['Tire Loaded Radius'], dps: 3 },
+};
+
+function findAny(s: Session, bases: string[], corner: string): ChannelInfo | undefined {
+  for (const b of bases) {
+    const c = findCh(s, b, corner);
     if (c) return c;
   }
   return undefined;
@@ -410,12 +429,7 @@ export function TyresView({ config }: { config: TyresConfig }) {
       const tyH = Math.min(ch2 * 0.78, tyW * 1.9);
       const leftTyreX = Math.max(6 + textW + 8, w / 2 - tyW - 40);
       const rightTyreX = w - leftTyreX - tyW;
-      const bodyL = leftTyreX + tyW + 18;
-      const bodyR = rightTyreX - 18;
-      ctx.strokeStyle = T.border;
-      ctx.lineWidth = 2;
-      roundRect(ctx, bodyL, 16, Math.max(10, bodyR - bodyL), h - 36, 14);
-      ctx.stroke();
+      const fields = new Set<TyreField>(config.fields ?? TYRE_FIELDS.filter((f) => f.default).map((f) => f.key));
       // Readable ink on top of a ramp colour.
       const inkOn = (rgb: string) => {
         const m = rgb.match(/\d+/g);
@@ -432,9 +446,10 @@ export function TyresView({ config }: { config: TyresConfig }) {
         const zones = ['Inner', 'Middle', 'Outer'].map((z) => findCh(s, `Tire Temp ${z}`, corner));
         // Inner edge faces the car centreline.
         const order = isLeft ? [2, 1, 0] : [0, 1, 2];
+        const showStrips = fields.has('surface');
         order.forEach((zi, k) => {
           const v = read(zones[zi]);
-          ctx.fillStyle = Number.isFinite(v) ? tempColor(v) : T.road;
+          ctx.fillStyle = showStrips && Number.isFinite(v) ? tempColor(v) : T.road;
           const x = bx + (k * tyW) / 3;
           ctx.fillRect(x + (k ? 1 : 0), by, tyW / 3 - (k ? 1 : 0), tyH);
         });
@@ -444,15 +459,16 @@ export function TyresView({ config }: { config: TyresConfig }) {
         ctx.stroke();
         // zone temps
         ctx.font = '10px "SF Mono", Consolas, monospace';
-        order.forEach((zi, k) => {
-          const v = read(zones[zi]);
-          if (!Number.isFinite(v)) return;
-          ctx.fillStyle = inkOn(tempColor(v));
-          ctx.fillText(v.toFixed(0), bx + ((k + 0.5) * tyW) / 3, by + tyH * 0.18);
-        });
+        if (fields.has('surfaceValues'))
+          order.forEach((zi, k) => {
+            const v = read(zones[zi]);
+            if (!Number.isFinite(v)) return;
+            ctx.fillStyle = showStrips ? inkOn(tempColor(v)) : T.text;
+            ctx.fillText(v.toFixed(0), bx + ((k + 0.5) * tyW) / 3, by + tyH * 0.18);
+          });
         const core = findCh(s, 'Tire Temp Core', corner);
         const coreV = read(core);
-        if (Number.isFinite(coreV)) {
+        if (fields.has('core') && Number.isFinite(coreV)) {
           // Core temperature in a small badge so it reads on any strip colour.
           ctx.font = `600 12px "SF Mono", Consolas, monospace`;
           const label = coreV.toFixed(0);
@@ -466,10 +482,12 @@ export function TyresView({ config }: { config: TyresConfig }) {
         // brake disc on the inside
         const brake = findCh(s, 'Brake Temp', corner);
         const bv = read(brake);
-        const dx = isLeft ? bx + tyW + 5 : bx - 11;
-        ctx.fillStyle = Number.isFinite(bv) ? brakeColor(bv) : T.road;
-        roundRect(ctx, dx, by + tyH * 0.2, 6, tyH * 0.6, 3);
-        ctx.fill();
+        if (fields.has('brakeDisc')) {
+          const dx = isLeft ? bx + tyW + 5 : bx - 11;
+          ctx.fillStyle = Number.isFinite(bv) ? brakeColor(bv) : T.road;
+          roundRect(ctx, dx, by + tyH * 0.2, 6, tyH * 0.6, 3);
+          ctx.fill();
+        }
         // text block on the outside
         const tx = isLeft ? bx - 8 : bx + tyW + 8;
         ctx.textAlign = isLeft ? 'right' : 'left';
@@ -477,15 +495,18 @@ export function TyresView({ config }: { config: TyresConfig }) {
         ctx.fillStyle = T.text;
         ctx.fillText(corner, tx, by + 6);
         ctx.font = T.mono;
-        const lines: [string, string][] = [
-          ['P', disp(findCh(s, 'Tire Pressure', corner), read(findCh(s, 'Tire Pressure', corner)), 1)],
-          ['Brk', disp(brake, bv, 0)],
-          ['Load', disp(findCh(s, 'Tire Load', corner), read(findCh(s, 'Tire Load', corner)), 0)],
-          ['Slip', disp(findCh(s, 'Tire Slip Angle', corner), read(findCh(s, 'Tire Slip Angle', corner)), 1)],
-        ];
+        const lines: [string, string][] = [];
+        for (const f of TYRE_FIELDS) {
+          const def = TYRE_LINES[f.key];
+          if (!def || !fields.has(f.key)) continue;
+          const ch = findAny(s, def.bases, corner);
+          lines.push([def.label, disp(ch, read(ch), def.dps)]);
+        }
+        const rowBottom = 10 + (row + 1) * ch2 - 4;
+        const lineH = Math.max(11, Math.min(15, (rowBottom - by - 20) / Math.max(1, lines.length)));
         lines.forEach(([label, v], li) => {
-          const y = by + 24 + li * 15;
-          if (y > by + tyH + 10) return;
+          const y = by + 22 + li * lineH;
+          if (y > rowBottom) return;
           // Value hugs the tyre side; the muted label sits beyond it.
           const vw = ctx.measureText(v).width;
           ctx.fillStyle = T.text;
@@ -495,17 +516,16 @@ export function TyresView({ config }: { config: TyresConfig }) {
         });
         ctx.textAlign = 'center';
       });
-      ctx.font = T.font;
-      ctx.fillStyle = T.text3;
-      ctx.fillText(config.mode === 'cursor' ? 'at cursor · I/M/O surface temps, core in centre' : `lap ${config.mode}`, w / 2, h - 6);
+      if (config.showCaption !== false) {
+        ctx.font = T.font;
+        ctx.fillStyle = T.text3;
+        ctx.fillText(config.mode === 'cursor' ? 'at cursor · I/M/O surface temps, core in centre' : `lap ${config.mode}`, w / 2, h - 6);
+      }
     },
-    [config.mode],
+    [config.mode, config.fields, config.showCaption],
   );
   return (
-    <div ref={wrapRef} className="chart" onContextMenu={(e) => {
-      e.preventDefault();
-      openMenu(e, (['cursor', 'mean', 'max'] as const).map((m) => ({ label: m === 'cursor' ? 'Values at cursor' : `Lap ${m}`, checked: config.mode === m, onClick: () => updateComponent(config.id, { mode: m }) })));
-    }}>
+    <div ref={wrapRef} className="chart">
       <canvas ref={ref} />
     </div>
   );

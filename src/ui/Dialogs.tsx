@@ -1,9 +1,10 @@
 // Settings, keyboard shortcuts and the command palette.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { pt } from '../core/bridge';
 import { buildCommands } from '../actions';
-import { DEFAULT_SETTINGS, setSmoothing, setUi, updateSettings, useStore } from '../state/store';
+import { bindings, comboFromEvent, formatCombo, SHORTCUTS } from '../shortcuts';
+import { DEFAULT_SETTINGS, setSmoothing, setUi, toast, updateSettings, useStore } from '../state/store';
 
 export function SettingsDialog() {
   const s = useStore((st) => st.settings);
@@ -67,7 +68,7 @@ export function SettingsDialog() {
           {row(
             'Reference lap colours',
             seg(s.refColors, [['channel', 'Per channel'], ['lap', 'Single lap colour']], (v) => updateSettings({ refColors: v })),
-            'Overlay laps are always drawn solid in their lap colour. Toggle the reference lap with J.',
+            'Overlay laps are always drawn solid in their lap colour. Toggle the reference lap with J (editable in Keyboard Shortcuts).',
           )}
           {row(
             'Smoothing',
@@ -81,7 +82,7 @@ export function SettingsDialog() {
                 ))}
               </select>
             </div>,
-            'Display-only moving average for graph traces (also in the top bar; S toggles). Reports always use raw data.',
+            'Display-only moving average for graph traces (also in the top bar; S toggles). On by default at 50 ms. Reports always use raw data.',
           )}
           {row(
             'In-game clock',
@@ -108,7 +109,7 @@ export function SettingsDialog() {
             className="btn"
             onClick={() =>
               window.confirm('Reset all settings (not workspaces) to defaults?') &&
-              updateSettings({ ...DEFAULT_SETTINGS, telemetryRoot: s.telemetryRoot, activeWorkspaceId: s.activeWorkspaceId, recent: s.recent })
+              updateSettings({ ...DEFAULT_SETTINGS, telemetryRoot: s.telemetryRoot, activeWorkspaceId: s.activeWorkspaceId, recent: s.recent, trackProfiles: s.trackProfiles, shortcuts: s.shortcuts })
             }
           >
             Reset to defaults
@@ -123,31 +124,10 @@ export function SettingsDialog() {
   );
 }
 
-const SHORTCUTS: [string, string][] = [
-  ['Ctrl/⌘ + O', 'Session browser'],
-  ['Ctrl/⌘ + Shift + O', 'Open CSV files directly'],
-  ['Ctrl/⌘ + K', 'Command palette'],
-  ['Ctrl/⌘ + M', 'Math channel editor'],
-  ['Ctrl/⌘ + ,', 'Settings'],
-  ['Ctrl/⌘ + Z', 'Undo (deleted components, panes, channels, worksheets, layouts…)'],
-  ['Ctrl/⌘ + Y, Ctrl/⌘ + Shift + Z', 'Redo'],
-  ['Ctrl/⌘ + I', 'Properties of the selected component'],
-  ['Ctrl/⌘ + B', 'Toggle sidebar'],
-  ['Ctrl/⌘ + E', 'Export visible data to CSV'],
-  ['Ctrl/⌘ + Shift + S', 'Save screenshot'],
-  ['D', 'Toggle time / distance x-axis'],
-  ['F3 or V', 'Toggle time variance pane'],
-  ['F', 'Fastest lap as reference'],
-  ['W', 'Zoom to the whole reference lap'],
-  ['J', 'Reference lap: channel colours ⇄ single lap colour'],
-  ['S', 'Toggle trace smoothing'],
-  ['↑ / ↓ (also PgUp / PgDn, [ / ])', 'Previous / next lap as reference'],
-  ['← / →', 'Move cursor (Shift = bigger steps)'],
-  ['+ / −', 'Zoom in / out around the cursor'],
-  ['Esc or Home', 'Reset zoom and clear measurement'],
-  ['1 … 9', 'Switch worksheet'],
+/** Mouse gestures (fixed; keyboard shortcuts are editable above them). */
+const MOUSE: [string, string][] = [
   ['Click / drag (graph)', 'Move the cursor (scrub through the data)'],
-  ['Double-click + drag (graph)', 'Zoom to the dragged range'],
+  ['Drag (graph, classic cursor mode)', 'Zoom to the dragged range — the track map and GPS track zoom to it too'],
   ['Drag a pane border (graph)', 'Resize panes'],
   ['Shift + drag (graph)', 'Measure range: min / avg / max / Δ'],
   ['Wheel (graph)', 'Zoom; Shift+wheel or trackpad swipe pans'],
@@ -156,28 +136,122 @@ const SHORTCUTS: [string, string][] = [
   ['Drag the dial ring (track map / GPS track)', 'Rotate the map; Save stores it for the track'],
   ['Double-click (map)', 'Reset map view'],
   ['Click (track map)', 'Move the cursor to that point'],
-  ['Ctrl/⌘ + click (lap)', 'Add / remove overlay lap'],
-  ['Click a selected lap’s colour square', 'Change that lap’s colour'],
-  ['Right-click any component', 'Its options + Properties… / Remove component'],
-  ['Shift + click (lap)', 'Make reference lap'],
+  ['Click a lap', 'Show only that lap · Ctrl/⌘+click adds/removes it · Shift+click makes it the reference'],
+  ['Click a selected lap’s colour square', 'Remove that lap (right-click it to change its colour)'],
+  ['Right-click any component', 'Its main options + Properties… / Maximise / Remove component'],
   ['Drag channel', 'Onto any graph pane, histogram, report, gauge or track map'],
   ['Drag component header', 'Dock elsewhere (edges split, centre swaps)'],
+  ['Ctrl/⌘ + Z · Ctrl/⌘ + Y (Shift+⌘+Z)', 'Undo · redo'],
 ];
+
+function setShortcut(id: string, keys: string[]) {
+  const overrides = { ...useStore.getState().settings.shortcuts };
+  const def = SHORTCUTS.find((d) => d.id === id)!.keys;
+  if (keys.length === def.length && keys.every((k, i) => k === def[i])) delete overrides[id];
+  else overrides[id] = keys;
+  updateSettings({ shortcuts: overrides });
+}
 
 export function ShortcutsDialog() {
   const close = () => setUi({ shortcuts: false });
+  const overrides = useStore((s) => s.settings.shortcuts);
+  const [recording, setRecording] = useState<string | null>(null);
+  const [filter, setFilter] = useState('');
+  const b = bindings(overrides);
+
+  // While recording, the next key combo is captured here (before the app's own shortcut handler).
+  useEffect(() => {
+    if (!recording) return;
+    setUi({ recordingShortcut: true });
+    const onKey = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const combo = comboFromEvent(e);
+      if (!combo) return;
+      if (combo === 'Escape') {
+        setRecording(null);
+        return;
+      }
+      // A combo belongs to one action: take it away from any other action that had it.
+      for (const d of SHORTCUTS)
+        if (d.id !== recording && b[d.id].includes(combo)) {
+          setShortcut(d.id, b[d.id].filter((k) => k !== combo));
+          toast(`${formatCombo(combo)} was removed from “${d.label}”`, 'info', 2500);
+        }
+      if (!b[recording].includes(combo)) setShortcut(recording, [...b[recording], combo]);
+      setRecording(null);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      setUi({ recordingShortcut: false });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recording]);
+
+  const groups = [...new Set(SHORTCUTS.map((d) => d.group))];
+  const q = filter.trim().toLowerCase();
   return (
-    <div className="modal-back" onMouseDown={close}>
-      <div className="modal" style={{ width: 640 }} onMouseDown={(e) => e.stopPropagation()}>
+    <div className="modal-back" onMouseDown={() => !recording && close()}>
+      <div className="modal" style={{ width: 760 }} onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2>Keyboard & mouse</h2>
+          <h2>Keyboard shortcuts</h2>
+          <span className="grow" />
+          <input className="input" style={{ width: 220 }} placeholder="Search actions…" value={filter} onChange={(e) => setFilter(e.target.value)} />
         </div>
         <div className="modal-body">
+          <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
+            Click <b>+ Add</b> and press the keys you want. Click a key to remove it. Each key combo can belong to one action only.
+          </div>
+          {groups.map((g) => {
+            const defs = SHORTCUTS.filter((d) => d.group === g && (!q || d.label.toLowerCase().includes(q)));
+            if (!defs.length) return null;
+            return (
+              <div key={g}>
+                <div className="section-title" style={{ padding: '10px 0 4px' }}>
+                  {g}
+                </div>
+                <table className="grid">
+                  <tbody>
+                    {defs.map((d) => (
+                      <tr key={d.id}>
+                        <td className="l">{d.label}</td>
+                        <td className="l" style={{ width: 330 }}>
+                          <div className="row" style={{ gap: 4, flexWrap: 'wrap' }}>
+                            {b[d.id].map((k) => (
+                              <button key={k} className="kbd shortcut-key" title="Remove this key" onClick={() => setShortcut(d.id, b[d.id].filter((x) => x !== k))}>
+                                {formatCombo(k)} <span className="muted">×</span>
+                              </button>
+                            ))}
+                            {recording === d.id ? (
+                              <span className="kbd recording">Press keys… (Esc cancels)</span>
+                            ) : (
+                              <button className="btn small ghost" onClick={() => setRecording(d.id)}>
+                                + Add
+                              </button>
+                            )}
+                            {overrides[d.id] && (
+                              <button className="btn small ghost" title="Restore the default keys" onClick={() => setShortcut(d.id, d.keys)}>
+                                Reset
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })}
+          <div className="section-title" style={{ padding: '14px 0 4px' }}>
+            Mouse
+          </div>
           <table className="grid">
             <tbody>
-              {SHORTCUTS.map(([k, v]) => (
+              {MOUSE.map(([k, v]) => (
                 <tr key={k}>
-                  <td className="l" style={{ width: 230 }}>
+                  <td className="l" style={{ width: 260 }}>
                     <span className="kbd">{k}</span>
                   </td>
                   <td className="l">{v}</td>
@@ -187,8 +261,12 @@ export function ShortcutsDialog() {
           </table>
         </div>
         <div className="modal-foot">
+          <button className="btn" disabled={!Object.keys(overrides).length} onClick={() => window.confirm('Restore every keyboard shortcut to its default?') && updateSettings({ shortcuts: {} })}>
+            Reset all to defaults
+          </button>
+          <span className="grow" />
           <button className="btn primary" onClick={close}>
-            Close
+            Done
           </button>
         </div>
       </div>

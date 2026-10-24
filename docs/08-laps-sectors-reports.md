@@ -33,7 +33,7 @@ Project-Trace uses the best evidence in the file, in this order:
 | *Whole session* | view the entire outing on a session-time axis |
 | **Clear overlays** | keep only the reference |
 
-**Lap colours**: each selected lap gets a colour that stays with it. **Click a selected lap's coloured square** (or right-click → *Lap colour…*) to choose any colour from the palette, a custom colour picker or a hex value. Overlay laps are drawn in their colour on every graph, map and report; the reference lap uses channel colours or its lap colour (toggle with **J**, see [04](04-time-distance-graph.md#lap-colours)).
+**Lap colours**: each selected lap gets a colour that stays with it. **Right-click a selected lap's coloured square** (or right-click the lap → *Lap colour…*); a plain click on the square removes the lap. The reference is blue and the first comparison lap white by default. The picker offers any colour from the palette, a custom colour picker or a hex value. Overlay laps are drawn in their colour on every graph, map and report; the reference lap uses channel colours or its lap colour (toggle with **J**, see [04](04-time-distance-graph.md#lap-colours)).
 
 The **reference** is what variance, gain/loss maps and corner deltas compare against. It is drawn on top in every chart and listed first in reports. Opening a session selects its fastest valid lap. Opening a *second* session adds its fastest lap as an overlay, so comparing two runs takes one action.
 

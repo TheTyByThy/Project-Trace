@@ -17,8 +17,22 @@ export const CATEGORIES = [
   'Session & Sim',
   'Derived',
   'Math',
-  'Other',
+  'Misc',
 ] as const;
+
+/**
+ * Channel groups in display order. Every channel is listed: anything whose category isn't one of
+ * CATEGORIES (or is uncategorised) goes into "Misc" at the bottom.
+ */
+export function groupByCategory<T>(map: Map<string, T[]>): { cat: string; items: T[] }[] {
+  const known = new Set<string>(CATEGORIES);
+  const misc: T[] = [];
+  for (const [cat, items] of map) if (!known.has(cat)) misc.push(...items);
+  const out = CATEGORIES.filter((c) => c !== 'Misc' && map.has(c)).map((c) => ({ cat: c as string, items: map.get(c)! }));
+  const allMisc = [...(map.get('Misc') ?? []), ...misc];
+  if (allMisc.length) out.push({ cat: 'Misc', items: allMisc });
+  return out;
+}
 
 const RULES: [RegExp, string][] = [
   [/^(throttle|brake pos|clutch|handbrake|steering angle|gear$|steer)/i, 'Driver Inputs'],
@@ -37,7 +51,7 @@ const RULES: [RegExp, string][] = [
 
 export function categorize(name: string): string {
   for (const [re, cat] of RULES) if (re.test(name)) return cat;
-  return 'Other';
+  return 'Misc';
 }
 
 const DISCRETE_RE = /(gear$|^gear|lap number|mode$|map$|flag|active|available|compound|position$|invalid|is charging|num tires|setting|mark$|damage|weather type)/i;

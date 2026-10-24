@@ -11,6 +11,7 @@ export type ComponentType =
   | 'mixture'
   | 'trackmap'
   | 'laps'
+  | 'lapreport'
   | 'channels'
   | 'gauges'
   | 'inputs'
@@ -43,9 +44,17 @@ export interface GraphConfig extends Base {
   showVariance: boolean;
   /** Relative height of the variance pane (same units as pane weights). */
   varianceWeight?: number;
+  /** Marker visibility is shared by every graph in the workspace (toggling one updates all). */
   showSectors: boolean;
   showCorners: boolean;
   yRange: 'full' | 'visible';
+  /** Channel legends with live values (default on). */
+  showLegend?: boolean;
+  /** Horizontal grid lines (default on). */
+  showGrid?: boolean;
+  /** Reference / comparison trace widths in px (defaults 1.5 / 1.2). */
+  refLineWidth?: number;
+  lapLineWidth?: number;
 }
 
 export interface ScatterConfig extends Base {
@@ -103,7 +112,17 @@ export interface TrackMapConfig extends Base {
   showSectors: boolean;
   showCorners: boolean;
   showZoom: boolean;
+  /** Frame the graphs' zoomed range like the GPS track does (default on). */
+  fitToZoom?: boolean;
   lineWidth: number;
+  /** Grey track outline under the coloured line (default on). */
+  showOutline?: boolean;
+  /** Colour key / lap legend along the bottom (default on). */
+  showLegend?: boolean;
+  /** Start / finish tick (default on). */
+  showStartFinish?: boolean;
+  /** Car position dots at the cursor (default on). */
+  showCars?: boolean;
   /** @deprecated rotation now lives in the per-track profile. */
   rotation?: number;
 }
@@ -116,13 +135,36 @@ export interface GpsTrackConfig extends Base {
   fitToZoom: boolean;
   /** Keep the reference car centred when zoomed in. */
   followCursor: boolean;
-  showRoad: boolean;
+  /** @deprecated the approximate track band was removed; only raw car positions are drawn. */
+  showRoad?: boolean;
   showSectors: boolean;
   showCorners: boolean;
+  /** Metric scale bar (default on). */
+  showScale?: boolean;
+  /** Lap legend along the bottom (default on). */
+  showLegend?: boolean;
+  /** Lateral offset of each lap from the reference at the cursor (default on). */
+  showOffsets?: boolean;
 }
 
-export interface LapReportConfig extends Base {
+/** Column switches shared by the Stint Report and the Lap Report (all default on). */
+export interface LapColumns {
+  showDelta?: boolean;
+  showSplits?: boolean;
+  showIdeal?: boolean;
+  showTags?: boolean;
+}
+
+/** Stint report: every lap of every open session. */
+export interface LapReportConfig extends Base, LapColumns {
   type: 'laps';
+  split: 'sectors' | 'sections' | 'none';
+  showStats: boolean;
+}
+
+/** Lap report: only the selected laps (reference and comparisons). */
+export interface SelectedLapReportConfig extends Base, LapColumns {
+  type: 'lapreport';
   split: 'sectors' | 'sections' | 'none';
   showStats: boolean;
 }
@@ -150,11 +192,68 @@ export interface GaugesConfig extends Base {
 export interface InputsConfig extends Base {
   type: 'inputs';
   showCompare: boolean;
+  /** Each part defaults to shown. */
+  showPedals?: boolean;
+  showClutch?: boolean;
+  showSteering?: boolean;
+  showGear?: boolean;
+  showSpeed?: boolean;
+  showRpm?: boolean;
 }
+
+/** Information the tyre panel can show for each wheel. */
+export type TyreField =
+  | 'surface'
+  | 'surfaceValues'
+  | 'core'
+  | 'brakeDisc'
+  | 'pressure'
+  | 'brakeTemp'
+  | 'load'
+  | 'slipAngle'
+  | 'slipRatio'
+  | 'wear'
+  | 'grip'
+  | 'dirt'
+  | 'grain'
+  | 'blister'
+  | 'camber'
+  | 'travel'
+  | 'wheelSpeed'
+  | 'latForce'
+  | 'longForce'
+  | 'loadedRadius';
+
+export const TYRE_FIELDS: { key: TyreField; label: string; default: boolean }[] = [
+  { key: 'surface', label: 'Surface temperature strips (inner / middle / outer)', default: true },
+  { key: 'surfaceValues', label: 'Surface temperature numbers', default: true },
+  { key: 'core', label: 'Core temperature', default: true },
+  { key: 'brakeDisc', label: 'Brake disc (temperature colour)', default: true },
+  { key: 'pressure', label: 'Pressure', default: true },
+  { key: 'brakeTemp', label: 'Brake temperature', default: true },
+  { key: 'load', label: 'Load', default: true },
+  { key: 'slipAngle', label: 'Slip angle', default: true },
+  { key: 'slipRatio', label: 'Slip ratio', default: false },
+  { key: 'wear', label: 'Wear (virtual km)', default: false },
+  { key: 'grip', label: 'Rubber grip', default: false },
+  { key: 'dirt', label: 'Dirt level', default: false },
+  { key: 'grain', label: 'Graining', default: false },
+  { key: 'blister', label: 'Blistering', default: false },
+  { key: 'camber', label: 'Camber', default: false },
+  { key: 'travel', label: 'Suspension travel', default: false },
+  { key: 'wheelSpeed', label: 'Wheel angular speed', default: false },
+  { key: 'latForce', label: 'Lateral force (Fy)', default: false },
+  { key: 'longForce', label: 'Longitudinal force (Fx)', default: false },
+  { key: 'loadedRadius', label: 'Loaded radius', default: false },
+];
 
 export interface TyresConfig extends Base {
   type: 'tyres';
   mode: 'cursor' | 'mean' | 'max';
+  /** Fields to show (undefined = the defaults in TYRE_FIELDS). */
+  fields?: TyreField[];
+  /** Show the footer caption (default on). */
+  showCaption?: boolean;
 }
 
 export interface DetailsConfig extends Base {
@@ -175,6 +274,10 @@ export interface TrendConfig extends Base {
 export interface CornersConfig extends Base {
   type: 'corners';
   metric: 'minSpeed' | 'time' | 'entrySpeed' | 'exitSpeed';
+  /** Rows for the straights between corners (default on). */
+  showStraights?: boolean;
+  /** Corner vs straight time totals (default on). */
+  showTotals?: boolean;
 }
 
 export interface FftConfig extends Base {
@@ -192,6 +295,7 @@ export type ComponentConfig =
   | MixtureConfig
   | TrackMapConfig
   | LapReportConfig
+  | SelectedLapReportConfig
   | ChannelReportConfig
   | GaugesConfig
   | InputsConfig

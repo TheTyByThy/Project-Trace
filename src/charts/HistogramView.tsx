@@ -9,7 +9,6 @@ import { formatValue } from '../core/format';
 import { lapLabel } from '../core/session';
 import { selectedLaps, updateComponent, useStore } from '../state/store';
 import type { HistogramConfig } from '../state/workspace';
-import { openChannelPicker, openMenu, promptText } from '../ui/overlays';
 import { drawAxes, makeAxes, type Axes } from './axes';
 import { BoxZoomLayer, type View } from './BoxZoom';
 import { chartTheme, prepCanvas, useElementSize, useStoreListener } from './canvas';
@@ -222,29 +221,6 @@ export function HistogramView({ config }: { config: HistogramConfig }) {
           viewRef.current = v;
           drawBase();
           drawOverlay();
-        }}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          openMenu(e, [
-            { label: 'Reset zoom', shortcut: 'double-click', onClick: () => ((viewRef.current = null), drawBase(), drawOverlay()) },
-            { label: `Channel: ${config.channel}…`, onClick: () => openChannelPicker(e, (n) => updateComponent(config.id, { channel: n, min: undefined, max: undefined })) },
-            {
-              label: 'Zone boundaries…',
-              onClick: async () => {
-                const s = await promptText('Zone boundaries (comma separated)', config.zones.join(', '));
-                if (s != null)
-                  updateComponent(config.id, {
-                    zones: s
-                      .split(/[,\s]+/)
-                      .map(Number)
-                      .filter(Number.isFinite)
-                      .sort((a, b) => a - b),
-                  });
-              },
-            },
-            { label: 'Cumulative', checked: config.cumulative, onClick: () => updateComponent(config.id, { cumulative: !config.cumulative }) },
-            { label: 'Only zoomed range', checked: config.useZoom, onClick: () => updateComponent(config.id, { useZoom: !config.useZoom }) },
-          ]);
         }}
       />
     </div>

@@ -20,12 +20,13 @@ import {
   setSmoothing,
   setUi,
   setXMode,
-  setZoom,
+  resetView,
   useStore,
 } from '../state/store';
 import { addMenu } from './SheetView';
 import { openMenu, promptText } from './overlays';
 import { toggleVarianceAll } from '../actions';
+import { shortcutHint } from '../shortcuts';
 
 export function Logo({ size = 22 }: { size?: number }) {
   return (
@@ -101,6 +102,8 @@ export function TopBar() {
   const sessions = useStore((s) => s.sessions);
   const xMode = useStore((s) => s.xMode);
   const zoom = useStore((s) => s.zoom);
+  const measure = useStore((s) => s.measure);
+  const shortcuts = useStore((s) => s.settings.shortcuts);
   const ws = useStore((s) => activeWorkspace(s));
   useStore((s) => s.laps);
   useStore((s) => s.refKey);
@@ -149,8 +152,8 @@ export function TopBar() {
       <button className="btn" onClick={toggleVarianceAll} title="Toggle time variance in this worksheet's graphs (F3)">
         Δ Variance
       </button>
-      <button className="btn" disabled={!zoom} onClick={() => setZoom(null)} title="Reset zoom (Esc) · W = whole lap">
-        Reset zoom
+      <button className="btn" disabled={!zoom && !measure} onClick={resetView} title={`Reset view: whole lap, clear measurement (${shortcutHint('reset-view', shortcuts) ?? 'Esc'})`}>
+        Reset view
       </button>
       <button className="btn" onClick={() => openProperties()} title="Properties of the selected component (Ctrl/⌘+I)">
         ☰ Properties
@@ -268,6 +271,7 @@ export function StatusBar() {
   const loading = useStore((s) => s.loading);
   const units = useStore((s) => s.settings.units);
   const refColors = useStore((s) => s.settings.refColors);
+  const shortcuts = useStore((s) => s.settings.shortcuts);
   const version = useStore((s) => s.appInfo?.version);
   useStore((s) => s.laps);
   useStore((s) => s.refKey);
@@ -322,8 +326,8 @@ export function StatusBar() {
         </>
       )}
       <span className="grow" />
-      <span className="muted" title="Toggle with J">
-        ref colours: {refColors === 'channel' ? 'per channel' : 'lap colour'} (J)
+      <span className="muted" title="Reference lap colours — toggle with the shortcut shown">
+        ref colours: {refColors === 'channel' ? 'per channel' : 'lap colour'} ({shortcutHint('toggle-ref-colors', shortcuts) ?? '—'})
       </span>
       <span className="muted">
         {units.speed} · °{units.temperature} · {units.pressure}

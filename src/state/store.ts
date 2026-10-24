@@ -7,7 +7,7 @@ import { lapXRange, timeToX, xToTime } from '../core/axis';
 import { lapColor, type Theme } from '../core/colors';
 import type { TrackCorner } from '../core/corners';
 import { applyMathChannels, type MathChannelDef, type MathConstant } from '../core/math/evaluate';
-import { fastestLap, getLap, lapAtTime, theoreticalBest } from '../core/session';
+import { fastestLap, getLap, theoreticalBest } from '../core/session';
 import { lapKey, parseLapKey, type Lap, type Session, type XMode } from '../core/types';
 import { DEFAULT_UNITS, type UnitPrefs } from '../core/units';
 import { createComponent } from './components';
@@ -52,6 +52,10 @@ export interface Settings {
   /** What double-click / drag-and-drop does when sessions are already open. */
   browserOpenMode: 'add' | 'replace';
   showBrowserOnLaunch: boolean;
+  /** Keyboard shortcut overrides: action id → key combos (see src/shortcuts.ts). Missing = defaults. */
+  shortcuts: Record<string, string[]>;
+  /** Bumped when a default changes in a way existing users should pick up (see initApp). */
+  settingsVersion: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -69,10 +73,12 @@ export const DEFAULT_SETTINGS: Settings = {
   sidebarWidth: 300,
   inspectorWidth: 340,
   refColors: 'channel',
-  smoothing: { enabled: false, seconds: 0.1 },
+  smoothing: { enabled: true, seconds: 0.05 },
   trackSort: 'recent',
   browserOpenMode: 'add',
   showBrowserOnLaunch: true,
+  shortcuts: {},
+  settingsVersion: 2,
 };
 
 export const emptyTrackProfile = (): TrackProfile => ({ rotation: 0, mirror: false, sections: [], corners: [] });
@@ -104,6 +110,8 @@ export interface UiState {
   inspector: boolean;
   trackProfile: boolean;
   sidebarTab: 'laps' | 'channels';
+  /** True while the shortcut editor waits for a key combo (global shortcuts are paused). */
+  recordingShortcut?: boolean;
 }
 
 export interface SessionCacheEntry {
@@ -314,6 +322,26 @@ export function updateSettings(patch: Partial<Settings>) {
   if (patch.units || patch.theme || patch.smoothing || patch.refColors) set((s) => ({ dataVersion: s.dataVersion + 1 }));
 }
 
+/** Show/hide sector & corner markers on every time/distance graph in the workspace at once. */
+export function setGraphMarkers(patch: { showSectors?: boolean; showCorners?: boolean }) {
+  updateWorkspace(
+    (ws) => ({
+      ...ws,
+      worksheets: ws.worksheets.map((sh) => {
+        let changed = false;
+        const components = { ...sh.components };
+        for (const [id, c] of Object.entries(components))
+          if (c.type === 'graph') {
+            components[id] = { ...c, ...patch };
+            changed = true;
+          }
+        return changed ? { ...sh, components } : sh;
+      }),
+    }),
+    { label: 'Graph markers' },
+  );
+}
+
 export function setSmoothing(patch: Partial<Settings['smoothing']>) {
   updateSettings({ smoothing: { ...get().settings.smoothing, ...patch } });
 }
@@ -465,7 +493,11 @@ export async function initApp() {
     ...raw,
     units: { ...DEFAULT_UNITS, ...(raw.units ?? {}) },
     smoothing: { ...DEFAULT_SETTINGS.smoothing, ...(raw.smoothing ?? {}) },
+    shortcuts: { ...(raw.shortcuts ?? {}) },
+    settingsVersion: DEFAULT_SETTINGS.settingsVersion,
   };
+  // v2: smoothing is on by default at 50 ms (older settings files saved it switched off).
+  if ((raw.settingsVersion ?? 1) < 2) settings.smoothing = { ...DEFAULT_SETTINGS.smoothing };
   // Migrate track profiles from older versions (auto-corner renames → manual corners).
   const profiles: Record<string, TrackProfile> = {};
   for (const [venue, p] of Object.entries((raw.trackProfiles ?? {}) as Record<string, Partial<TrackProfile>>)) {
@@ -675,20 +707,9 @@ export function setMeasure(m: [number, number] | null) {
   set({ measure: m });
 }
 
-/** W: show the whole reference lap (or, in whole-session view, the lap under the cursor). */
-export function zoomToLap() {
-  const st = get();
-  const ref = refLap(st);
-  if (!ref) return;
-  if (ref.lap.index === -1) {
-    const t = st.cursor != null ? xToTime(ref.lap, st.cursor, st.xMode) : fastestLap(ref.session)?.start ?? 0;
-    const lap = lapAtTime(ref.session, t);
-    if (lap) setZoom([timeToX(ref.lap, lap.start, st.xMode), timeToX(ref.lap, lap.end, st.xMode)]);
-    return;
-  }
-  const [a, b] = lapXRange(ref.lap, st.xMode);
-  setZoom([a, b]);
-  set({ measure: null });
+/** Reset view (Esc or W): show the whole of the selected laps and clear any range measurement. */
+export function resetView() {
+  set({ zoom: null, measure: null });
 }
 
 export function setXMode(mode: XMode) {

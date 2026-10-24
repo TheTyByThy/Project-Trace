@@ -25,6 +25,7 @@ import {
   openProperties,
   redo,
   renameWorkspace,
+  resetView,
   resetSheetToStarter,
   revertWorkspaceToStarter,
   saveSheetToLibrary,
@@ -32,7 +33,6 @@ import {
   setActiveSheet,
   setActiveWorkspace,
   setCursor,
-  setMeasure,
   setSmoothing,
   setUi,
   setXMode,
@@ -45,8 +45,8 @@ import {
   useStore,
   viewRange,
   xExtent,
-  zoomToLap,
 } from './state/store';
+import { actionForCombo, comboFromEvent, shortcutHint } from './shortcuts';
 import type { GraphConfig } from './state/workspace';
 import { promptText } from './ui/overlays';
 
@@ -127,37 +127,66 @@ export interface Command {
   run: () => void;
 }
 
+/** What each bindable shortcut (src/shortcuts.ts) does. */
+const SHORTCUT_ACTIONS: Record<string, () => void> = {
+  'open-browser': () => setUi({ browser: true }),
+  'open-files': () => handleMenuAction('open-files'),
+  palette: () => setUi({ palette: !useStore.getState().ui.palette }),
+  math: () => setUi({ math: true }),
+  settings: () => setUi({ settings: true }),
+  'export-csv': () => exportVisibleCsv(),
+  screenshot: () => saveScreenshot(),
+  shortcuts: () => setUi({ shortcuts: true }),
+  'toggle-inspector': () => setUi({ inspector: !useStore.getState().ui.inspector }),
+  'toggle-sidebar': () => setUi({ sidebar: !useStore.getState().ui.sidebar }),
+  'toggle-x': () => setXMode(useStore.getState().xMode === 'time' ? 'distance' : 'time'),
+  'toggle-variance': toggleVarianceAll,
+  'toggle-smoothing': toggleSmoothing,
+  'toggle-ref-colors': toggleRefColors,
+  'fastest-lap': fastestAsReference,
+  'prev-lap': () => stepReferenceLap(-1),
+  'next-lap': () => stepReferenceLap(1),
+  'reset-view': resetView,
+  'cursor-left': () => moveCursor(-0.005),
+  'cursor-right': () => moveCursor(0.005),
+  'cursor-left-big': () => moveCursor(-0.05),
+  'cursor-right-big': () => moveCursor(0.05),
+  'zoom-in': () => zoomBy(0.7),
+  'zoom-out': () => zoomBy(1 / 0.7),
+  ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`sheet-${i + 1}`, () => setActiveSheet(i)])),
+};
+
 export function buildCommands(): Command[] {
   const st = useStore.getState();
   const ws = activeWorkspace();
+  const k = (id: string) => shortcutHint(id, st.settings.shortcuts);
   const cmds: Command[] = [
-    { id: 'browser', label: 'Open session browser', hint: 'Ctrl+O', run: () => setUi({ browser: true }) },
+    { id: 'browser', label: 'Open session browser', hint: k('open-browser'), run: () => setUi({ browser: true }) },
     { id: 'props', label: 'Properties pop-out for selected component', run: () => openProperties() },
-    { id: 'insp', label: 'Toggle Properties side panel', hint: 'Ctrl+I', run: () => setUi({ inspector: !useStore.getState().ui.inspector }) },
-    { id: 'math', label: 'Math channels…', hint: 'Ctrl+M', run: () => setUi({ math: true }) },
+    { id: 'insp', label: 'Toggle Properties side panel', hint: k('toggle-inspector'), run: () => setUi({ inspector: !useStore.getState().ui.inspector }) },
+    { id: 'math', label: 'Math channels…', hint: k('math'), run: () => setUi({ math: true }) },
     { id: 'track', label: 'Track profile (corners, sections, rotation)…', run: () => setUi({ trackProfile: true }) },
-    { id: 'settings', label: 'Settings…', hint: 'Ctrl+,', run: () => setUi({ settings: true }) },
-    { id: 'undo', label: 'Undo', hint: 'Ctrl+Z', run: undo },
-    { id: 'redo', label: 'Redo', hint: 'Ctrl+Y', run: redo },
+    { id: 'settings', label: 'Settings…', hint: k('settings'), run: () => setUi({ settings: true }) },
+    { id: 'undo', label: 'Undo', hint: 'Ctrl/⌘+Z', run: undo },
+    { id: 'redo', label: 'Redo', hint: 'Ctrl/⌘+Y', run: redo },
     { id: 'time', label: 'X axis: time', run: () => setXMode('time') },
     { id: 'dist', label: 'X axis: distance', run: () => setXMode('distance') },
-    { id: 'smooth', label: 'Toggle smoothing', hint: 'S', run: toggleSmoothing },
-    { id: 'refcol', label: 'Toggle reference lap colours (channel / lap)', hint: 'J', run: toggleRefColors },
-    { id: 'var', label: 'Toggle time variance', hint: 'F3', run: toggleVarianceAll },
-    { id: 'fast', label: 'Fastest lap as reference', hint: 'F', run: fastestAsReference },
-    { id: 'prev', label: 'Previous lap', hint: '↑', run: () => stepReferenceLap(-1) },
-    { id: 'next', label: 'Next lap', hint: '↓', run: () => stepReferenceLap(1) },
-    { id: 'lap', label: 'Zoom to whole lap', hint: 'W', run: zoomToLap },
-    { id: 'reset', label: 'Reset zoom', hint: 'Esc', run: () => (setZoom(null), setMeasure(null)) },
-    { id: 'csv', label: 'Export visible data to CSV', hint: 'Ctrl+E', run: exportVisibleCsv },
-    { id: 'shot', label: 'Save screenshot', hint: 'Ctrl+Shift+S', run: saveScreenshot },
-    { id: 'sidebar', label: 'Toggle sidebar', hint: 'Ctrl+B', run: () => setUi({ sidebar: !useStore.getState().ui.sidebar }) },
-    { id: 'keys', label: 'Keyboard shortcuts', hint: 'F1', run: () => setUi({ shortcuts: true }) },
+    { id: 'smooth', label: 'Toggle smoothing', hint: k('toggle-smoothing'), run: toggleSmoothing },
+    { id: 'refcol', label: 'Toggle reference lap colours (channel / lap)', hint: k('toggle-ref-colors'), run: toggleRefColors },
+    { id: 'var', label: 'Toggle time variance', hint: k('toggle-variance'), run: toggleVarianceAll },
+    { id: 'fast', label: 'Fastest lap as reference', hint: k('fastest-lap'), run: fastestAsReference },
+    { id: 'prev', label: 'Previous lap', hint: k('prev-lap'), run: () => stepReferenceLap(-1) },
+    { id: 'next', label: 'Next lap', hint: k('next-lap'), run: () => stepReferenceLap(1) },
+    { id: 'reset', label: 'Reset view (whole lap, clear measurement)', hint: k('reset-view'), run: resetView },
+    { id: 'csv', label: 'Export visible data to CSV', hint: k('export-csv'), run: exportVisibleCsv },
+    { id: 'shot', label: 'Save screenshot', hint: k('screenshot'), run: saveScreenshot },
+    { id: 'sidebar', label: 'Toggle sidebar', hint: k('toggle-sidebar'), run: () => setUi({ sidebar: !useStore.getState().ui.sidebar }) },
+    { id: 'keys', label: 'Keyboard shortcuts & shortcut editor', hint: k('shortcuts'), run: () => setUi({ shortcuts: true }) },
     { id: 'sheet-reset', label: 'Reset this worksheet to the Starter version', run: () => resetSheetToStarter(activeWorkspace().activeSheet) },
     { id: 'ws-revert', label: 'Revert this workspace to Starter', run: revertWorkspaceToStarter },
   ];
   st.workspaces.forEach((w) => cmds.push({ id: 'ws' + w.id, label: `Switch workspace: ${w.name}`, run: () => setActiveWorkspace(w.id) }));
-  ws?.worksheets.forEach((sh, i) => cmds.push({ id: 'sheet' + i, label: `Go to worksheet: ${sh.name}`, hint: i < 9 ? String(i + 1) : undefined, run: () => setActiveSheet(i) }));
+  ws?.worksheets.forEach((sh, i) => cmds.push({ id: 'sheet' + i, label: `Go to worksheet: ${sh.name}`, hint: i < 9 ? k(`sheet-${i + 1}`) : undefined, run: () => setActiveSheet(i) }));
   st.library.forEach((l) => cmds.push({ id: 'lib' + l.id, label: `Insert saved worksheet: ${l.name}`, run: () => insertLibrarySheet(l.id) }));
   for (const c of COMPONENT_CATALOG) cmds.push({ id: 'add' + c.type, label: `Add component: ${c.label}`, run: () => addComponent(c.type, useStore.getState().activeComponentId) });
   return cmds;
@@ -170,113 +199,26 @@ function inEditable(target: EventTarget | null) {
 
 export function handleGlobalKey(e: KeyboardEvent) {
   const st = useStore.getState();
-  const mod = e.ctrlKey || e.metaKey;
+  // The shortcut editor is capturing a new key combo.
+  if (st.ui.recordingShortcut) return;
   const anyModal = st.ui.browser || st.ui.math || st.ui.settings || st.ui.palette || st.ui.shortcuts || st.ui.properties || st.ui.trackProfile;
-  if (mod && e.key.toLowerCase() === 'k') {
+  const combo = comboFromEvent(e);
+  if (!combo) return;
+  const action = actionForCombo(combo, st.settings.shortcuts);
+  if (action === 'palette') {
     e.preventDefault();
-    setUi({ palette: !st.ui.palette });
+    SHORTCUT_ACTIONS.palette();
     return;
   }
   if (inEditable(e.target) || anyModal) {
     if (e.key === 'Escape') setUi({ palette: false, shortcuts: false, settings: false, trackProfile: false });
     return;
   }
-  if (mod) {
-    switch (e.key.toLowerCase()) {
-      case 'o':
-        e.preventDefault();
-        setUi({ browser: true });
-        return;
-      case 'm':
-        e.preventDefault();
-        setUi({ math: true });
-        return;
-      case 'b':
-        e.preventDefault();
-        setUi({ sidebar: !st.ui.sidebar });
-        return;
-      case 'i':
-        e.preventDefault();
-        setUi({ inspector: !st.ui.inspector });
-        return;
-      case 'e':
-        e.preventDefault();
-        exportVisibleCsv();
-        return;
-      case ',':
-        e.preventDefault();
-        setUi({ settings: true });
-        return;
-    }
-    return;
-  }
-  switch (e.key) {
-    case 'd':
-    case 'D':
-      setXMode(st.xMode === 'time' ? 'distance' : 'time');
-      break;
-    case 'F3':
-    case 'v':
-    case 'V':
-      e.preventDefault();
-      toggleVarianceAll();
-      break;
-    case 'f':
-    case 'F':
-      fastestAsReference();
-      break;
-    case 'j':
-    case 'J':
-      toggleRefColors();
-      break;
-    case 'w':
-    case 'W':
-      zoomToLap();
-      break;
-    case 's':
-    case 'S':
-      toggleSmoothing();
-      break;
-    case 'ArrowUp':
-    case 'PageUp':
-    case '[':
-      e.preventDefault();
-      stepReferenceLap(-1);
-      break;
-    case 'ArrowDown':
-    case 'PageDown':
-    case ']':
-      e.preventDefault();
-      stepReferenceLap(1);
-      break;
-    case 'ArrowLeft':
-      e.preventDefault();
-      moveCursor(e.shiftKey ? -0.05 : -0.005);
-      break;
-    case 'ArrowRight':
-      e.preventDefault();
-      moveCursor(e.shiftKey ? 0.05 : 0.005);
-      break;
-    case '+':
-    case '=':
-      zoomBy(0.7);
-      break;
-    case '-':
-    case '_':
-      zoomBy(1 / 0.7);
-      break;
-    case 'Escape':
-    case 'Home':
-      setZoom(null);
-      setMeasure(null);
-      break;
-    case 'F1':
-      e.preventDefault();
-      setUi({ shortcuts: true });
-      break;
-    default:
-      if (/^[1-9]$/.test(e.key)) setActiveSheet(Number(e.key) - 1);
-  }
+  if (!action) return;
+  // Always swallow the key: on macOS an unhandled key event is passed on to the native menu, which
+  // would run the same action a second time.
+  e.preventDefault();
+  SHORTCUT_ACTIONS[action]?.();
 }
 
 /** Undo/redo from the Edit menu: text undo inside text fields, otherwise the app's history. */
@@ -329,7 +271,8 @@ export async function handleMenuAction(action: string) {
     case 'toggle-ref-colors':
       return toggleRefColors();
     case 'zoom-lap':
-      return zoomToLap();
+    case 'reset-view':
+      return resetView();
     case 'fastest-lap':
       return fastestAsReference();
     case 'prev-lap':

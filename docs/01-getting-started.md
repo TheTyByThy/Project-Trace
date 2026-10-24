@@ -58,7 +58,7 @@ Then:
 
 1. **Overlay another lap**: in the left sidebar, **Ctrl/⌘ + click** a second lap. It appears in a new colour and the **time variance** pane shows where you gained or lost time.
 2. **Move the cursor**: click on a graph, or click and drag to scrub through the lap. Every legend (with each lap's Δ to the reference), gauge, map dot and the channel list follow.
-3. **Zoom**: double-click and drag across a corner. Press **W** for the whole lap again (or **Esc**).
+3. **Zoom**: double-click and drag across a corner. Press **Esc** or **W** (same action: *Reset view*) for the whole lap again.
 4. **Measure**: hold **Shift** and drag. Each legend shows min / avg / max / Δ over the range.
 5. **Switch axis**: press **D** to toggle between distance and time. Press **J** to switch the reference lap between channel colours and its lap colour.
 6. **Compare lines**: open the **Racing Lines** tab, zoom into a corner and compare the thin GPS lines.

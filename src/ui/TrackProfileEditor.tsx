@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { xToTime } from '../core/axis';
-import { suggestCorners } from '../core/corners';
+import { cornerWindows, suggestCorners, type TrackCorner } from '../core/corners';
 import { prettyTrack } from '../core/format';
 import { lapDistAt } from '../core/session';
 import {
@@ -32,12 +32,38 @@ function NumberInput({ value, onCommit, width = 90 }: { value: number; onCommit:
   return <input className="input num" style={{ width }} value={s} onChange={(e) => setS(e.target.value)} onBlur={commit} onKeyDown={(e) => e.key === 'Enter' && commit()} />;
 }
 
+/** Optional number: empty = automatic (the placeholder shows the automatic value). */
+function OptNumberInput({ value, auto, onCommit, width = 72 }: { value?: number; auto: number; onCommit: (v: number | undefined) => void; width?: number }) {
+  const str = value == null ? '' : String(Math.round(value));
+  const [s, setS] = useState(str);
+  useEffect(() => setS(str), [str]);
+  const commit = () => {
+    const t = s.trim();
+    if (t === '') return onCommit(undefined);
+    const v = Number(t);
+    if (Number.isFinite(v)) onCommit(v);
+    else setS(str);
+  };
+  return (
+    <input
+      className="input num"
+      style={{ width }}
+      value={s}
+      placeholder={`${Math.round(auto)} auto`}
+      onChange={(e) => setS(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => e.key === 'Enter' && commit()}
+    />
+  );
+}
+
 export function TrackProfileEditor() {
   const ref = refLap();
   const venue = ref?.session.meta.venue ?? '';
   useStore((s) => s.settings.trackProfiles[venue]);
   useStore((s) => s.workingRotation[venue]);
   const cursor = useStore((s) => s.cursor);
+  const [advanced, setAdvanced] = useState<boolean | null>(null);
   if (!ref || !venue) return <div className="muted">Open a session to edit its track profile.</div>;
   const prof = trackProfile(venue);
   const rot = trackRotation(venue);
@@ -45,10 +71,18 @@ export function TrackProfileEditor() {
   const st = useStore.getState();
   const cursorDist = cursor != null && ref.lap.index !== -1 ? Math.round(lapDistAt(ref.lap, xToTime(ref.lap, cursor, st.xMode))) : null;
   const tr = prettyTrack(venue);
+  // Advanced mode (exact corner ranges) is on by default once any corner has a range.
+  const showRanges = advanced ?? prof.corners.some((c) => c.start != null || c.end != null);
+  const autoWindows = cornerWindows(
+    prof.corners.map((c) => ({ name: c.name, dist: c.dist })),
+    ref.session.trackLength,
+  );
 
   const editList = (key: 'corners' | 'sections', label: string) => {
-    const items = prof[key];
-    const set = (next: { name: string; dist: number }[], what: string) => setTrackProfile(venue, { [key]: next.slice().sort((a, b) => a.dist - b.dist) }, what);
+    const items: TrackCorner[] = prof[key];
+    const set = (next: TrackCorner[], what: string) => setTrackProfile(venue, { [key]: next.slice().sort((a, b) => a.dist - b.dist) }, what);
+    const ranges = key === 'corners' && showRanges;
+    const autoOf = (c: TrackCorner) => autoWindows.find((w) => w.name === c.name && w.apex === c.dist);
     return (
       <div className="insp-group">
         <div className="row">
@@ -71,15 +105,23 @@ export function TrackProfileEditor() {
           <div className="muted" style={{ fontSize: 12 }}>
             {key === 'corners'
               ? 'No corners yet. Place the cursor at an apex and click “Add at cursor”, or right-click a graph or the track map.'
-              : 'Section splits divide the lap into named parts for the Lap Report’s “Custom sections” columns.'}
+              : 'Splits divide the lap into named parts for the Lap and Stint Reports’ “Custom sections” columns.'}
           </div>
+        )}
+        {key === 'corners' && (
+          <label className="check" title="Set exactly where each corner starts and ends. Everything that isn't a corner counts as a straight in the Corner Report.">
+            <input type="checkbox" checked={showRanges} onChange={(e) => setAdvanced(e.target.checked)} />
+            Advanced: exact start / end distance for each corner
+          </label>
         )}
         {items.length > 0 && (
           <table className="grid">
             <thead>
               <tr>
                 <th className="l">Name</th>
-                <th>Distance (m)</th>
+                {ranges && <th>Start (m)</th>}
+                <th>{ranges ? 'Apex (m)' : 'Distance (m)'}</th>
+                {ranges && <th>End (m)</th>}
                 <th></th>
               </tr>
             </thead>
@@ -93,11 +135,27 @@ export function TrackProfileEditor() {
                       onBlur={(e) => e.target.value.trim() && e.target.value !== c.name && set(items.map((x, k) => (k === i ? { ...x, name: e.target.value.trim() } : x)), 'Rename')}
                     />
                   </td>
+                  {ranges && (
+                    <td>
+                      <OptNumberInput value={c.start} auto={autoOf(c)?.entry ?? c.dist} onCommit={(v) => set(items.map((x, k) => (k === i ? { ...x, start: v } : x)), 'Corner range')} />
+                      <button className="btn small icon" disabled={cursorDist == null} title="Start at the cursor" onClick={() => set(items.map((x, k) => (k === i ? { ...x, start: cursorDist! } : x)), 'Corner range')}>
+                        ⇢
+                      </button>
+                    </td>
+                  )}
                   <td>
-                    <NumberInput value={Math.round(c.dist)} onCommit={(v) => set(items.map((x, k) => (k === i ? { ...x, dist: v } : x)), 'Move')} />
+                    <NumberInput value={Math.round(c.dist)} onCommit={(v) => set(items.map((x, k) => (k === i ? { ...x, dist: v } : x)), 'Move')} width={ranges ? 72 : 90} />
                   </td>
+                  {ranges && (
+                    <td>
+                      <OptNumberInput value={c.end} auto={autoOf(c)?.exit ?? c.dist} onCommit={(v) => set(items.map((x, k) => (k === i ? { ...x, end: v } : x)), 'Corner range')} />
+                      <button className="btn small icon" disabled={cursorDist == null} title="End at the cursor" onClick={() => set(items.map((x, k) => (k === i ? { ...x, end: cursorDist! } : x)), 'Corner range')}>
+                        ⇢
+                      </button>
+                    </td>
+                  )}
                   <td style={{ whiteSpace: 'nowrap' }}>
-                    <button className="btn small" disabled={cursorDist == null} title="Move to the cursor position" onClick={() => set(items.map((x, k) => (k === i ? { ...x, dist: cursorDist! } : x)), 'Move')}>
+                    <button className="btn small" disabled={cursorDist == null} title={ranges ? 'Move the apex to the cursor position' : 'Move to the cursor position'} onClick={() => set(items.map((x, k) => (k === i ? { ...x, dist: cursorDist! } : x)), 'Move')}>
                       ⇢ cursor
                     </button>{' '}
                     <button className="btn small icon" title="Delete" onClick={() => set(items.filter((_, k) => k !== i), 'Delete')}>
@@ -172,8 +230,14 @@ export function TrackProfileEditor() {
           Tip: drag the ring of the dial in the corner of any track map or GPS track to rotate it.
         </div>
       </div>
+      <div className="insp-group">
+        <h4>Corners & splits</h4>
+        <div className="muted" style={{ fontSize: 11 }}>
+          Track markers saved for this circuit. Corners feed the Corner Report; splits add custom section columns to the lap reports.
+        </div>
+      </div>
       {editList('corners', 'Corners')}
-      {editList('sections', 'Section splits')}
+      {editList('sections', 'Splits')}
     </>
   );
 }

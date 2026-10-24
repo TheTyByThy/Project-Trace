@@ -37,7 +37,7 @@ export function buildDefaultWorkspace(name = 'Starter'): Workspace {
               panes: [pane(['Ground Speed'], 1.6), pane(['Throttle Pos', 'Brake Pos'], 1.1), pane(['Gear'], 0.7), pane(['Steering Angle']), pane(['Engine RPM'])],
               showVariance: true,
             } as Partial<ComponentConfig>),
-            split('col', [b.add('trackmap', { title: 'Track map — speed' } as Partial<ComponentConfig>), b.add('laps')], [0.55, 0.45]),
+            split('col', [b.add('trackmap', { title: 'Track map — speed' } as Partial<ComponentConfig>), b.add('lapreport')], [0.55, 0.45]),
           ],
           [0.64, 0.36],
         ),
@@ -61,7 +61,7 @@ export function buildDefaultWorkspace(name = 'Starter'): Workspace {
             split(
               'col',
               [
-                b.add('trackmap', { title: 'Time gained / lost', colorBy: 'delta', ramp: 'diverging' } as Partial<ComponentConfig>),
+                b.add('trackmap', { title: 'Time gained / lost', colorBy: 'delta', ramp: 'gainloss' } as Partial<ComponentConfig>),
                 split('row', [b.add('inputs'), b.add('scatter', { title: 'G-G diagram' } as Partial<ComponentConfig>)], [0.45, 0.55]),
                 b.add('corners'),
               ],
