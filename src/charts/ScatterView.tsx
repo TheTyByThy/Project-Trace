@@ -15,7 +15,7 @@ import type { ScatterConfig } from '../state/workspace';
 import { drawAxes, drawMarker, makeAxes, padRange, type Axes } from './axes';
 import { BoxZoomLayer, type View } from './BoxZoom';
 import { chartTheme, prepCanvas, useElementSize, useStoreListener } from './canvas';
-import { conv, findChannel, lapWindow, sampleGrid } from './data';
+import { channelLabel, conv, findChannel, lapWindow, sampleGrid } from './data';
 
 export function ScatterView({ config }: { config: ScatterConfig }) {
   const [wrapRef, size] = useElementSize<HTMLDivElement>();
@@ -110,7 +110,7 @@ export function ScatterView({ config }: { config: ScatterConfig }) {
     if (viewRef.current) ({ x0, x1, y0, y1 } = viewRef.current);
     const A = makeAxes(rect, x0, x1, y0, y1);
     axesRef.current = A;
-    drawAxes(ctx, T, A, x0, x1, y0, y1, `${config.x}${cx.unit ? ` [${cx.unit}]` : ''}`, `${config.y}${cy.unit ? ` [${cy.unit}]` : ''}`, { zeroLines: true });
+    drawAxes(ctx, T, A, x0, x1, y0, y1, `${channelLabel(config.x)}${cx.unit ? ` [${cx.unit}]` : ''}`, `${channelLabel(config.y)}${cy.unit ? ` [${cy.unit}]` : ''}`, { zeroLines: true });
 
     ctx.save();
     ctx.beginPath();

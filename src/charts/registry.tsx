@@ -1,7 +1,9 @@
 // Maps component types to their views.
 import type { FC } from 'react';
 import type { ComponentConfig, ComponentType } from '../state/workspace';
+import { BarsView } from './BarsView';
 import { ChannelReportView } from './ChannelReportView';
+import { channelLabel } from './data';
 import { CornerReportView } from './CornerReportView';
 import { DetailsView } from './DetailsView';
 import { FftView } from './FftView';
@@ -20,6 +22,7 @@ export const VIEWS: Record<ComponentType, FC<{ config: any }>> = {
   graph: GraphView,
   trackmap: TrackMapView,
   gpstrack: GpsTrackView,
+  bars: BarsView,
   scatter: ScatterView,
   histogram: HistogramView,
   mixture: MixtureView,
@@ -38,15 +41,15 @@ export const VIEWS: Record<ComponentType, FC<{ config: any }>> = {
 export function defaultTitle(c: ComponentConfig): string {
   switch (c.type) {
     case 'graph':
-      return c.panes.map((p) => p.channels[0]).filter(Boolean).slice(0, 3).join(', ') || 'Graph';
+      return c.panes.map((p) => p.channels[0]).filter(Boolean).slice(0, 3).map(channelLabel).join(', ') || 'Graph';
     case 'scatter':
-      return `${c.y} vs ${c.x}`;
+      return `${channelLabel(c.y)} vs ${channelLabel(c.x)}`;
     case 'histogram':
-      return `${c.channel} histogram`;
+      return `${channelLabel(c.channel)} histogram`;
     case 'mixture':
-      return `${c.y} × ${c.x}`;
+      return `${channelLabel(c.y)} × ${channelLabel(c.x)}`;
     case 'trackmap':
-      return c.colorBy === 'lap' ? 'Track map' : c.colorBy === 'delta' ? 'Track map — gain/loss' : `Track map — ${c.colorBy}`;
+      return c.colorBy === 'lap' ? 'Track map' : c.colorBy === 'delta' ? 'Track map — gain/loss' : `Track map — ${channelLabel(c.colorBy)}`;
     case 'laps':
       return 'Stint report';
     case 'lapreport':
@@ -56,7 +59,7 @@ export function defaultTitle(c: ComponentConfig): string {
     case 'corners':
       return 'Corners';
     case 'trend':
-      return c.channel ? `${c.stat} ${c.channel} by lap` : 'Lap times by lap';
+      return c.channel ? `${c.stat} ${channelLabel(c.channel)} by lap` : 'Lap times by lap';
     case 'gauges':
       return 'Gauges';
     case 'inputs':
@@ -64,10 +67,12 @@ export function defaultTitle(c: ComponentConfig): string {
     case 'tyres':
       return 'Tyres & brakes';
     case 'fft':
-      return `${c.channel} spectrum`;
+      return `${channelLabel(c.channel)} spectrum`;
     case 'details':
       return 'Session & setup';
     case 'gpstrack':
       return 'GPS track — racing lines';
+    case 'bars':
+      return c.rows.map((r) => r.label || channelLabel(r.channel)).slice(0, 3).join(', ') || 'Bars';
   }
 }

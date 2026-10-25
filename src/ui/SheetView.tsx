@@ -1,12 +1,13 @@
 // Worksheet: a resizable split-tree of component frames. Drag a frame's header onto another frame
 // to dock it (edges split, centre swaps). Drag the gaps between frames to resize.
 
-import { Component, useRef, useState, type ReactNode } from 'react';
+import { Component, useEffect, useRef, useState, type ReactNode } from 'react';
 import { COMPONENT_CATALOG } from '../state/components';
 import type { DropZone } from '../state/layout';
 import { activeSheet, addComponent, moveComponentTo, openProperties, removeComponentById, setSplitSizes, useStore } from '../state/store';
 import type { ComponentConfig, LayoutNode, Worksheet } from '../state/workspace';
 import { defaultTitle, VIEWS } from '../charts/registry';
+import { keyHint } from '../shortcuts';
 import { openMenu, useOverlay, type MenuItem } from './overlays';
 
 class ErrorBoundary extends Component<{ children: ReactNode; label: string }, { error: Error | null }> {
@@ -71,8 +72,8 @@ function ComponentFrame({ config, maximized, onMaximize }: { config: ComponentCo
   const meta = COMPONENT_CATALOG.find((m) => m.type === config.type);
   // Items every component offers on right-click (appended to the component's own short menu).
   const frameItems = (): MenuItem[] => [
-    { label: 'Properties…', onClick: () => openProperties(config.id) },
-    { label: maximized ? 'Restore' : 'Maximise', shortcut: 'double-click header', onClick: onMaximize },
+    { label: 'Properties…', shortcut: keyHint('open-properties'), onClick: () => openProperties(config.id) },
+    { label: maximized ? 'Restore' : 'Maximise', shortcut: keyHint('maximise') ?? 'double-click header', onClick: onMaximize },
     { label: 'Remove component', onClick: () => removeComponentById(config.id) },
   ];
   return (
@@ -254,6 +255,12 @@ function NodeView({ node, sheet, maximized, setMax }: { node: LayoutNode; sheet:
 export function SheetView() {
   const sheet = useStore((s) => activeSheet(s));
   const [maximized, setMax] = useState<string | null>(null);
+  // "Maximise / restore the selected component" shortcut.
+  useEffect(() => {
+    const h = () => setMax((m) => (m ? null : useStore.getState().activeComponentId));
+    window.addEventListener('pt-maximise', h);
+    return () => window.removeEventListener('pt-maximise', h);
+  }, []);
   if (!sheet) return null;
   if (!sheet.layout)
     return (

@@ -24,6 +24,17 @@ Open the editor with **ƒx Math** in the top bar or **Ctrl/⌘ + M**.
 
 Math channels and constants are stored **in the workspace**.
 
+### Renaming a math channel
+
+Change its **name** and **Apply**: everything that used the old name is updated to the new one in the same step. That covers:
+- every graph pane, including hidden channels;
+- scatter X / Y / colour / gate;
+- histograms, mixture maps, track-map colouring, Channel Report lists, gauges, Lap Trend and FFT;
+- its channel properties (colour, ranges, display name);
+- **other math expressions** that refer to it. A new name with spaces is written quoted, e.g. `'Coasting %'`.
+
+A notice lists the renames, and **Ctrl/⌘ + Z** undoes the whole thing. To change only how a channel is *shown*, without touching expressions, give it a **display name** instead (see [03](03-workspaces-and-layout.md#renaming-channels)).
+
 ## Syntax
 
 | Element | Example | Notes |

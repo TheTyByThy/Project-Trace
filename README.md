@@ -10,6 +10,7 @@ Runs on <b>Windows</b> and <b>macOS</b>. Free, offline, no account.</p>
 Project-Trace is a desktop data-analysis tool modelled on MoTeC i2 Pro. Point it at your Telemetrick export folder, pick a track, pick a session, and you get MoTeC's core tools:
 
 - time/distance graphs with lap overlays and time variance
+- **bars** strips under the graphs: filled bars where a flag or condition (e.g. Brake Pos > 5) is true
 - track maps and GPS racing-line comparison
 - scatter plots, histograms and mixture maps
 - math channels
@@ -20,8 +21,41 @@ It reads the CSV files Telemetrick writes, and also opens Telemetrick's MoTeC `.
 
 ---
 
+## Make it a real app (Mac `.app` / Windows `.exe`)
+
+Build a proper, double-clickable **Project-Trace** app with its own name and icon, to install yourself or share with others. You need **Node.js LTS** (<https://nodejs.org>) and this folder. Open a terminal in the folder and run `npm install` once.
+
+**macOS** (build on a Mac):
+
+```bash
+npm run dist:mac
+```
+
+1. When it finishes, open the `release/` folder and double-click the **`.dmg`**.
+2. Drag **Project-Trace** into **Applications**.
+3. The first time you open it, **right-click → Open → Open**. The app isn't signed with an Apple developer certificate, so macOS asks once. If it says the app *"is damaged"* or *"can't be opened"*, go to **System Settings → Privacy & Security → Open Anyway**.
+
+To share it, send the `.dmg` (or the `.zip`). It is built for your Mac's chip type (Apple silicon or Intel).
+
+**Windows** (build on a Windows PC):
+
+```bash
+npm run dist:win
+```
+
+1. Open the `release\` folder and run **`Project-Trace Setup <version>.exe`** to install. The installer adds Start-menu and desktop shortcuts.
+2. Or use the portable **`.zip`**: unzip it and run `Project-Trace.exe`, with no install needed.
+3. If Windows shows *"Windows protected your PC"*, click **More info → Run anyway**. This appears because the app isn't code-signed.
+
+**No Windows PC (or Mac)?** Push this repo to GitHub, open **Actions → Build installers → Run workflow**, and download both installers from the finished run's *Artifacts*. See [Building installers](#building-installers-exe--dmg).
+
+Your settings, track profiles and workspaces are shared between the installed app and the `Start Project-Trace` launchers.
+
+---
+
 ## Contents
 
+- [Make it a real app](#make-it-a-real-app-mac-app--windows-exe)
 - [Quick start](#quick-start)
 - [What you can do](#what-you-can-do): a tour of every feature
 - [Default workspaces](#default-workspaces)
@@ -148,7 +182,7 @@ No telemetry yet? Click **Bundled sample session** to explore a 6-lap Singapore 
 ### Properties: everything in one pop-out
 ![Properties pop-out](docs/images/properties-graph.png)
 
-Edit any component in the docked **Properties side panel** (hidden at launch; toggle with Ctrl/⌘+I), or right-click it → **Properties…** (or **☰ Properties** in the top bar) for a large centred pop-out with a switcher for every component on the worksheet. Graphs list each pane's channels in detail (colour, unit, rate, range), and each channel has a **Properties…** button and a right-click menu for colour (palette or any custom colour), fixed range, decimals and unit. Right-clicking any component also offers **Remove component** directly.
+Edit any component in the docked **Properties side panel** (hidden at launch; toggle with Ctrl/⌘+I), or right-click it → **Properties…** (or **☰ Properties** in the top bar) for a large centred pop-out with a switcher for every component on the worksheet. Graphs list each pane's channels in detail (colour, unit, rate, range), and each channel has a **Properties…** button and a right-click menu for **renaming**, colour (palette or any custom colour), fixed range, decimals and unit. Renamed channels show your name everywhere while math and layouts keep using the logged name. Right-clicking any component also offers **Remove component** directly.
 
 ### Workspaces, worksheets, undo
 - **Workspace** and **Worksheet** menus in the menu bar (next to File, Edit, Analysis):

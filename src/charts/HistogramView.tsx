@@ -12,7 +12,7 @@ import type { HistogramConfig } from '../state/workspace';
 import { drawAxes, makeAxes, type Axes } from './axes';
 import { BoxZoomLayer, type View } from './BoxZoom';
 import { chartTheme, prepCanvas, useElementSize, useStoreListener } from './canvas';
-import { channelDps, conv, findChannel, lapWindow } from './data';
+import { channelDps, channelLabel, conv, findChannel, lapWindow } from './data';
 
 function zoneLabel(zones: number[], i: number, dps: number) {
   const f = (v: number) => formatValue(v, dps);
@@ -130,7 +130,7 @@ export function HistogramView({ config }: { config: HistogramConfig }) {
     const rect = { x: 50, y: 10 + tableH, w: Math.max(10, w - 50 - 12), h: Math.max(10, h - 10 - 40 - tableH) };
     const A = makeAxes(rect, lo, hi, yMin, yMax);
     axesRef.current = A;
-    drawAxes(ctx, T, A, lo, hi, yMin, yMax, `${config.channel}${cv.unit ? ` [${cv.unit}]` : ''}`, config.cumulative ? 'cumulative % time' : '% time');
+    drawAxes(ctx, T, A, lo, hi, yMin, yMax, `${channelLabel(config.channel)}${cv.unit ? ` [${cv.unit}]` : ''}`, config.cumulative ? 'cumulative % time' : '% time');
     ctx.save();
     ctx.beginPath();
     ctx.rect(rect.x, rect.y, rect.w, rect.h);
@@ -269,7 +269,7 @@ export function HistogramView({ config }: { config: HistogramConfig }) {
     if (Math.abs(B.bw - 1) < 1e-9 && Math.abs(c - Math.round(c)) < 1e-9) {
       const n = Math.round(c);
       const gear = /gear/i.test(config.channel);
-      return `${config.channel} ${gear && n === 0 ? 'N' : gear && n < 0 ? 'R' : n}`;
+      return `${channelLabel(config.channel)} ${gear && n === 0 ? 'N' : gear && n < 0 ? 'R' : n}`;
     }
     return `${f(a)} – ${f(a + B.bw)}${B.unit ? ` ${B.unit}` : ''}`;
   };

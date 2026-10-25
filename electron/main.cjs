@@ -118,6 +118,9 @@ function createWindow() {
     backgroundColor: '#0f1216',
     title: 'Project-Trace',
     icon: fs.existsSync(ICON_PATH) ? ICON_PATH : undefined,
+    // macOS: no separate title bar — the traffic-light buttons sit inside the app's own header
+    // (which is the drag area; see .topbar in styles.css).
+    ...(process.platform === 'darwin' ? { titleBarStyle: 'hidden', trafficLightPosition: { x: 16, y: 16 } } : {}),
     show: !SCREENSHOT_DIR,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -127,6 +130,11 @@ function createWindow() {
       backgroundThrottling: false,
     },
   });
+
+  // In full screen macOS hides the traffic lights, so the header can drop the space it keeps for them.
+  const sendFullscreen = () => mainWindow && mainWindow.webContents.send('window:fullscreen', mainWindow.isFullScreen());
+  mainWindow.on('enter-full-screen', sendFullscreen);
+  mainWindow.on('leave-full-screen', sendFullscreen);
 
   if (IS_DEV) mainWindow.loadURL(process.env.PT_DEV_URL);
   else mainWindow.loadURL('app://bundle/index.html');
@@ -158,7 +166,7 @@ function sendMenu(action) {
 }
 
 // The renderer pushes the data needed for the dynamic menus (workspaces, saved worksheets…).
-let menuState = { workspaces: [], activeWorkspaceId: '', library: [], refColors: 'channel', smoothing: false, shortcuts: {} };
+let menuState = { workspaces: [], activeWorkspaceId: '', library: [], refColors: 'channel', smoothing: false, shortcuts: {}, theme: 'dark' };
 
 /**
  * Menu accelerator for a renderer shortcut (the user can rebind them). The renderer handles the key
@@ -298,6 +306,16 @@ function buildMenu() {
         { label: 'Toggle Properties Panel', ...acc('toggle-inspector'), click: () => sendMenu('toggle-inspector') },
         { label: 'Command Palette…', ...acc('palette'), click: () => sendMenu('palette') },
         { label: 'Toggle Sidebar', ...acc('toggle-sidebar'), click: () => sendMenu('toggle-sidebar') },
+        { type: 'separator' },
+        {
+          label: 'Theme',
+          submenu: [
+            { label: 'Dark', type: 'radio', checked: s.theme !== 'light', click: () => sendMenu('theme:dark') },
+            { label: 'Light', type: 'radio', checked: s.theme === 'light', click: () => sendMenu('theme:light') },
+            { type: 'separator' },
+            { label: 'Toggle Dark / Light', ...acc('toggle-theme'), click: () => sendMenu('toggle-theme') },
+          ],
+        },
         { type: 'separator' },
         { role: 'reload' },
         { role: 'toggleDevTools' },

@@ -12,7 +12,7 @@ import { selectedLaps, updateComponent, useStore, type SelectedLap } from '../st
 import { TYRE_FIELDS, type GaugeDef, type GaugesConfig, type InputsConfig, type TyreField, type TyresConfig } from '../state/workspace';
 import { openChannelPicker } from '../ui/overlays';
 import { chartTheme, prepCanvas, roundRect, useElementSize, useStoreListener } from './canvas';
-import { channelDps, conv } from './data';
+import { channelDps, channelLabel, conv } from './data';
 
 function cursorTime(sel: SelectedLap | undefined): number | null {
   const st = useStore.getState();
@@ -59,7 +59,7 @@ function GaugeCell({ g }: { g: GaugeDef }) {
       const color = CATEGORICAL[useStore.getState().settings.theme][0];
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'center';
-      const label = `${g.channel}${c.unit ? ` [${c.unit}]` : ''}`;
+      const label = `${channelLabel(g.channel)}${c.unit ? ` [${c.unit}]` : ''}`;
       const others = laps.slice(1, 4).map((l) => {
         const cc = l.session.channels.get(g.channel);
         const tt = cursorTime(l);

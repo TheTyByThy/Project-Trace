@@ -20,7 +20,8 @@ export type ComponentType =
   | 'trend'
   | 'corners'
   | 'fft'
-  | 'gpstrack';
+  | 'gpstrack'
+  | 'bars';
 
 export interface GraphPane {
   id: string;
@@ -31,6 +32,8 @@ export interface GraphPane {
   /** Optional fixed range for shared scale. */
   min?: number;
   max?: number;
+  /** Channels kept in the pane but not drawn (toggled from the legend or Properties). */
+  hidden?: string[];
 }
 
 interface Base {
@@ -55,6 +58,36 @@ export interface GraphConfig extends Base {
   /** Reference / comparison trace widths in px (defaults 1.5 / 1.2). */
   refLineWidth?: number;
   lapLineWidth?: number;
+}
+
+/** A condition drawn as a filled bar wherever it holds (Bars component). */
+export interface BarRow {
+  id: string;
+  channel: string;
+  /** 'nonzero' = true wherever the channel isn't 0 (boolean / flag channels). */
+  op: 'nonzero' | 'eq' | 'ne' | 'gt' | 'ge' | 'lt' | 'le' | 'between';
+  /** Threshold in the channel's display units. */
+  value: number;
+  /** Upper bound for 'between'. */
+  value2?: number;
+  /** Bar colour for the reference lap (comparison laps use their lap colour). */
+  color?: string;
+  label?: string;
+}
+
+/** Bars: like a time/distance graph, but each row is a filled bar where a condition is true. */
+export interface BarsConfig extends Base {
+  type: 'bars';
+  rows: BarRow[];
+  /** 'all' = one thin lane per selected lap; 'ref' = the reference lap only. */
+  laps: 'all' | 'ref';
+  /** All rows in one: where several conditions hold at once, the earliest row in the list wins. */
+  combined?: boolean;
+  showLabels: boolean;
+  /** X-axis labels along the bottom (off by default, so it sits seamlessly under a graph). */
+  showAxis: boolean;
+  showSectors: boolean;
+  showCorners: boolean;
 }
 
 export interface ScatterConfig extends Base {
@@ -123,6 +156,8 @@ export interface TrackMapConfig extends Base {
   showStartFinish?: boolean;
   /** Car position dots at the cursor (default on). */
   showCars?: boolean;
+  /** Gain/loss colouring: the comparison lap (lap key) compared with the reference; missing = the first one. */
+  compareKey?: string;
   /** Gain/loss colouring: higher = smaller differences reach full colour (default 1). */
   deltaSensitivity?: number;
   /** Gain/loss colouring: distance the rate of gain/loss is averaged over, in metres (default 32). */
@@ -310,7 +345,8 @@ export type ComponentConfig =
   | TrendConfig
   | CornersConfig
   | FftConfig
-  | GpsTrackConfig;
+  | GpsTrackConfig
+  | BarsConfig;
 
 export type LayoutNode =
   | { kind: 'split'; id: string; dir: 'row' | 'col'; children: LayoutNode[]; sizes: number[] }
@@ -324,6 +360,8 @@ export interface Worksheet {
 }
 
 export interface ChannelProps {
+  /** Display name shown everywhere instead of the logged name (graphs and math still use the logged name). */
+  label?: string;
   color?: string;
   min?: number;
   max?: number;

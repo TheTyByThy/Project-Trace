@@ -7,7 +7,7 @@ import { rangeStats } from '../core/stats';
 import { selectedLaps, updateComponent, useStore } from '../state/store';
 import type { ChannelReportConfig } from '../state/workspace';
 import { openChannelPicker } from '../ui/overlays';
-import { channelDps, conv, lapWindow } from './data';
+import { channelDps, channelLabel, conv, lapWindow } from './data';
 
 const STAT_LABEL = { min: 'Min', max: 'Max', mean: 'Avg', std: 'Std', first: 'Start', last: 'End' } as const;
 
@@ -58,7 +58,7 @@ export function ChannelReportView({ config }: { config: ChannelReportConfig }) {
             return (
               <tr key={name}>
                 <td className="l">
-                  {name} {unit && <span className="muted">[{unit}]</span>}
+                  {channelLabel(name)} {unit && <span className="muted">[{unit}]</span>}
                 </td>
                 {laps.map((l) => {
                   const ch = l.session.channels.get(name);

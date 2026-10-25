@@ -4,6 +4,7 @@ import { uid, type ComponentConfig, type ComponentType, type GraphPane } from '.
 
 export const COMPONENT_CATALOG: { type: ComponentType; label: string; icon: string; description: string }[] = [
   { type: 'graph', label: 'Time / Distance Graph', icon: '〰', description: 'Multi-channel traces against time or distance with lap overlays, variance and cursor.' },
+  { type: 'bars', label: 'Bars', icon: '▬', description: 'Filled bars where a condition is true (flags, or channel = / > / < a value), aligned with the graphs — place it under a time/distance graph.' },
   { type: 'trackmap', label: 'Track Map', icon: '◎', description: 'Track outline from car coordinates or GPS, coloured by any channel or time gain/loss.' },
   { type: 'gpstrack', label: 'GPS Track', icon: '⌇', description: 'Thin racing lines for every selected lap — compare the lines you drove, corner by corner.' },
   { type: 'scatter', label: 'Scatter / XY Plot', icon: '⁘', description: 'Any channel against any other, coloured by lap or a third channel, with curve fits.' },
@@ -36,6 +37,21 @@ export function createComponent(type: ComponentType, patch: Partial<ComponentCon
         showSectors: true,
         showCorners: false,
         yRange: 'full',
+      };
+      break;
+    case 'bars':
+      c = {
+        id,
+        type,
+        rows: [
+          { id: uid('r'), channel: 'Brake Pos', op: 'gt', value: 5, label: 'Braking', color: '#e66767' },
+          { id: uid('r'), channel: 'Throttle Pos', op: 'ge', value: 98, label: 'Full throttle', color: '#199e70' },
+        ],
+        laps: 'all',
+        showLabels: true,
+        showAxis: false,
+        showSectors: true,
+        showCorners: false,
       };
       break;
     case 'scatter':

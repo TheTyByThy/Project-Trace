@@ -10,10 +10,8 @@ import { formatValue } from '../core/format';
 import { crossingTime, lapDistAt, lapLabel } from '../core/session';
 import {
   activeWorkspace,
-  addCorner,
   selectedLaps,
   setCursor,
-  setTrackProfile,
   toggleDatum,
   trackProfile,
   trackRotation,
@@ -22,10 +20,11 @@ import {
   type SelectedLap,
 } from '../state/store';
 import type { TrackMapConfig } from '../state/workspace';
+import { markAtCursor } from '../actions';
 import { keyHint } from '../shortcuts';
-import { openMenu, promptText, type MenuItem } from '../ui/overlays';
+import { openMenu, type MenuItem } from '../ui/overlays';
 import { chartTheme, prepCanvas, useElementSize, useStoreListener } from './canvas';
-import { channelDps, conv, lapRange } from './data';
+import { channelDps, channelLabel, conv, lapRange } from './data';
 import { RotationDial } from './RotationDial';
 import { lapPath, makeProjector, positionAt, type LapPath } from './trackGeo';
 
@@ -36,6 +35,8 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
   const viewRef = useRef({ scale: 1, ox: 0, oy: 0 });
   const lastZoomRef = useRef('');
   const xfRef = useRef<{ toScreen: (x: number, y: number) => [number, number]; ref: SelectedLap; path: LapPath } | null>(null);
+  /** Screen box of the gain/loss legend's lap switch (only when there are several comparison laps). */
+  const legendHitRef = useRef<{ x0: number; x1: number; y0: number; y1: number } | null>(null);
   const dragRef = useRef<{ x: number; y: number; ox: number; oy: number; moved: boolean } | null>(null);
 
   const sessions = useStore((s) => s.sessions);
@@ -60,6 +61,7 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
     const laps = selectedLaps(st);
     const ref = laps[0];
     xfRef.current = null;
+    legendHitRef.current = null;
     ctx.font = T.font;
     ctx.textBaseline = 'middle';
     const msg = (m: string) => {
@@ -157,7 +159,7 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
       hi = 1;
     let rampName: RampName = config.ramp;
     if (config.colorBy === 'delta' && laps.length > 1) {
-      const cmp = laps[1];
+      const cmp = compareLap(laps, config.compareKey);
       const vr = computeVariance(ref.lap, cmp.lap, 2);
       const m = vr.dist.length;
       const rate = new Float64Array(m);
@@ -190,7 +192,7 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
         if (props?.min != null) lo = props.min;
         if (props?.max != null) hi = props.max;
         const dps = channelDps(ch);
-        legend = { kind: 'ramp', label: `${ch.name}${c.unit ? ` [${c.unit}]` : ''}`, min: formatValue(lo, dps), max: formatValue(hi, dps), ramp: rampName };
+        legend = { kind: 'ramp', label: `${channelLabel(ch.name)}${c.unit ? ` [${c.unit}]` : ''}`, min: formatValue(lo, dps), max: formatValue(hi, dps), ramp: rampName };
       }
     }
 
@@ -354,6 +356,7 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
           ctx.strokeRect(x + 0.5, ly - 5.5, 21, 11);
           x += 28;
         };
+        const bx0 = x;
         block(legend.cmp.color);
         ctx.fillStyle = T.text2;
         ctx.fillText('vs', x, ly);
@@ -361,6 +364,14 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
         block(ref.color);
         ctx.fillStyle = T.text2;
         ctx.fillText('reference', x, ly);
+        x += ctx.measureText('reference').width;
+        // With several comparison laps the comparison block is a switch (click to pick another lap).
+        if (laps.length > 2) {
+          ctx.fillStyle = T.text3;
+          ctx.fillText('  (click to change lap)', x, ly);
+          x += ctx.measureText('  (click to change lap)').width;
+          legendHitRef.current = { x0: bx0 - 4, x1: x + 4, y0: ly - 10, y1: ly + 10 };
+        }
       }
     } else if (legend?.kind === 'laps') {
       let x = 10;
@@ -456,9 +467,25 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
     if (best < 40 * 40) setCursor(timeToX(xf.ref.lap, xf.path.t[bi], useStore.getState().xMode));
   };
 
+  /** Items to pick which comparison lap the gain/loss colouring uses. */
+  const compareItems = (): MenuItem[] => {
+    const laps = selectedLaps();
+    if (config.colorBy !== 'delta' || laps.length < 3) return [];
+    const cur = compareLap(laps, config.compareKey);
+    return [
+      { header: 'Compare with the reference' },
+      ...laps.slice(1).map((l) => ({
+        label: lapLabel(l.lap) + (l.session !== laps[0].session ? ` · ${l.session.meta.driver || l.session.fileName}` : ''),
+        checked: l.key === cur.key,
+        onClick: () => updateComponent(config.id, { compareKey: l.key }, 'Compare lap'),
+      })),
+      { separator: true },
+    ];
+  };
+
   const onContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    openMenu(e, trackMapMenuItems(venue, config.id, { showSectors: config.showSectors, showCorners: config.showCorners }));
+    openMenu(e, [...compareItems(), ...trackMapMenuItems(venue, config.id, { showSectors: config.showSectors, showCorners: config.showCorners })]);
   };
 
   return (
@@ -481,12 +508,30 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
         style={{ cursor: 'grab', touchAction: 'none' }}
         onPointerDown={(e) => {
           if (e.button !== 0) return;
+          // The gain/loss legend's lap switch.
+          const hb = legendHitRef.current;
+          if (hb) {
+            const r = overRef.current!.getBoundingClientRect();
+            const x = e.clientX - r.left;
+            const y = e.clientY - r.top;
+            if (x >= hb.x0 && x <= hb.x1 && y >= hb.y0 && y <= hb.y1) {
+              openMenu(e, compareItems().filter((it) => !it.separator));
+              return;
+            }
+          }
           (e.target as HTMLElement).setPointerCapture(e.pointerId);
           dragRef.current = { x: e.clientX, y: e.clientY, ox: viewRef.current.ox, oy: viewRef.current.oy, moved: false };
         }}
         onPointerMove={(e) => {
           const d = dragRef.current;
-          if (!d) return;
+          if (!d) {
+            const hb = legendHitRef.current;
+            const r = overRef.current!.getBoundingClientRect();
+            const x = e.clientX - r.left;
+            const y = e.clientY - r.top;
+            overRef.current!.style.cursor = hb && x >= hb.x0 && x <= hb.x1 && y >= hb.y0 && y <= hb.y1 ? 'pointer' : 'grab';
+            return;
+          }
           if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 4) d.moved = true;
           if (d.moved) {
             viewRef.current.ox = d.ox + e.clientX - d.x;
@@ -510,13 +555,16 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
   );
 }
 
+/** The comparison lap a gain/loss map uses: the chosen one if it's still selected, else the first. */
+export function compareLap(laps: SelectedLap[], key: string | undefined): SelectedLap {
+  return laps.slice(1).find((l) => l.key === key) ?? laps[1];
+}
+
 /** Context-menu items shared by the Track Map and GPS Track (kept short; the rest is in Properties). */
 export function trackMapMenuItems(venue: string, componentId: string, flags: { showSectors: boolean; showCorners: boolean }): MenuItem[] {
   const st = useStore.getState();
   const ref = selectedLaps(st)[0];
-  const prof = trackProfile(venue);
   const canMark = !!ref && st.cursor != null && ref.lap.index !== -1;
-  const distAtCursor = () => Math.round(lapDistAt(ref!.lap, xToTime(ref!.lap, st.cursor!, st.xMode)));
   return [
     // The shortcuts switch these on every graph and map at once; the menu items switch this map only.
     { label: 'Sector & section lines', checked: flags.showSectors, shortcut: keyHint('toggle-sectors'), onClick: () => updateComponent(componentId, { showSectors: !flags.showSectors }) },
@@ -524,23 +572,7 @@ export function trackMapMenuItems(venue: string, componentId: string, flags: { s
     { separator: true },
     { label: st.datum ? 'Release datum' : 'Set datum at cursor', checked: st.datum, disabled: !st.datum && st.cursor == null, shortcut: keyHint('toggle-datum'), onClick: toggleDatum },
     { separator: true },
-    {
-      label: 'Add corner at cursor…',
-      disabled: !canMark,
-      onClick: async () => {
-        const dist = distAtCursor();
-        const name = await promptText(`Corner name at ${dist} m`, `T${prof.corners.length + 1}`);
-        if (name) addCorner(venue, { name, dist });
-      },
-    },
-    {
-      label: 'Add split at cursor…',
-      disabled: !canMark,
-      onClick: async () => {
-        const dist = distAtCursor();
-        const name = await promptText(`Split name at ${dist} m`, `Split ${prof.sections.length + 1}`);
-        if (name) setTrackProfile(venue, { sections: [...prof.sections, { name, dist }].sort((a, b) => a.dist - b.dist) }, 'Add section');
-      },
-    },
+    { label: 'Add corner at cursor…', disabled: !canMark, shortcut: keyHint('add-corner'), onClick: () => markAtCursor('corner') },
+    { label: 'Add split at cursor…', disabled: !canMark, shortcut: keyHint('add-split'), onClick: () => markAtCursor('split') },
   ];
 }

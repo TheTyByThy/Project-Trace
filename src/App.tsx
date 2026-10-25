@@ -4,6 +4,7 @@ import { bindings } from './shortcuts';
 import { pt } from './core/bridge';
 import { suggestCorners } from './core/corners';
 import { lapKey } from './core/types';
+import type { LayoutNode } from './state/workspace';
 import {
   activeSheet,
   activeWorkspace,
@@ -26,7 +27,9 @@ import {
   setUi,
   setWorkingRotation,
   setXMode,
+  addComponent,
   setNamePrompt,
+  setSplitSizes,
   setZoom,
   syncWorkspacesFromFolder,
   toggleDatum,
@@ -77,6 +80,7 @@ function useMenuSync() {
         library: s.library.map((l) => ({ id: l.id, name: l.name })),
         refColors: s.settings.refColors,
         smoothing: s.settings.smoothing.enabled,
+        theme: s.settings.theme,
         canUndo: s.history.past.length > 0,
         canRedo: s.history.future.length > 0,
         shortcuts: Object.fromEntries(Object.entries(bindings(s.settings.shortcuts)).map(([id, keys]) => [id, keys[0] ?? ''])),
@@ -95,6 +99,7 @@ function useMenuSync() {
 }
 
 let prevWorkspace = '';
+let compareExtra = '';
 
 function installAutomation() {
   const sheetIndex = (name: string) => activeWorkspace().worksheets.findIndex((w) => w.name === name);
@@ -133,10 +138,14 @@ function installAutomation() {
       'command-palette',
       'settings',
       'zoom-measure',
+      'bars',
+      'bars-combined',
       'datum',
+      'hidden-channel',
       'lap-report-delta',
       'shortcuts',
       'basic-fa26',
+      'compare-lap',
       'time-axis',
       'light-theme',
     ],
@@ -178,12 +187,40 @@ function installAutomation() {
         setActiveSheet(0);
         setZoom([850, 2000]);
         setMeasure([1180, 1420]);
+      } else if (name === 'bars') {
+        // A Bars component directly under the Overview graph (screenshot profile only).
+        setMeasure(null);
+        setActiveSheet(0);
+        const g = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'graph');
+        if (g && !Object.values(activeSheet()?.components ?? {}).some((c) => c.type === 'bars')) {
+          const id = addComponent('bars', g.id, 'bottom');
+          const bars = activeSheet()?.components[id];
+          if (bars && bars.type === 'bars')
+            updateComponent(id, { rows: [...bars.rows, { id: 'coast', channel: 'Coasting', op: 'nonzero', value: 0, label: 'Coasting', color: '#c98500' }] });
+          // Keep the bars short, like a strip under the graph.
+          const sheet = activeSheet();
+          const findSplit = (n: LayoutNode | null): Extract<LayoutNode, { kind: 'split' }> | null =>
+            !n || n.kind === 'leaf' ? null : n.children.some((ch) => ch.kind === 'leaf' && ch.componentId === id) ? n : n.children.map(findSplit).find(Boolean) ?? null;
+          const sp = findSplit(sheet?.layout ?? null);
+          if (sp) setSplitSizes(sp.id, sp.children.map((ch) => (ch.kind === 'leaf' && ch.componentId === id ? 0.16 : 0.84)));
+        }
+      } else if (name === 'bars-combined') {
+        const b = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'bars');
+        if (b) updateComponent(b.id, { combined: true });
       } else if (name === 'datum') {
         setMeasure(null);
         setZoom([850, 2000]);
         setCursor(1300);
         if (!useStore.getState().datum) toggleDatum();
+      } else if (name === 'hidden-channel') {
+        if (useStore.getState().datum) toggleDatum();
+        // Hide Brake Pos in the first graph (it stays in its pane, dimmed in the legend).
+        const g = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'graph');
+        if (g && g.type === 'graph')
+          updateComponent(g.id, { panes: g.panes.map((p) => (p.channels.includes('Brake Pos') ? { ...p, hidden: ['Brake Pos'] } : p)) });
       } else if (name === 'lap-report-delta') {
+        const g = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'graph');
+        if (g && g.type === 'graph') updateComponent(g.id, { panes: g.panes.map((p) => ({ ...p, hidden: undefined })) });
         if (useStore.getState().datum) toggleDatum();
         setMeasure(null);
         setZoom(null);
@@ -198,7 +235,23 @@ function installAutomation() {
           setActiveWorkspace('basic-fa26');
           setActiveSheet(0);
         }
+      } else if (name === 'compare-lap') {
+        // A third lap selected; the Driver sheet's gain/loss map compares it instead of the first overlay.
+        if (prevWorkspace) setActiveWorkspace(prevWorkspace);
+        prevWorkspace = '';
+        const s = useStore.getState().sessions[0];
+        const extra = s && s.laps.find((l) => l.complete && l.number === 2);
+        if (extra) {
+          const key = lapKey({ sessionId: s.id, lapIndex: extra.index });
+          selectLap(key, 'add');
+          setActiveSheet(sheetIndex('Driver'));
+          const map = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'trackmap' && c.colorBy === 'delta');
+          if (map) updateComponent(map.id, { compareKey: key });
+          compareExtra = key;
+        }
       } else if (name === 'time-axis') {
+        if (compareExtra) selectLap(compareExtra, 'toggle');
+        compareExtra = '';
         if (prevWorkspace) setActiveWorkspace(prevWorkspace);
         setMeasure(null);
         setXMode('time');
@@ -262,12 +315,14 @@ export function App() {
     initApp().catch((e) => toast(`Startup failed: ${e.message}`, 'error', 10000));
     const offMenu = pt().onMenu(handleMenuAction);
     const offWs = pt().onWorkspacesChanged(() => useStore.getState().ready && syncWorkspacesFromFolder());
+    const offFs = pt().onFullscreen((on) => document.documentElement.classList.toggle('fullscreen', on));
     const offOpen = pt().onOpenFiles((files) => openFiles(files, 'replace'));
     window.addEventListener('keydown', handleGlobalKey);
     window.addEventListener('error', (e) => useStore.setState((s) => ({ errors: [...s.errors, String(e.message)] })));
     return () => {
       offMenu();
       offWs();
+      offFs();
       offOpen();
       window.removeEventListener('keydown', handleGlobalKey);
     };

@@ -21,9 +21,11 @@ Both share the **rotation dial**, the per-track **corners, sections and rotation
 |---|---|
 | **Channel** (Ground Speed, Brake Pos, Gear, Car Coord Z…) | The reference lap coloured from the lap's min to max, with a legend |
 | **Lap colours** | Each selected lap's line in its lap colour |
-| **Time gained / lost** | Where the first overlay gains (**green**) or loses (**red**) time against the reference. The legend shows the two laps as colour blocks: *[comparison colour] vs [reference colour] reference* |
+| **Time gained / lost** | Where a comparison lap gains (**green**) or loses (**red**) time against the reference. The legend shows the two laps as colour blocks: *[comparison colour] vs [reference colour] reference* |
 
 **Colour ramps**: Blue or Orange (sequential), Blue ↔ Red (diverging), Green ↔ Red (gain/loss), or **Custom colours…**. Custom means you pick the **low** and **high** colours (or the *gaining* and *losing* colours in gain/loss mode) with the full colour picker in Properties.
+
+**Which comparison lap** (with two or more comparison laps selected): **click the colour blocks in the legend** (*click to change lap*) and pick one, right-click the map → **Compare with the reference**, or use the drop-down in Properties. Each map remembers its choice; if that lap is deselected it falls back to the first comparison lap. There's also a bindable shortcut, *Gain/loss track maps: compare the next comparison lap*, which steps every gain/loss map on the worksheet through the comparison laps.
 
 **Gain/loss sensitivity** (Properties, in gain/loss mode):
 - **Sensitivity** (×0.25 – ×4, default ×1): higher shows small gains and losses in stronger colour; lower keeps only the big differences coloured.

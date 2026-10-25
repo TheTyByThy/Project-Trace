@@ -38,6 +38,11 @@ export function displayData(ch: ChannelInfo): Samples {
   return out;
 }
 
+/** The name to show for a channel: its display name (renamed in Channel properties) or the logged name. */
+export function channelLabel(name: string): string {
+  return activeWorkspace()?.channelProps[name]?.label || name;
+}
+
 export function conv(ch: ChannelInfo): DisplayConv {
   const props = activeWorkspace()?.channelProps[ch.name];
   return displayConv(ch.unit, useStore.getState().settings.units, props?.unit);

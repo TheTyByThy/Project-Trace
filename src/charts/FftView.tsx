@@ -7,7 +7,7 @@ import type { FftConfig } from '../state/workspace';
 import { drawAxes, makeAxes, type Axes } from './axes';
 import { BoxZoomLayer, type View } from './BoxZoom';
 import { chartTheme, prepCanvas, useElementSize } from './canvas';
-import { conv, lapWindow } from './data';
+import { channelLabel, conv, lapWindow } from './data';
 
 export function FftView({ config }: { config: FftConfig }) {
   const [wrapRef, size] = useElementSize<HTMLDivElement>();
@@ -64,7 +64,7 @@ export function FftView({ config }: { config: FftConfig }) {
     const rect = { x: 54, y: 10, w: Math.max(10, w - 54 - 12), h: Math.max(10, h - 10 - 40) };
     const A = makeAxes(rect, fx0, fx1, y0, y1);
     axesRef.current = A;
-    drawAxes(ctx, T, A, fx0, fx1, y0, y1, 'frequency [Hz]', `${config.channel} amplitude${config.logScale ? ' (log₁₀)' : ''}`);
+    drawAxes(ctx, T, A, fx0, fx1, y0, y1, 'frequency [Hz]', `${channelLabel(config.channel)} amplitude${config.logScale ? ' (log₁₀)' : ''}`);
     ctx.save();
     ctx.beginPath();
     ctx.rect(rect.x, rect.y, rect.w, rect.h);

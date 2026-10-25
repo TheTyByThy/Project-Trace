@@ -105,11 +105,12 @@ Tabs themselves:
 
 ## Components
 
-There are 16 component types:
+There are 17 component types:
 
 | Component | Purpose |
 |---|---|
 | Time / Distance Graph | Multi-channel traces with lap overlays, variance, cursor and zoom |
+| Bars | Filled bars where a condition holds (a flag, or a channel =, >, <… a value), aligned with the graphs — see [04](04-time-distance-graph.md#bars) |
 | Track Map | Track coloured by channel, lap or time gained/lost |
 | GPS Track | Thin racing lines per lap for comparing lines |
 | Scatter / XY Plot | Channel vs channel with fits, interval averages, axis ranges |
@@ -125,6 +126,10 @@ There are 16 component types:
 | Tyres & Brakes | Four-corner tyre and brake data — you choose which fields (temperatures, pressure, load, slip, wear…) |
 | Frequency (FFT) | Spectrum of a channel |
 | Session & Setup | Details, full setup sheet, notes |
+
+### The window on macOS
+
+There is no separate title bar: the red / yellow / green window buttons sit at the left of Project-Trace's own header. **Drag the header** (anywhere that isn't a button) to move the window, and **double-click** it to zoom. In full screen the buttons hide and the header uses the space.
 
 ### Adding, removing, arranging
 - **＋ Component** (right end of the tab bar) adds to the current worksheet; **＋** on a header adds beside that component.
@@ -151,12 +156,13 @@ What's inside depends on the component:
 
 | Component | Highlights |
 |---|---|
-| Graph | Display options (variance, legends, grid lines, line widths, marker lines for all graphs) plus a **panes & channels** section: each pane lists its channels with **colour swatch**, unit, sample rate and range, a **Properties…** button and a right-click menu (colour, move to another pane, remove). Pane scale, height, order (drag a pane by its **⋮⋮** title, or ↑ / ↓) and shared y-range are here too. |
+| Graph | Display options (variance, legends, grid lines, line widths, marker lines for all graphs) plus a **panes & channels** section: each pane lists its channels with a **show / hide** toggle, **colour swatch**, unit, sample rate and range, a **Properties…** button and a right-click menu (colour, move to another pane, remove). Pane scale, height, order (drag a pane by its **⋮⋮** title, or ↑ / ↓) and shared y-range are here too. |
 | Scatter | **Axes & scales**: fixed X and Y min/max (blank = automatic) and equal aspect, plus channels, colour, gate, fit, interval averages. |
 | Lap Trend | Statistic and **Y-axis min/max**. |
 | Track Map | Colouring, including **custom low/high colours** and gain/loss **sensitivity** and **smoothing**, display options (zoom to the graphs' selection, outline, start/finish, car dots, legend), and the **track profile** (rotation, corners, splits). |
 | GPS Track | Line width, framing, follow-cursor, scale bar, legend, offset readout, plus the track profile. |
 | Corner Report | Metric, straights and totals, plus the track profile (with advanced corner ranges). |
+| Bars | Rows (channel, condition, value(s), label, colour, order / priority), combine all rows into one, every lap or the reference only, row labels, x-axis labels, marker lines. |
 | Lap / Stint Report | Split columns, Δ column, ideal row, tags, max speed & fuel. |
 | Tyres & Brakes | Values (cursor / lap mean / lap max) and which of 20 fields each tyre shows. |
 | Driver Inputs | Compare lap, and which parts to show (pedals, clutch, wheel, gear, speed, RPM). |
@@ -166,10 +172,23 @@ What's inside depends on the component:
 ![Scatter properties](images/properties-scatter.png)
 
 Open from the Channels sidebar or the graph Properties' channel table:
+- **Display name**: rename the channel (e.g. *Tire Temp Core FL* → *Core FL*). See [Renaming channels](#renaming-channels).
 - **Colour**: palette swatches, a **Custom…** colour picker or a hex value, or *Auto*. This colour is used by the reference lap when it shows channel colours (see [04](04-time-distance-graph.md#lap-colours)).
 - **Fixed min / max** (display units), **decimal places**, **display unit override**.
 
 Stored per workspace.
+
+## Renaming channels
+
+Give any channel a name of your own:
+
+- right-click it in the **Channels** sidebar → **Rename…**;
+- right-click its row in a graph's Properties channel table → **Rename…**;
+- or type a **Display name** in **Channel properties**.
+
+The new name appears everywhere: graph legends, axis titles, track-map and histogram legends, reports, gauges, component titles, the channel picker and the sidebar (searching finds either name). Leave the name empty to go back to the logged name.
+
+It's a **display name**: underneath, the channel keeps its logged name, so graphs, math channels (which refer to channels by their logged name), CSV exports and saved layouts all keep working — nothing has to be updated. (Renaming a *math channel* in the math editor changes its real name instead, and every graph, component and expression that used it is updated automatically — see [07](07-math-channels.md#renaming-a-math-channel).) Hovering a renamed channel shows *logged as …*. Names are stored with the workspace's channel properties, so they travel with an exported or shared workspace.
 
 ## The sidebar
 

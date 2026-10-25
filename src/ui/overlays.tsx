@@ -28,6 +28,54 @@ interface OverlayState {
 
 export const useOverlay = create<OverlayState>(() => ({ menu: null, picker: null, prompt: null, channelProps: null, color: null }));
 
+// ---------------------------------------------------------------------------------------------
+// Dismissing popovers: every menu, picker and dropdown closes on a click anywhere outside it and on Esc.
+// (Not on window blur: the system colour picker behind "Custom…" takes focus while you choose.)
+// ---------------------------------------------------------------------------------------------
+
+/** The last outside left-press that closed a popover (so pressing its opener again doesn't reopen it). */
+let lastDismiss = { t: 0, x: 0, y: 0 };
+let openPopovers = 0;
+
+/** True if this click is the same press that just closed a popover (its opener being clicked again). */
+export function justDismissed(e: { clientX: number; clientY: number }) {
+  return performance.now() - lastDismiss.t < 400 && Math.abs(e.clientX - lastDismiss.x) < 6 && Math.abs(e.clientY - lastDismiss.y) < 6;
+}
+
+/**
+ * Close a popover on a press outside `ref` or on Escape. Presses are
+ * caught in the capture phase, so dialogs that stop event propagation can't swallow them. While any
+ * popover is open the macOS header stops being a window-drag area (see :root.popover-open in the CSS),
+ * so pressing there closes it too.
+ */
+export function useDismiss(ref: React.RefObject<HTMLElement | null>, open: boolean, close: () => void) {
+  const closeRef = useRef(close);
+  closeRef.current = close;
+  useEffect(() => {
+    if (!open) return;
+    openPopovers++;
+    document.documentElement.classList.add('popover-open');
+    const onDown = (e: PointerEvent) => {
+      if (ref.current && ref.current.contains(e.target as Node)) return;
+      if (e.button === 0) lastDismiss = { t: performance.now(), x: e.clientX, y: e.clientY };
+      closeRef.current();
+    };
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeRef.current();
+    // Attach after the press that opened the popover has finished.
+    const timer = setTimeout(() => window.addEventListener('pointerdown', onDown, true), 0);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('pointerdown', onDown, true);
+      window.removeEventListener('keydown', onKey);
+      if (--openPopovers <= 0) {
+        openPopovers = 0;
+        document.documentElement.classList.remove('popover-open');
+      }
+    };
+  }, [open, ref]);
+}
+
 /** Pop up a colour chooser (palette + custom picker + hex) at the mouse. */
 export function openColorPicker(
   e: { clientX: number; clientY: number },
@@ -35,6 +83,7 @@ export function openColorPicker(
   onPick: (c: string | undefined) => void,
   opts: { title?: string; allowAuto?: boolean } = {},
 ) {
+  if (justDismissed(e)) return;
   useOverlay.setState({ color: { x: e.clientX, y: e.clientY, value, onPick, ...opts } });
 }
 
@@ -89,19 +138,9 @@ function ColorPickerHost() {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   useEffect(() => {
-    if (!st) return;
-    setPos(clampToViewport(st.x, st.y, 300, 150));
-    const close = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) useOverlay.setState({ color: null });
-    };
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && useOverlay.setState({ color: null });
-    setTimeout(() => window.addEventListener('mousedown', close), 0);
-    window.addEventListener('keydown', esc);
-    return () => {
-      window.removeEventListener('mousedown', close);
-      window.removeEventListener('keydown', esc);
-    };
+    if (st) setPos(clampToViewport(st.x, st.y, 300, 150));
   }, [st?.x, st?.y]);
+  useDismiss(ref, !!st, () => useOverlay.setState({ color: null }));
   if (!st || !pos) return null;
   return (
     <div ref={ref} className="popover" style={{ ...pos, padding: 10, width: 300 }}>
@@ -118,7 +157,9 @@ function ColorPickerHost() {
   );
 }
 
-export function openMenu(e: { clientX: number; clientY: number }, items: MenuItem[]) {
+export function openMenu(e: { clientX: number; clientY: number; button?: number }, items: MenuItem[]) {
+  // A left-click on a menu's own button while it's open closes it (right-click opens a new menu).
+  if (e.button !== 2 && justDismissed(e)) return;
   useOverlay.setState({ menu: { x: e.clientX, y: e.clientY, items } });
 }
 
@@ -128,6 +169,7 @@ export function openChannelPicker(
   extras?: { value: string; label: string }[],
   title?: string,
 ) {
+  if (justDismissed(e)) return;
   useOverlay.setState({ picker: { x: e.clientX, y: e.clientY, onPick, extras, title } });
 }
 
@@ -139,6 +181,15 @@ export function openChannelProps(name: string) {
   useOverlay.setState({ channelProps: name });
 }
 
+/** Give a channel a display name (empty = back to the logged name). */
+export async function renameChannel(name: string) {
+  const cur = activeWorkspace()?.channelProps[name]?.label ?? name;
+  const next = await promptText(`Rename “${name}” (leave empty for the logged name)`, cur);
+  if (next == null) return;
+  const label = next.trim();
+  setChannelProps(name, { label: label && label !== name ? label : undefined });
+}
+
 function clampToViewport(x: number, y: number, w: number, h: number) {
   return { left: Math.max(4, Math.min(x, window.innerWidth - w - 4)), top: Math.max(4, Math.min(y, window.innerHeight - h - 4)) };
 }
@@ -148,20 +199,10 @@ function MenuHost() {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ left: 0, top: 0 });
   useEffect(() => {
-    if (!menu) return;
     const el = ref.current;
-    if (el) setPos(clampToViewport(menu.x, menu.y, el.offsetWidth, el.offsetHeight));
-    const close = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) useOverlay.setState({ menu: null });
-    };
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && useOverlay.setState({ menu: null });
-    setTimeout(() => window.addEventListener('mousedown', close), 0);
-    window.addEventListener('keydown', esc);
-    return () => {
-      window.removeEventListener('mousedown', close);
-      window.removeEventListener('keydown', esc);
-    };
+    if (menu && el) setPos(clampToViewport(menu.x, menu.y, el.offsetWidth, el.offsetHeight));
   }, [menu]);
+  useDismiss(ref, !!menu, () => useOverlay.setState({ menu: null }));
   if (!menu) return null;
   return (
     <div ref={ref} className="popover menu" style={{ left: pos.left || menu.x, top: pos.top || menu.y }} onContextMenu={(e) => e.preventDefault()}>
@@ -216,6 +257,7 @@ export function ChannelList({
   current?: string;
 }) {
   const sessions = useStore((s) => s.sessions);
+  const props = useStore((s) => activeWorkspace(s)?.channelProps);
   useStore((s) => s.dataVersion);
   const [q, setQ] = useState('');
   const [hl, setHl] = useState(0);
@@ -226,16 +268,19 @@ export function ChannelList({
         const c = s.channels.get(n);
         if (c && !seen.has(n)) seen.set(n, { name: n, unit: c.unit, category: c.category });
       }
+    const label = (n: string) => props?.[n]?.label || n;
     const ql = q.trim().toLowerCase();
-    const list = [...seen.values()].filter((c) => !ql || c.name.toLowerCase().includes(ql) || c.category.toLowerCase().includes(ql));
-    const byCat = new Map<string, { name: string; unit: string }[]>();
+    const list = [...seen.values()].filter(
+      (c) => !ql || c.name.toLowerCase().includes(ql) || label(c.name).toLowerCase().includes(ql) || c.category.toLowerCase().includes(ql),
+    );
+    const byCat = new Map<string, { name: string; label: string; unit: string }[]>();
     for (const c of list) {
       const arr = byCat.get(c.category) ?? [];
-      arr.push({ name: c.name, unit: c.unit });
+      arr.push({ name: c.name, label: label(c.name), unit: c.unit });
       byCat.set(c.category, arr);
     }
     return groupByCategory(byCat);
-  }, [sessions, q]);
+  }, [sessions, q, props]);
   const extraItems = (extras ?? []).filter((e) => !q || e.label.toLowerCase().includes(q.toLowerCase()));
   const flat = [...extraItems.map((e) => e.value), ...groups.flatMap((g) => g.items.map((i) => i.name))];
   return (
@@ -278,7 +323,9 @@ export function ChannelList({
                 onClick={() => onPick(it.name)}
                 style={current === it.name ? { color: 'var(--accent)' } : undefined}
               >
-                <span className="grow">{it.name}</span>
+                <span className="grow" title={it.label !== it.name ? `logged as ${it.name}` : undefined}>
+                  {it.label}
+                </span>
                 <span className="muted">{it.unit}</span>
               </div>
             ))}
@@ -295,19 +342,9 @@ function PickerHost() {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   useEffect(() => {
-    if (!picker) return;
-    setPos(clampToViewport(picker.x, picker.y, 320, 440));
-    const close = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) useOverlay.setState({ picker: null });
-    };
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && useOverlay.setState({ picker: null });
-    setTimeout(() => window.addEventListener('mousedown', close), 0);
-    window.addEventListener('keydown', esc);
-    return () => {
-      window.removeEventListener('mousedown', close);
-      window.removeEventListener('keydown', esc);
-    };
+    if (picker) setPos(clampToViewport(picker.x, picker.y, 320, 440));
   }, [picker]);
+  useDismiss(ref, !!picker, () => useOverlay.setState({ picker: null }));
   if (!picker || !pos) return null;
   return (
     <div ref={ref} className="popover" style={pos}>
@@ -335,7 +372,8 @@ export function ChannelPickerButton({
   extras?: { value: string; label: string }[];
   placeholder?: string;
 }) {
-  const label = extras?.find((e) => e.value === value)?.label ?? value;
+  useStore((s) => activeWorkspace(s)?.channelProps);
+  const label = extras?.find((e) => e.value === value)?.label ?? (value ? activeWorkspace()?.channelProps[value]?.label || value : value);
   return (
     <button className="picker-btn" onClick={(e) => openChannelPicker(e, onChange, extras)}>
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{label || <span className="muted">{placeholder}</span>}</span>
@@ -394,9 +432,23 @@ function ChannelPropsHost() {
     <div className="modal-back" onMouseDown={close}>
       <div className="modal" style={{ width: 400 }} onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2>Channel properties — {name}</h2>
+          <h2>Channel properties — {props.label || name}</h2>
         </div>
         <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <label className="field">
+            Display name (shown everywhere instead of the logged name)
+            <input
+              className="input"
+              key={name}
+              defaultValue={props.label ?? ''}
+              placeholder={name}
+              onBlur={(e) => setChannelProps(name, { label: e.target.value.trim() && e.target.value.trim() !== name ? e.target.value.trim() : undefined })}
+              onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+            />
+            <span className="muted" style={{ fontSize: 11 }}>
+              Logged as <span className="mono">{name}</span> — graphs, math channels and saved layouts keep using that name.
+            </span>
+          </label>
           <div className="field">
             Colour (the reference lap uses it when showing channel colours)
             <ColorField value={props.color} allowAuto onChange={(c) => setChannelProps(name, { color: c })} />

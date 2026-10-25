@@ -25,13 +25,14 @@ import {
   selectedLaps,
   setActiveSheet,
   setSmoothing,
+  SMOOTH_PRESETS,
   setUi,
   setXMode,
   resetView,
   useStore,
 } from '../state/store';
 import { addMenu } from './SheetView';
-import { openMenu, promptText, type MenuItem } from './overlays';
+import { openMenu, promptText, useDismiss, type MenuItem } from './overlays';
 import { toggleVarianceAll } from '../actions';
 import { keyHint, shortcutHint } from '../shortcuts';
 
@@ -44,7 +45,6 @@ export function Logo({ size = 22 }: { size?: number }) {
   );
 }
 
-const SMOOTH_PRESETS = [0.03, 0.05, 0.1, 0.2, 0.35, 0.5, 1];
 
 /** Smoothing toggle + amount popover (display only; statistics use raw data). */
 function SmoothingControl() {
@@ -52,12 +52,7 @@ function SmoothingControl() {
   const hint = useStore((s) => shortcutHint('toggle-smoothing', s.settings.shortcuts));
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => ref.current && !ref.current.contains(e.target as Node) && setOpen(false);
-    window.addEventListener('mousedown', close);
-    return () => window.removeEventListener('mousedown', close);
-  }, [open]);
+  useDismiss(ref, open, () => setOpen(false));
   const label = sm.enabled ? (sm.seconds < 1 ? (sm.seconds * 1000).toFixed(0) + ' ms' : sm.seconds.toFixed(1) + ' s') : 'off';
   return (
     <div ref={ref} style={{ position: 'relative' }}>

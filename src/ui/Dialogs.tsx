@@ -43,6 +43,7 @@ export function SettingsDialog() {
           <h2>Settings</h2>
         </div>
         <div className="modal-body">
+          {row('Theme', seg(s.theme, [['dark', 'Dark'], ['light', 'Light']], (v) => updateSettings({ theme: v })), 'Also in View → Theme; you can give it a key in Keyboard Shortcuts.')}
           {row(
             'Telemetry folder',
             <div className="row">
@@ -63,7 +64,6 @@ export function SettingsDialog() {
           {row('Temperature', seg(s.units.temperature, [['C', '°C'], ['F', '°F']], (v) => updateSettings({ units: { ...s.units, temperature: v } })))}
           {row('Pressure', seg(s.units.pressure, [['psi', 'psi'], ['bar', 'bar'], ['kPa', 'kPa']], (v) => updateSettings({ units: { ...s.units, pressure: v } })))}
           {row('Distance axis', seg(s.units.distance, [['m', 'metres'], ['km', 'km'], ['mi', 'miles']], (v) => updateSettings({ units: { ...s.units, distance: v } })))}
-          {row('Theme', seg(s.theme, [['dark', 'Dark'], ['light', 'Light']], (v) => updateSettings({ theme: v })))}
           {row(
             'Cursor',
             seg(s.cursorMode, [['click', 'Click to place, drag to zoom'], ['scrub', 'Drag to scrub, double-click-drag to zoom'], ['hover', 'Follows mouse']], (v) => updateSettings({ cursorMode: v })),
@@ -215,7 +215,8 @@ export function ShortcutsDialog() {
         </div>
         <div className="modal-body" style={{ overflowX: 'hidden' }}>
           <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
-            Click <b>+ Add</b> and press the keys you want. Click a key to remove it. Each key combo can belong to one action only.
+            Click <b>+ Add</b> and press the keys you want. Click a key to remove it. Each key combo can belong to one action only. Actions marked
+            <i> not set</i> have no default key — give them one if you use them a lot.
           </div>
           {groups.map((g) => {
             const defs = SHORTCUTS.filter((d) => d.group === g && (!q || d.label.toLowerCase().includes(q)));
@@ -237,6 +238,7 @@ export function ShortcutsDialog() {
                                 {formatCombo(k)} <span className="muted">×</span>
                               </button>
                             ))}
+                            {!b[d.id].length && recording !== d.id && <span className="muted" style={{ fontSize: 12 }}>not set</span>}
                             {recording === d.id ? (
                               <span className="kbd recording">Press keys… (Esc cancels)</span>
                             ) : (

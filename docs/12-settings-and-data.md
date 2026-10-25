@@ -11,7 +11,7 @@ Open **Settings** with ⚙ in the top bar or **Ctrl/⌘ + ,**.
 | Temperature | °C · °F | |
 | Pressure | psi · bar · kPa | |
 | Distance axis | metres · km · miles | x-axis labels in distance mode |
-| Theme | Dark · Light | both use colour-blind-validated palettes |
+| Theme | Dark · Light | first row in Settings; also **View → Theme** in the menu bar, the command palette, and an optional key in Keyboard Shortcuts. Both use colour-blind-validated palettes |
 | Cursor | Click to place, drag to zoom (classic) · Drag to scrub, double-click-drag to zoom · Follows mouse | see [04](04-time-distance-graph.md#cursor-zoom-pan-measure) |
 | Reference lap colours | Per channel · Single lap colour | overlay laps are always solid in their lap colour; toggle with **J** |
 | Smoothing | Off (raw) · On + amount (30 ms – 1 s) | **on at 50 ms by default**; also in the top bar; **S** toggles |

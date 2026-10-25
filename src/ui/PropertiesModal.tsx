@@ -2,14 +2,17 @@
 // top-bar "Properties" button, Ctrl/⌘+I, or "Properties…" in any component's right-click menu.
 
 import { useEffect, useState } from 'react';
-import { channelColors, RAMP_LABELS, type RampName } from '../core/colors';
+import { CATEGORICAL, channelColors, RAMP_LABELS, type RampName } from '../core/colors';
 import { COMPONENT_CATALOG, pane } from '../state/components';
-import { activeSheet, activeWorkspace, addComponent, removeComponentById, setChannelProps, setGraphMarkers, setUi, updateComponent, useStore } from '../state/store';
-import { TYRE_FIELDS, type ComponentConfig, type GaugeDef, type GraphConfig, type GraphPane } from '../state/workspace';
+import { activeSheet, activeWorkspace, addComponent, removeComponentById, selectedLaps, setChannelProps, setGraphMarkers, setUi, updateComponent, useStore } from '../state/store';
+import { TYRE_FIELDS, uid, type BarRow, type BarsConfig, type ComponentConfig, type GaugeDef, type GraphConfig, type GraphPane, type TrackMapConfig } from '../state/workspace';
+import { BAR_OPS, barCondition } from '../charts/BarsView';
+import { compareLap } from '../charts/TrackMapView';
+import { lapLabel } from '../core/session';
 import { defaultTitle } from '../charts/registry';
 import { keyHint } from '../shortcuts';
-import { conv, findChannel } from '../charts/data';
-import { ChannelPickerButton, ColorField, openChannelPicker, openChannelProps, openColorPicker, openMenu } from './overlays';
+import { channelLabel, conv, findChannel } from '../charts/data';
+import { ChannelPickerButton, ColorField, openChannelPicker, openChannelProps, openColorPicker, openMenu, renameChannel } from './overlays';
 import { TrackProfileEditor } from './TrackProfileEditor';
 
 function Num({ value, onChange, placeholder }: { value: number | undefined; onChange: (v: number | undefined) => void; placeholder?: string }) {
@@ -101,9 +104,12 @@ function PaneCard({ c, p, i, up }: { c: GraphConfig; p: GraphPane; i: number; up
     panes.splice(i, 0, m);
     up({ panes }, 'Move pane');
   };
-  const removeChannel = (name: string) => setPane({ channels: p.channels.filter((x) => x !== name) }, 'Remove channel');
+  const removeChannel = (name: string) => setPane({ channels: p.channels.filter((x) => x !== name), hidden: p.hidden?.filter((x) => x !== name) }, 'Remove channel');
+  const isHidden = (name: string) => !!p.hidden?.includes(name);
+  const toggleHidden = (name: string) =>
+    setPane({ hidden: isHidden(name) ? (p.hidden ?? []).filter((x) => x !== name) : [...(p.hidden ?? []), name] }, 'Show / hide channel');
   const moveChannelTo = (name: string, target: number | 'new') => {
-    const panes = c.panes.map((x, k) => (k === i ? { ...x, channels: x.channels.filter((n) => n !== name) } : x));
+    const panes = c.panes.map((x, k) => (k === i ? { ...x, channels: x.channels.filter((n) => n !== name), hidden: x.hidden?.filter((n) => n !== name) } : x));
     if (target === 'new') panes.splice(i + 1, 0, pane([name]));
     else panes[target] = { ...panes[target], channels: [...panes[target].channels, name] };
     up({ panes: panes.filter((x) => x.channels.length) }, 'Move channel');
@@ -111,7 +117,9 @@ function PaneCard({ c, p, i, up }: { c: GraphConfig; p: GraphPane; i: number; up
   const rowMenu = (e: React.MouseEvent, name: string) => {
     e.preventDefault();
     openMenu(e, [
-      { header: name },
+      { header: cprops[name]?.label || name },
+      { label: 'Rename…', onClick: () => renameChannel(name) },
+      { label: isHidden(name) ? 'Show in graph' : 'Hide in graph', onClick: () => toggleHidden(name) },
       { label: 'Channel properties…', onClick: () => openChannelProps(name) },
       { label: 'Colour…', onClick: () => openColorPicker(e, cprops[name]?.color, (col) => setChannelProps(name, { color: col }), { allowAuto: true, title: name }) },
       { separator: true },
@@ -174,6 +182,9 @@ function PaneCard({ c, p, i, up }: { c: GraphConfig; p: GraphPane; i: number; up
       <table className="grid">
         <thead>
           <tr>
+            <th className="l" style={{ width: 30 }} title="Show / hide (also: click the channel's name in the graph legend)">
+              Show
+            </th>
             <th className="l" style={{ width: 50 }}>
               Colour
             </th>
@@ -189,7 +200,12 @@ function PaneCard({ c, p, i, up }: { c: GraphConfig; p: GraphPane; i: number; up
             const ch = findChannel(sessions, name);
             const props = cprops[name] ?? {};
             return (
-              <tr key={name} className="chan-props-row" onContextMenu={(e) => rowMenu(e, name)} onDoubleClick={() => openChannelProps(name)}>
+              <tr key={name} className="chan-props-row" style={isHidden(name) ? { opacity: 0.55 } : undefined} onContextMenu={(e) => rowMenu(e, name)} onDoubleClick={() => openChannelProps(name)}>
+                <td className="l">
+                  <button className="btn small icon ghost" title={isHidden(name) ? 'Show this channel' : 'Hide this channel (it stays in the pane)'} onClick={() => toggleHidden(name)}>
+                    {isHidden(name) ? '◌' : '◉'}
+                  </button>
+                </td>
                 <td className="l">
                   <span
                     className="lap-color-dot"
@@ -199,7 +215,7 @@ function PaneCard({ c, p, i, up }: { c: GraphConfig; p: GraphPane; i: number; up
                   />
                 </td>
                 <td className="l">
-                  {name} {!ch && <span className="muted">(not in session)</span>}
+                  {cprops[name]?.label || name} {cprops[name]?.label && <span className="muted">({name})</span>} {!ch && <span className="muted">(not in session)</span>}
                 </td>
                 <td className="muted">{ch ? conv(ch).unit : ''}</td>
                 <td className="muted num">{ch ? `${ch.rate} Hz` : ''}</td>
@@ -286,6 +302,128 @@ function GraphForm({ c }: { c: GraphConfig }) {
   );
 }
 
+/** Which comparison lap a gain/loss track map compares with the reference. */
+function CompareLapField({ c }: { c: TrackMapConfig }) {
+  useStore((s) => s.laps);
+  useStore((s) => s.refKey);
+  const laps = selectedLaps();
+  if (laps.length < 2) return <div className="muted" style={{ fontSize: 12 }}>Select a comparison lap to see where time is gained or lost.</div>;
+  const cur = compareLap(laps, c.compareKey);
+  return (
+    <F label="Compared with the reference">
+      <select className="input" value={cur.key} onChange={(e) => updateComponent(c.id, { compareKey: e.target.value }, 'Compare lap')}>
+        {laps.slice(1).map((l) => (
+          <option key={l.key} value={l.key}>
+            {lapLabel(l.lap)}
+            {l.session !== laps[0].session ? ` · ${l.session.meta.driver || l.session.fileName}` : ''}
+          </option>
+        ))}
+      </select>
+    </F>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Bars: one row per condition
+// ---------------------------------------------------------------------------------------------
+
+function BarsForm({ c }: { c: BarsConfig }) {
+  const theme = useStore((s) => s.settings.theme);
+  const up = (p: Partial<BarsConfig>, label?: string) => updateComponent(c.id, p, label);
+  const setRow = (i: number, patch: Partial<BarRow>) => up({ rows: c.rows.map((r, k) => (k === i ? { ...r, ...patch } : r)) }, 'Edit bar');
+  const move = (i: number, d: number) => {
+    const rows = c.rows.slice();
+    const j = i + d;
+    if (j < 0 || j >= rows.length) return;
+    [rows[i], rows[j]] = [rows[j], rows[i]];
+    up({ rows }, 'Move bar');
+  };
+  return (
+    <div className="props-grid">
+      <div>
+        <G title="Display">
+          <F label="Laps">
+            <Select value={c.laps} options={[['all', 'Every selected lap (one thin lane each)'], ['ref', 'Reference lap only']]} onChange={(v) => up({ laps: v })} />
+          </F>
+          <Check label="Combine all rows into one (where several are true, the higher row wins)" value={!!c.combined} onChange={(v) => up({ combined: v }, 'Combine bars')} />
+          <Check label="Row labels (● = true at the cursor)" value={c.showLabels} onChange={(v) => up({ showLabels: v })} />
+          <Check label="X-axis labels (off = sits seamlessly under a graph)" value={c.showAxis} onChange={(v) => up({ showAxis: v })} />
+        </G>
+        <G title="Markers (all graphs and bars)">
+          <Check label={`Sector & section lines${keyHint('toggle-sectors') ? ` (${keyHint('toggle-sectors')})` : ''}`} value={c.showSectors} onChange={(v) => setGraphMarkers({ showSectors: v })} />
+          <Check label={`Corner lines${keyHint('toggle-corners') ? ` (${keyHint('toggle-corners')})` : ''}`} value={c.showCorners} onChange={(v) => setGraphMarkers({ showCorners: v })} />
+        </G>
+        <G title="Tips">
+          <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+            Bars share the graphs' axis, zoom and cursor. Put this component directly under a time/distance graph and the bars line up with the traces. Values are
+            compared in the channel's display units. Drag a channel from the sidebar onto the bars to add a row that's on wherever the channel isn't 0.
+          </div>
+        </G>
+      </div>
+      <div>
+        <div className="row">
+          <h4 className="grow" style={{ margin: 0, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-3)' }}>
+            {c.combined ? 'Rows — priority order (top wins)' : 'Rows (top to bottom)'}
+          </h4>
+          <button className="btn small primary" onClick={(e) => openChannelPicker(e, (n) => up({ rows: [...c.rows, { id: uid('r'), channel: n, op: 'nonzero', value: 0 }] }, 'Add bar'))}>
+            + Add row
+          </button>
+        </div>
+        {c.rows.map((r, i) => (
+          <div key={r.id} className="pane-card">
+            <div className="ph">
+              {c.combined && <span className="muted" style={{ fontSize: 11, width: 16 }}>{i + 1}</span>}
+              <span
+                className="lap-color-dot"
+                style={{ background: r.color || CATEGORICAL[theme][i % CATEGORICAL[theme].length] }}
+                title="Bar colour (the reference lap; comparison laps use their lap colour)"
+                onClick={(e) => openColorPicker(e, r.color, (col) => setRow(i, { color: col }), { allowAuto: true, title: 'Bar colour' })}
+              />
+              <input className="input" style={{ width: 150, height: 24 }} placeholder={barCondition(r)} value={r.label ?? ''} onChange={(e) => setRow(i, { label: e.target.value || undefined })} />
+              <span className="grow" />
+              <button className="btn small icon" title={c.combined ? 'Higher priority' : 'Move up'} onClick={() => move(i, -1)}>
+                ↑
+              </button>
+              <button className="btn small icon" title={c.combined ? 'Lower priority' : 'Move down'} onClick={() => move(i, 1)}>
+                ↓
+              </button>
+              <button className="btn small icon" title="Remove row" onClick={() => up({ rows: c.rows.filter((_, k) => k !== i) }, 'Remove bar')}>
+                ×
+              </button>
+            </div>
+            <div className="row" style={{ padding: 8, flexWrap: 'wrap' }}>
+              <div style={{ width: 200 }}>
+                <ChannelPickerButton value={r.channel} onChange={(v) => setRow(i, { channel: v })} />
+              </div>
+              <select className="input" style={{ width: 150, height: 26 }} value={r.op} onChange={(e) => setRow(i, { op: e.target.value as BarRow['op'] })}>
+                {BAR_OPS.map((o) => (
+                  <option key={o.op} value={o.op}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              {r.op !== 'nonzero' && (
+                <div style={{ width: 80 }}>
+                  <Num value={r.value} placeholder="value" onChange={(v) => setRow(i, { value: v ?? 0 })} />
+                </div>
+              )}
+              {r.op === 'between' && (
+                <>
+                  <span className="muted">and</span>
+                  <div style={{ width: 80 }}>
+                    <Num value={r.value2} placeholder="value" onChange={(v) => setRow(i, { value2: v })} />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        ))}
+        {!c.rows.length && <div className="muted" style={{ fontSize: 12, padding: 8 }}>No rows yet — add one, or drag a channel onto the bars.</div>}
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------------------------
 // Other components
 // ---------------------------------------------------------------------------------------------
@@ -296,6 +434,8 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
   switch (c.type) {
     case 'graph':
       return <GraphForm c={c} />;
+    case 'bars':
+      return <BarsForm c={c} />;
     case 'trackmap':
       return (
         <div className="props-grid">
@@ -332,6 +472,7 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
               )}
               {c.colorBy === 'delta' && (
                 <>
+                  <CompareLapField c={c} />
                   <F label={`Gain / loss sensitivity (×${(c.deltaSensitivity ?? 1).toFixed(2)})`}>
                     <input type="range" min={0.25} max={4} step={0.25} value={c.deltaSensitivity ?? 1} onChange={(e) => up({ deltaSensitivity: Number(e.target.value) })} />
                   </F>
@@ -587,7 +728,7 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
             <div className="row" style={{ flexWrap: 'wrap', gap: 4 }}>
               {c.channels.map((ch) => (
                 <span key={ch} className="chip" onContextMenu={(e) => (e.preventDefault(), openChannelProps(ch))}>
-                  <span className="n">{ch}</span>
+                  <span className="n">{channelLabel(ch)}</span>
                   <button title="Channel properties" onClick={() => openChannelProps(ch)}>
                     ⚙
                   </button>

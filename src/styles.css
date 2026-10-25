@@ -296,6 +296,30 @@ label.check {
 .topbar > .session-pill {
   flex-shrink: 1;
 }
+/* macOS: the window has no title bar. The header is the drag area (double-click zooms the window)
+   and leaves room on the left for the traffic-light buttons, except in full screen where they hide. */
+:root[data-platform='darwin'] .topbar {
+  -webkit-app-region: drag;
+  padding-left: 84px;
+}
+:root[data-platform='darwin'].popover-open .topbar {
+  /* A popover is open: let presses on the header reach the page so they close it. */
+  -webkit-app-region: no-drag;
+}
+:root[data-platform='darwin'].fullscreen .topbar {
+  padding-left: 10px;
+}
+:root[data-platform='darwin'] .topbar button,
+:root[data-platform='darwin'] .topbar input,
+:root[data-platform='darwin'] .topbar select,
+:root[data-platform='darwin'] .topbar .seg,
+:root[data-platform='darwin'] .topbar .smooth-ctl,
+:root[data-platform='darwin'] .topbar .popover,
+:root[data-platform='darwin'] .modal-back,
+:root[data-platform='darwin'] .popover,
+:root[data-platform='darwin'] .toasts {
+  -webkit-app-region: no-drag;
+}
 .brand {
   display: flex;
   align-items: center;

@@ -12,7 +12,7 @@ import type { TrendConfig } from '../state/workspace';
 import { drawAxes, drawMarker, makeAxes, padRange, type Axes } from './axes';
 import { BoxZoomLayer, type View } from './BoxZoom';
 import { chartTheme, prepCanvas, useElementSize } from './canvas';
-import { channelDps, conv } from './data';
+import { channelDps, channelLabel, conv } from './data';
 
 function lapStat(s: Session, lap: Lap, cfg: TrendConfig): number {
   if (!cfg.channel) return lap.complete ? lap.time : NaN;
@@ -76,7 +76,7 @@ export function TrendView({ config }: { config: TrendConfig }) {
     const ch = config.channel ? sessions[0]?.channels.get(config.channel) : undefined;
     const unit = ch ? conv(ch).unit : 's';
     const dps = ch ? channelDps(ch) : 3;
-    const label = config.channel ? `${config.stat} ${config.channel}${unit ? ` [${unit}]` : ''}` : 'lap time';
+    const label = config.channel ? `${config.stat} ${channelLabel(config.channel)}${unit ? ` [${unit}]` : ''}` : 'lap time';
     drawAxes(ctx, T, A, x0, x1, y0, y1, 'lap', label, {
       xFmt: (v) => (Number.isInteger(Math.round(v * 1000) / 1000) ? String(Math.round(v)) : ''),
       yFmt: (v, step) => (config.channel ? formatValue(v, step < 1 ? 2 : 0) : formatLapTime(v, step < 0.1 ? 2 : 1)),

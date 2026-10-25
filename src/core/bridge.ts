@@ -39,6 +39,7 @@ export interface MenuState {
   library: { id: string; name: string }[];
   refColors: 'channel' | 'lap';
   smoothing: boolean;
+  theme: 'dark' | 'light';
   canUndo: boolean;
   canRedo: boolean;
   /** First key combo of each shortcut action (src/shortcuts.ts), shown next to menu items. */
@@ -83,6 +84,8 @@ export interface PtBridge {
   onDirChanged(cb: (dir: string) => void): () => void;
   /** Files changed in the workspaces folder (e.g. a shared workspace was dropped in). */
   onWorkspacesChanged(cb: () => void): () => void;
+  /** macOS: the window entered / left full screen (the traffic lights are hidden in full screen). */
+  onFullscreen(cb: (on: boolean) => void): () => void;
 }
 
 declare global {

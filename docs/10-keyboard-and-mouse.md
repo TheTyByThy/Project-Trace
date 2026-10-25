@@ -51,6 +51,19 @@ Changes apply immediately, also to the hints everywhere a shortcut exists: right
 | Esc, W, Home | Reset view: whole lap, clear the range measurement |
 | **M** | **Datum**: pin the cursor at its current point / release it (see [04](04-time-distance-graph.md#datum-pinning-the-cursor)) |
 
+## Actions without a default key
+
+These are listed in the shortcut editor as *not set* — give any of them a key there (**+ Add**). They're also in the command palette (**Ctrl/⌘ + K**), and the right-click menus show the key once you've set one.
+
+| Group | Actions |
+|---|---|
+| Track & markers | **Mark a corner at the cursor…**, **Mark a split at the cursor…**, track profile editor, rotate the track maps 90°, mirror the track maps, gain/loss maps: compare the next comparison lap |
+| Laps | clear comparison laps, make the first comparison lap the reference, whole session view |
+| Cursor & zoom | clear range measurement, cursor to the start / end of the lap |
+| View | Properties pop-out, maximise / restore the selected component, x axis: time, x axis: distance, more / less smoothing, toggle dark / light theme, cycle cursor mode, sidebar: laps / channels |
+| Worksheets | next / previous worksheet, new, duplicate, rename |
+| Workspace | save as…, open the workspaces folder, import…, export… |
+
 ## Mouse: graphs
 
 | Input | Action |
@@ -63,6 +76,7 @@ Changes apply immediately, also to the hints everywhere a shortcut exists: right
 | Shift + scroll, trackpad swipe | Pan |
 | Right-drag, middle-drag, Ctrl + drag | Pan |
 | **Drag a pane border** (highlights on hover) | Resize panes |
+| **Click a channel name in the legend** | Hide / show that channel (it stays in the pane) |
 | Right-click | Sector & split lines, corner lines (all graphs), **Set / Release datum**, **Add corner** / **Add split** at the cursor, then Properties / Maximise / Remove — each with its current key |
 | Drag a channel from the sidebar | Onto a pane to add it there; onto the bottom edge (or with Shift) for a new pane |
 
@@ -88,5 +102,6 @@ Changes apply immediately, also to the hints everywhere a shortcut exists: right
 | Component header | drag | dock elsewhere (edges split, centre swaps) |
 | Component header | double-click | maximise / restore |
 | Sidebar channel | drag onto a component / double-click | add / apply it |
+| Sidebar channel | right-click | **Rename…**, channel properties, add to graph, copy name |
 | Worksheet tab | double-click / drag / right-click | rename / reorder / menu |
 | Window | drop CSV or .ld files | open (hold Shift to add for comparison) |

@@ -106,7 +106,24 @@ The graph's right-click menu is deliberately short: the two line toggles, *Add c
 ## Adding and editing channels
 
 - Drag from the **Channels** sidebar onto a pane (near the bottom edge, or hold Shift, for a new pane).
+- **Show / hide a channel without removing it**: click its **name in the legend**. A hidden channel isn't drawn and doesn't affect the pane's y-scale; its legend row stays, dimmed with a hollow swatch and *— hidden*, so you can click it back on. The same toggle is the **◉ / ◌** button (and *Hide in graph* on right-click) in the graph's Properties channel table.
 - **Properties** gives the full pane-and-channel table (see [03](03-workspaces-and-layout.md#the-properties-pop-out)). Reorder panes there by **dragging a pane card by its ⋮⋮ Pane n title** onto another pane, or with the ↑ / ↓ buttons.
+
+## Bars
+
+**Bars** is a companion to the graph: the same x-axis, zoom, cursor and sector / corner lines, but each row is a **filled bar wherever a condition is true** instead of a trace. Use it for on/off channels (flags, DRS, ABS active, math channels like *Coasting* or *Full Throttle*) or to ask a question of any channel, e.g. *Brake Pos > 5*, *Gear = 2*, *Steering Angle between −5 and 5*.
+
+![Bars under a graph](images/bars.png)
+
+- **Add it under a graph**: **＋** on the graph's header → *Bars* (or **＋ Component**), then drag its header to the graph's **bottom edge**. With the same width it lines up exactly, so the bars read as part of the graph. Make it short by dragging the divider; it snaps in line with other dividers.
+- **Rows** (Properties): pick a **channel** and a **condition** — *is on (non-zero)*, *equals*, *is not*, *greater than*, *at least*, *less than*, *at most*, *between* — and the value(s), in the channel's display units. Give it a label and a colour, and reorder rows with ↑ / ↓.
+- **Drag a channel** from the sidebar onto the bars to add a row that's on wherever the channel isn't 0.
+- **Laps**: each selected lap gets its own thin lane in the row (the reference in the row's colour, comparisons in their lap colours), or show the reference only.
+- The label shows **●** in the row's colour when the condition is true at the cursor.
+- **Combine rows into one** (right-click the bars, or Properties): every condition is drawn in a **single row**, one lane per lap. Where several are true at the same moment, the one **highest in the Properties list wins** — reorder rows with ↑ / ↓ to set the priority (the list is numbered while combined). Each row keeps its own colour; with several laps, a short tick in each lap's colour marks its lane. The labels become one key line, with **●** on the condition winning at the cursor.
+
+![Combined bars](images/bars-combined.png)
+- Mouse and keys work as on the graph: click for the cursor, drag to zoom, Shift + drag to measure, scroll to zoom, double-click to reset. X-axis labels are off by default so it sits seamlessly under the graph; switch them on in Properties if it stands alone.
 
 ## Exporting
 

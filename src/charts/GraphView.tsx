@@ -10,19 +10,17 @@ import { useCallback, useEffect, useRef } from 'react';
 import { computeVariance, lapSeries, varianceAt, xToTime } from '../core/axis';
 import { CATEGORICAL, channelColors, withAlpha } from '../core/colors';
 import { formatAxisDistance, formatAxisTime, formatDelta, formatValue } from '../core/format';
-import { crossingTime, lapDistAt } from '../core/session';
+import { crossingTime } from '../core/session';
 import { rangeStats, niceTicks } from '../core/stats';
 import type { ChannelInfo, Samples } from '../core/types';
 import { pane as newPane } from '../state/components';
 import {
   activeWorkspace,
-  addCorner,
   selectedLaps,
   setCursor,
   setGraphMarkers,
   toggleDatum,
   setMeasure,
-  setTrackProfile,
   setZoom,
   trackProfile,
   updateComponent,
@@ -31,13 +29,15 @@ import {
   type SelectedLap,
 } from '../state/store';
 import type { GraphConfig } from '../state/workspace';
+import { markAtCursor } from '../actions';
 import { keyHint } from '../shortcuts';
-import { openMenu, promptText } from '../ui/overlays';
+import { openMenu } from '../ui/overlays';
 import { chartTheme, drawTrace, fmtTick, lowerBound, prepCanvas, useElementSize, useStoreListener } from './canvas';
-import { channelDps, conv, displayData, lapRange } from './data';
+import { channelDps, channelLabel, conv, displayData, lapRange } from './data';
 
-const LEFT = 54;
-const RIGHT = 10;
+/** Plot margins; the Bars component uses the same ones so it lines up under a graph. */
+export const LEFT = 54;
+export const RIGHT = 10;
 const TOP = 4;
 const BOTTOM = 22;
 const DEFAULT_VARIANCE_WEIGHT = 0.55;
@@ -53,6 +53,8 @@ interface TraceInfo {
   min: number;
   max: number;
   present: boolean;
+  /** Kept in the pane but not drawn (and not part of the y-scale). */
+  hidden: boolean;
 }
 
 interface PaneLayout {
@@ -63,7 +65,8 @@ interface PaneLayout {
   traces: TraceInfo[];
   vMin: number;
   vMax: number;
-  legendRows: { y: number; h: number; name: string }[];
+  /** Legend rows as drawn, for clicking a channel name to show / hide it. */
+  legendRows: { y: number; h: number; x1: number; name: string }[];
 }
 
 interface Layout {
@@ -311,13 +314,15 @@ export function GraphView({ config }: { config: GraphConfig }) {
           mn -= 1;
           mx += 1;
         }
-        return { name, color: colors[ci], unit, dps, k, b, min: mn, max: mx, present };
+        return { name, color: colors[ci], unit, dps, k, b, min: mn, max: mx, present, hidden: !!cfg.hidden?.includes(name) };
       });
-      const units = new Set(traces.filter((t) => t.present).map((t) => t.unit));
+      // Hidden channels don't take part in the scale (unless every channel is hidden).
+      const scaled = traces.some((t) => !t.hidden) ? traces.filter((t) => !t.hidden) : traces;
+      const units = new Set(scaled.filter((t) => t.present).map((t) => t.unit));
       const shared = cfg.scale === 'shared' || (cfg.scale === 'auto' && units.size <= 1);
       if (shared) {
-        let mn = Math.min(...traces.map((t) => t.min));
-        let mx = Math.max(...traces.map((t) => t.max));
+        let mn = Math.min(...scaled.map((t) => t.min));
+        let mx = Math.max(...scaled.map((t) => t.max));
         if (cfg.min != null) mn = cfg.min;
         if (cfg.max != null) mx = cfg.max;
         if (!Number.isFinite(mn)) (mn = 0), (mx = 1);
@@ -332,7 +337,7 @@ export function GraphView({ config }: { config: GraphConfig }) {
         t.max += pad;
       }
       P.traces = traces;
-      const first = traces.find((t) => t.present) ?? traces[0];
+      const first = traces.find((t) => t.present && !t.hidden) ?? traces.find((t) => t.present) ?? traces[0];
       if (first) {
         P.vMin = first.min;
         P.vMax = first.max;
@@ -347,6 +352,7 @@ export function GraphView({ config }: { config: GraphConfig }) {
       // Overlays first (solid, lap colour), reference on top.
       const order = laps.slice(1).concat(laps.slice(0, 1));
       for (const t of traces) {
+        if (t.hidden) continue;
         const py = (v: number) => P.top + ((t.max - v) / (t.max - t.min)) * ph;
         for (const l of order) {
           const ch = l.session.channels.get(t.name);
@@ -465,6 +471,7 @@ export function GraphView({ config }: { config: GraphConfig }) {
       const rows: LegendRow[] = [];
       if (P.kind === 'variance') {
         rows.push({
+          name: '',
           swatch: T.text3,
           label: 'Time variance vs ref (s)',
           values: laps.slice(1).map((l) => {
@@ -474,6 +481,11 @@ export function GraphView({ config }: { config: GraphConfig }) {
         });
       } else {
         for (const t of P.traces) {
+          if (t.hidden) {
+            // Still listed (dimmed, hollow swatch) so it can be clicked back on.
+            rows.push({ name: t.name, swatch: refColorsMode === 'channel' ? t.color : laps[0].color, label: `${channelLabel(t.name)} — hidden`, values: [], hidden: true });
+            continue;
+          }
           const values: LegendValue[] = [];
           let refVal = NaN;
           for (const l of laps) {
@@ -504,8 +516,9 @@ export function GraphView({ config }: { config: GraphConfig }) {
             if (measure && isRef) break;
           }
           rows.push({
+            name: t.name,
             swatch: refColorsMode === 'channel' ? t.color : laps[0].color,
-            label: t.name + (t.unit ? ` [${t.unit}]` : '') + (t.present ? '' : ' — not in session'),
+            label: channelLabel(t.name) + (t.unit ? ` [${t.unit}]` : '') + (t.present ? '' : ' — not in session'),
             values: laps.length === 1 || measure ? values.slice(0, 1).map((v) => ({ ...v, color: '' })) : values,
           });
         }
@@ -536,6 +549,23 @@ export function GraphView({ config }: { config: GraphConfig }) {
     return -1;
   };
   const xIn = (L: Layout, x: number) => Math.max(LEFT, Math.min(L.w - RIGHT, x));
+  /** The channel whose legend name is under (x, y), with its pane index. */
+  const legendHit = (x: number, y: number) => {
+    if (config.showLegend === false) return null;
+    const P = paneAtY(y);
+    if (!P || P.kind !== 'channels') return null;
+    const row = P.legendRows.find((r) => r.name && y >= r.y && y < r.y + r.h && x >= LEFT && x <= r.x1 + 4);
+    return row ? { pane: P.index, name: row.name } : null;
+  };
+  /** Show / hide a channel in its pane without removing it. */
+  const toggleHidden = (pane: number, name: string) => {
+    const panes = config.panes.map((p, i) => {
+      if (i !== pane) return p;
+      const hidden = p.hidden ?? [];
+      return { ...p, hidden: hidden.includes(name) ? hidden.filter((n) => n !== name) : [...hidden, name] };
+    });
+    updateComponent(config.id, { panes } as Partial<GraphConfig>, 'Show / hide channel');
+  };
 
   const onPointerDown = (e: React.PointerEvent) => {
     const L = layoutRef.current;
@@ -543,6 +573,12 @@ export function GraphView({ config }: { config: GraphConfig }) {
     const { x, y } = local(e);
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     const zoom0 = viewRange();
+    // Click a channel's name in the legend to show / hide it.
+    const hit = e.button === 0 && !e.shiftKey && !e.ctrlKey && !e.metaKey ? legendHit(x, y) : null;
+    if (hit) {
+      toggleHidden(hit.pane, hit.name);
+      return;
+    }
     const sep = separatorAt(y);
     if (e.button === 0 && sep >= 0) {
       dragRef.current = { mode: 'resize', startPx: x, curPx: x, startY: y, moved: false, zoom0, sep, weights: allWeights(L.laps) };
@@ -587,7 +623,7 @@ export function GraphView({ config }: { config: GraphConfig }) {
         hoverSepRef.current = sep;
         drawOverlay();
       }
-      el.style.cursor = sep >= 0 ? 'row-resize' : 'crosshair';
+      el.style.cursor = sep >= 0 ? 'row-resize' : legendHit(x, y) ? 'pointer' : 'crosshair';
       if (useStore.getState().settings.cursorMode === 'hover' && x >= LEFT && x <= L.w - RIGHT) setCursor(xOfPx(L, x));
       return;
     }
@@ -671,23 +707,6 @@ export function GraphView({ config }: { config: GraphConfig }) {
     updateComponent(config.id, { panes } as Partial<GraphConfig>, 'Add channel');
   };
 
-  /** Ask for a name and save a corner / section split at the cursor for this track. */
-  const markAtCursor = async (kind: 'corner' | 'section') => {
-    const st = useStore.getState();
-    const ref = selectedLaps(st)[0];
-    if (!ref || st.cursor == null || ref.lap.index === -1) return;
-    const venue = ref.session.meta.venue;
-    const dist = Math.round(lapDistAt(ref.lap, xToTime(ref.lap, st.cursor, st.xMode)));
-    const prof = trackProfile(venue);
-    if (kind === 'corner') {
-      const name = await promptText(`Corner name at ${dist} m`, `T${prof.corners.length + 1}`);
-      if (name) addCorner(venue, { name, dist });
-    } else {
-      const name = await promptText(`Split name at ${dist} m`, `Split ${prof.sections.length + 1}`);
-      if (name) setTrackProfile(venue, { sections: [...prof.sections, { name, dist }].sort((a, b) => a.dist - b.dist) }, 'Add section');
-    }
-  };
-
   const onContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     const st = useStore.getState();
@@ -700,8 +719,8 @@ export function GraphView({ config }: { config: GraphConfig }) {
       { separator: true },
       { label: st.datum ? 'Release datum' : 'Set datum at cursor', checked: st.datum, disabled: !st.datum && st.cursor == null, shortcut: keyHint('toggle-datum'), onClick: toggleDatum },
       { separator: true },
-      { label: 'Add corner at cursor…', disabled: !canMark, onClick: () => markAtCursor('corner') },
-      { label: 'Add split at cursor…', disabled: !canMark, onClick: () => markAtCursor('section') },
+      { label: 'Add corner at cursor…', disabled: !canMark, shortcut: keyHint('add-corner'), onClick: () => markAtCursor('corner') },
+      { label: 'Add split at cursor…', disabled: !canMark, shortcut: keyHint('add-split'), onClick: () => markAtCursor('split') },
     ]);
   };
 
@@ -789,9 +808,12 @@ interface LegendValue {
   delta?: string;
 }
 interface LegendRow {
+  /** Channel name ('' for the variance row). */
+  name: string;
   swatch: string;
   label: string;
   values: LegendValue[];
+  hidden?: boolean;
 }
 
 function drawLegend(ctx: CanvasRenderingContext2D, T: ReturnType<typeof chartTheme>, P: PaneLayout, rows: LegendRow[], offset = 0) {
@@ -816,10 +838,16 @@ function drawLegend(ctx: CanvasRenderingContext2D, T: ReturnType<typeof chartThe
   ctx.fillRect(x0 - 3, y0 - 1, Math.min(wMax + 6, ctx.canvas.width), shown.length * rowH + 3);
   shown.forEach((r, i) => {
     const y = y0 + i * rowH + rowH / 2;
-    P.legendRows.push({ y: y0 + i * rowH, h: rowH, name: r.label.replace(/ \[.*$/, '').replace(/ — not in session$/, '') });
-    ctx.fillStyle = r.swatch;
-    ctx.fillRect(x0, y - 4, 8, 8);
-    ctx.fillStyle = T.text2;
+    P.legendRows.push({ y: y0 + i * rowH, h: rowH, x1: x0 + 13 + measured[i].lw, name: r.name });
+    if (r.hidden) {
+      ctx.strokeStyle = r.swatch;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x0 + 0.5, y - 3.5, 7, 7);
+    } else {
+      ctx.fillStyle = r.swatch;
+      ctx.fillRect(x0, y - 4, 8, 8);
+    }
+    ctx.fillStyle = r.hidden ? T.text3 : T.text2;
     ctx.textAlign = 'left';
     ctx.font = T.font;
     ctx.fillText(r.label, x0 + 13, y);

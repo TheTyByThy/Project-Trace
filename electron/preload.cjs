@@ -42,4 +42,5 @@ contextBridge.exposeInMainWorld('pt', {
   onOpenFiles: on('app:open-files'),
   onDirChanged: on('fs:changed'),
   onWorkspacesChanged: on('workspaces:changed'),
+  onFullscreen: on('window:fullscreen'),
 });

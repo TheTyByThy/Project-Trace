@@ -3,7 +3,7 @@
 import { xToTime } from './core/axis';
 import { pt } from './core/bridge';
 import { sampleAt } from './core/channel';
-import { lapDistAt } from './core/session';
+import { lapDistAt, lapLabel } from './core/session';
 import { COMPONENT_CATALOG } from './state/components';
 import {
   activeSheet,
@@ -50,9 +50,20 @@ import {
   useStore,
   viewRange,
   xExtent,
+  addCorner,
+  clearOverlays,
+  selectLap,
+  selectWholeSession,
+  setMeasure,
+  setTrackProfile,
+  setWorkingRotation,
+  SMOOTH_PRESETS,
+  trackProfile,
+  trackRotation,
+  updateSettings,
 } from './state/store';
-import { actionForCombo, comboFromEvent, shortcutHint } from './shortcuts';
-import type { GraphConfig } from './state/workspace';
+import { actionForCombo, comboFromEvent, shortcutHint, SHORTCUTS } from './shortcuts';
+import type { GraphConfig, TrackMapConfig } from './state/workspace';
 import { promptText } from './ui/overlays';
 
 export function toggleVarianceAll() {
@@ -75,7 +86,7 @@ export function toggleVarianceAll() {
 /** Sector/section or corner lines on every graph, track map and GPS track in the workspace. */
 export function toggleMarkersAll(key: 'showSectors' | 'showCorners') {
   const ws = activeWorkspace();
-  const all = ws.worksheets.flatMap((sh) => Object.values(sh.components)).filter((c) => c.type === 'graph' || c.type === 'trackmap' || c.type === 'gpstrack');
+  const all = ws.worksheets.flatMap((sh) => Object.values(sh.components)).filter((c) => c.type === 'graph' || c.type === 'trackmap' || c.type === 'gpstrack' || c.type === 'bars');
   if (!all.length) return;
   const on = !all.every((c) => (c as GraphConfig)[key]);
   setMarkersEverywhere({ [key]: on });
@@ -142,6 +153,56 @@ export interface Command {
   run: () => void;
 }
 
+/** Ask for a name and save a corner or split at the cursor, for the reference lap's track. */
+export async function markAtCursor(kind: 'corner' | 'split') {
+  const st = useStore.getState();
+  const ref = selectedLaps(st)[0];
+  if (!ref || st.cursor == null || ref.lap.index === -1) return toast('Place the cursor on a lap first.', 'info', 2000);
+  const venue = ref.session.meta.venue;
+  const dist = Math.round(lapDistAt(ref.lap, xToTime(ref.lap, st.cursor, st.xMode)));
+  const prof = trackProfile(venue);
+  if (kind === 'corner') {
+    const name = await promptText(`Corner name at ${dist} m`, `T${prof.corners.length + 1}`);
+    if (name) addCorner(venue, { name, dist });
+  } else {
+    const name = await promptText(`Split name at ${dist} m`, `Split ${prof.sections.length + 1}`);
+    if (name) setTrackProfile(venue, { sections: [...prof.sections, { name, dist }].sort((a, b) => a.dist - b.dist) }, 'Add section');
+  }
+}
+
+/** Step the smoothing amount through the top-bar presets (and switch smoothing on). */
+function stepSmoothing(dir: 1 | -1) {
+  const sm = useStore.getState().settings.smoothing;
+  const i = SMOOTH_PRESETS.findIndex((p) => p >= sm.seconds - 1e-6);
+  const next = SMOOTH_PRESETS[Math.max(0, Math.min(SMOOTH_PRESETS.length - 1, (i < 0 ? SMOOTH_PRESETS.length - 1 : i) + (sm.enabled ? dir : 0)))];
+  setSmoothing({ enabled: true, seconds: next });
+  toast(`Smoothing ${next < 1 ? `${Math.round(next * 1000)} ms` : `${next} s`}`, 'info', 1200);
+}
+
+const refVenue = () => selectedLaps()[0]?.session.meta.venue ?? '';
+
+/** Gain/loss track maps on this worksheet: compare the next comparison lap with the reference. */
+function cycleCompareLap() {
+  const laps = selectedLaps();
+  if (laps.length < 3) return toast('Select two or more comparison laps to switch between them.', 'info', 2200);
+  const maps = Object.values(activeSheet()?.components ?? {}).filter((c): c is TrackMapConfig => c.type === 'trackmap' && c.colorBy === 'delta');
+  if (!maps.length) return;
+  const others = laps.slice(1);
+  const cur = others.findIndex((l) => l.key === maps[0].compareKey);
+  const next = others[(Math.max(0, cur) + 1) % others.length];
+  updateSheet(
+    (sh) => ({ ...sh, components: { ...sh.components, ...Object.fromEntries(maps.map((m) => [m.id, { ...m, compareKey: next.key }])) } }),
+    { label: 'Compare lap' },
+  );
+  toast(`Gain / loss: ${lapLabel(next.lap)} vs reference`, 'info', 1400);
+}
+
+function stepSheet(dir: 1 | -1) {
+  const ws = activeWorkspace();
+  const n = ws.worksheets.length;
+  setActiveSheet((ws.activeSheet + dir + n) % n);
+}
+
 /** What each bindable shortcut (src/shortcuts.ts) does. */
 const SHORTCUT_ACTIONS: Record<string, () => void> = {
   'ws-save': () => saveCurrentWorkspace(),
@@ -173,6 +234,49 @@ const SHORTCUT_ACTIONS: Record<string, () => void> = {
   'zoom-in': () => zoomBy(0.7),
   'zoom-out': () => zoomBy(1 / 0.7),
   ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`sheet-${i + 1}`, () => setActiveSheet(i)])),
+  // No default key (bind them in the shortcut editor).
+  'ws-save-as': () => saveWorkspaceAs(),
+  'ws-open-folder': openWorkspacesFolder,
+  'ws-import': () => importWorkspace(),
+  'ws-export': () => exportWorkspace(),
+  'open-properties': () => openProperties(),
+  maximise: () => window.dispatchEvent(new Event('pt-maximise')),
+  'x-time': () => setXMode('time'),
+  'x-distance': () => setXMode('distance'),
+  'smoothing-more': () => stepSmoothing(1),
+  'smoothing-less': () => stepSmoothing(-1),
+  'toggle-theme': () => updateSettings({ theme: useStore.getState().settings.theme === 'dark' ? 'light' : 'dark' }),
+  'cycle-cursor-mode': () => {
+    const order = ['click', 'scrub', 'hover'] as const;
+    const next = order[(order.indexOf(useStore.getState().settings.cursorMode) + 1) % order.length];
+    updateSettings({ cursorMode: next });
+    toast(`Cursor: ${next === 'click' ? 'click to place, drag to zoom' : next === 'scrub' ? 'drag to scrub' : 'follows the mouse'}`, 'info', 1600);
+  },
+  'sidebar-laps': () => setUi({ sidebar: true, sidebarTab: 'laps' }),
+  'sidebar-channels': () => setUi({ sidebar: true, sidebarTab: 'channels' }),
+  'clear-overlays': clearOverlays,
+  'swap-reference': () => {
+    const second = selectedLaps()[1];
+    if (second) selectLap(second.key, 'reference');
+  },
+  'whole-session': () => {
+    const ref = selectedLaps()[0];
+    if (ref) selectWholeSession(ref.session.id);
+  },
+  'clear-measure': () => setMeasure(null),
+  'cursor-start': () => setCursor(xExtent()[0]),
+  'cursor-end': () => setCursor(xExtent()[1]),
+  'add-corner': () => markAtCursor('corner'),
+  'add-split': () => markAtCursor('split'),
+  'track-profile': () => setUi({ trackProfile: true }),
+  'rotate-map': () => refVenue() && setWorkingRotation(refVenue(), trackRotation(refVenue()) + 90),
+  'mirror-map': () => refVenue() && setTrackProfile(refVenue(), { mirror: !trackProfile(refVenue()).mirror }, 'Mirror track'),
+  'cycle-compare': cycleCompareLap,
+  'next-sheet': () => stepSheet(1),
+  'prev-sheet': () => stepSheet(-1),
+  'new-sheet': () => addWorksheet(),
+  'duplicate-sheet': () => duplicateWorksheet(activeWorkspace().activeSheet),
+  'rename-sheet': () => window.dispatchEvent(new Event('pt-rename-sheet')),
 };
 
 export function buildCommands(): Command[] {
@@ -205,6 +309,8 @@ export function buildCommands(): Command[] {
     { id: 'sheet-reset', label: 'Reset this worksheet to the Starter version', run: () => resetSheetToStarter(activeWorkspace().activeSheet) },
     { id: 'ws-revert', label: 'Revert this workspace to Starter', run: revertWorkspaceToStarter },
   ];
+  // Actions that have no default key (bindable in the shortcut editor) are always in the palette.
+  for (const d of SHORTCUTS) if (!d.keys.length) cmds.push({ id: 'sc-' + d.id, label: d.label, hint: k(d.id), run: SHORTCUT_ACTIONS[d.id] });
   st.workspaces.forEach((w) => cmds.push({ id: 'ws' + w.id, label: `Switch workspace: ${w.name}`, run: () => setActiveWorkspace(w.id) }));
   ws?.worksheets.forEach((sh, i) => cmds.push({ id: 'sheet' + i, label: `Go to worksheet: ${sh.name}`, hint: i < 9 ? k(`sheet-${i + 1}`) : undefined, run: () => setActiveSheet(i) }));
   st.library.forEach((l) => cmds.push({ id: 'lib' + l.id, label: `Insert saved worksheet: ${l.name}`, run: () => insertLibrarySheet(l.id) }));
@@ -295,6 +401,10 @@ export async function handleMenuAction(action: string) {
       return resetView();
     case 'toggle-datum':
       return toggleDatum();
+    case 'theme':
+      return updateSettings({ theme: arg === 'light' ? 'light' : 'dark' });
+    case 'toggle-theme':
+      return SHORTCUT_ACTIONS['toggle-theme']();
     case 'fastest-lap':
       return fastestAsReference();
     case 'prev-lap':

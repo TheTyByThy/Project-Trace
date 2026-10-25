@@ -10,6 +10,7 @@ import { lapKey, type Session } from '../core/types';
 import { pane } from '../state/components';
 import {
   activeSheet,
+  activeWorkspace,
   clearOverlays,
   closeSession,
   fastestAsReference,
@@ -24,8 +25,8 @@ import {
   useStore,
 } from '../state/store';
 import type { GraphConfig } from '../state/workspace';
-import { channelDps, conv } from '../charts/data';
-import { openChannelProps, openColorPicker, openMenu } from './overlays';
+import { channelDps, channelLabel, conv } from '../charts/data';
+import { openChannelProps, openColorPicker, openMenu, renameChannel } from './overlays';
 import { keyHint } from '../shortcuts';
 
 function SessionCard({ s }: { s: Session }) {
@@ -191,6 +192,7 @@ function addToGraph(name: string) {
 function ChannelsPanel() {
   const sessions = useStore((s) => s.sessions);
   const hideConstant = useStore((s) => s.settings.hideConstant);
+  const channelPropsAll = useStore((s) => activeWorkspace(s)?.channelProps);
   useStore((s) => s.dataVersion);
   useStore((s) => s.cursor);
   useStore((s) => s.laps);
@@ -209,14 +211,14 @@ function ChannelsPanel() {
         seen.add(n);
         const c = s.channels.get(n)!;
         if (hideConstant && c.constant) continue;
-        if (q && !n.toLowerCase().includes(q.toLowerCase())) continue;
+        if (q && !n.toLowerCase().includes(q.toLowerCase()) && !channelLabel(n).toLowerCase().includes(q.toLowerCase())) continue;
         const arr = map.get(c.category) ?? [];
         arr.push({ name: n, unit: c.unit, constant: c.constant, session: s });
         map.set(c.category, arr);
       }
     return groupByCategory(map);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessions, q, hideConstant, st.dataVersion]);
+  }, [sessions, q, hideConstant, st.dataVersion, channelPropsAll]);
   return (
     <>
       <div style={{ padding: 8, borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -261,14 +263,15 @@ function ChannelsPanel() {
                       openMenu(e, [
                         { header: it.name },
                         { label: 'Add to graph (new pane)', onClick: () => addToGraph(it.name) },
+                        { label: 'Rename…', onClick: () => renameChannel(it.name) },
                         { label: 'Channel properties…', onClick: () => openChannelProps(it.name) },
                         { label: 'Copy name', onClick: () => navigator.clipboard.writeText(it.name) },
                       ]);
                     }}
-                    title={`${it.name}${unit ? ` [${unit}]` : ''}${ch ? ` · ${ch.rate} Hz` : ''} — drag onto a component, double-click to add to the graph`}
+                    title={`${channelLabel(it.name)}${channelLabel(it.name) !== it.name ? ` (logged as ${it.name})` : ''}${unit ? ` [${unit}]` : ''}${ch ? ` · ${ch.rate} Hz` : ''} — drag onto a component, double-click to add to the graph`}
                   >
                     <span className="swatch" style={{ width: 6, height: 6, borderRadius: 3, background: ch?.isMath ? 'var(--best)' : 'var(--text-3)' }} />
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.name}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{channelLabel(it.name)}</span>
                     <span className="v num">
                       {v} <span className="muted">{unit}</span>
                     </span>

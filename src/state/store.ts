@@ -11,6 +11,7 @@ import { fastestLap, getLap, theoreticalBest } from '../core/session';
 import { lapKey, parseLapKey, type Lap, type Session, type XMode } from '../core/types';
 import { DEFAULT_UNITS, type UnitPrefs } from '../core/units';
 import { createComponent } from './components';
+import { renameChannelsInWorkspace, type RenameMap } from './renameChannels';
 import { buildBlankWorkspace, buildDefaultWorkspace } from './defaultWorkspace';
 import { cloneLayout, insertComponent, moveComponent, removeComponent, setSizes, type DropZone } from './layout';
 import { loadSessionFile } from './loader';
@@ -346,12 +347,12 @@ export function updateSettings(patch: Partial<Settings>) {
 
 /** Show/hide sector & corner markers on every time/distance graph in the workspace at once. */
 export function setGraphMarkers(patch: { showSectors?: boolean; showCorners?: boolean }) {
-  setMarkersOn(['graph'], patch);
+  setMarkersOn(['graph', 'bars'], patch);
 }
 
 /** Same for graphs, track maps and GPS tracks (the marker shortcuts). */
 export function setMarkersEverywhere(patch: { showSectors?: boolean; showCorners?: boolean }) {
-  setMarkersOn(['graph', 'trackmap', 'gpstrack'], patch);
+  setMarkersOn(['graph', 'trackmap', 'gpstrack', 'bars'], patch);
 }
 
 function setMarkersOn(types: ComponentType[], patch: { showSectors?: boolean; showCorners?: boolean }) {
@@ -389,6 +390,9 @@ export function setDefaultTelemetryFolder(path: string) {
   const rest = telemetryFolders().slice(1).filter((f) => f.path !== path);
   setTelemetryFolders([{ name: baseName(path) || path, path }, ...rest]);
 }
+
+/** Smoothing amounts offered in the top bar and stepped through by the more/less shortcuts. */
+export const SMOOTH_PRESETS = [0.03, 0.05, 0.1, 0.2, 0.35, 0.5, 1];
 
 export function setSmoothing(patch: Partial<Settings['smoothing']>) {
   updateSettings({ smoothing: { ...get().settings.smoothing, ...patch } });
@@ -588,6 +592,8 @@ export async function initApp() {
   workspaces = [...builtIns, ...workspaces];
   if (!workspaces.some((w) => w.id === settings.activeWorkspaceId)) settings.activeWorkspaceId = workspaces[builtIns.length].id;
   document.documentElement.dataset.theme = settings.theme;
+  // Platform styling hook (macOS: the header makes room for the window's traffic-light buttons).
+  document.documentElement.dataset.platform = info.platform;
   set({
     appInfo: info,
     settings,
@@ -1195,8 +1201,18 @@ export function recomputeMath() {
 }
 
 export function setMathChannels(math: MathChannelDef[], constants?: MathConstant[]) {
-  updateWorkspace((ws) => ({ ...ws, math, constants: constants ?? ws.constants }), { label: 'Math channels' });
+  // Math channels keep their id when renamed: carry each rename through graphs, components, channel
+  // properties and other expressions so nothing that used the old name breaks.
+  const before = new Map(activeWorkspace().math.map((d) => [d.id, d.name.trim()]));
+  const renames: RenameMap = new Map();
+  for (const d of math) {
+    const old = before.get(d.id);
+    const now = d.name.trim();
+    if (old && now && old !== now) renames.set(old, now);
+  }
+  updateWorkspace((ws) => ({ ...renameChannelsInWorkspace(ws, renames, math), constants: constants ?? ws.constants }), { label: 'Math channels' });
   recomputeMath();
+  if (renames.size) toast(`Renamed ${[...renames].map(([a, b]) => `"${a}" → "${b}"`).join(', ')} everywhere it was used`, 'success', 3500);
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -1,15 +1,16 @@
 // Keyboard shortcuts: the bindable actions, their default keys and key-combo helpers. Users can rebind
-// any of these in Help → Keyboard Shortcuts; overrides are saved in settings.shortcuts.
+// any of these in Help → Keyboard Shortcuts; overrides are saved in settings.shortcuts. Actions with no
+// default keys (keys: []) are listed there unbound, ready to be given a key.
 //
-import { useStore } from './state/store';
-
 // A combo is written like "Mod+Shift+O", "J", "F3" or "ArrowLeft". "Mod" is Ctrl on Windows and ⌘ on
 // macOS. Letters are upper case; symbol keys (+ - [ ] ,) are written as typed, without Shift.
+
+import { useStore } from './state/store';
 
 export interface ShortcutDef {
   id: string;
   label: string;
-  group: 'General' | 'View' | 'Laps' | 'Cursor & zoom' | 'Worksheets';
+  group: 'General' | 'Workspace' | 'View' | 'Laps' | 'Cursor & zoom' | 'Track & markers' | 'Worksheets';
   keys: string[];
 }
 
@@ -43,6 +44,39 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'zoom-in', label: 'Zoom in around the cursor', group: 'Cursor & zoom', keys: ['+', '='] },
   { id: 'zoom-out', label: 'Zoom out', group: 'Cursor & zoom', keys: ['-', '_'] },
   ...Array.from({ length: 9 }, (_, i) => ({ id: `sheet-${i + 1}`, label: `Go to worksheet ${i + 1}`, group: 'Worksheets' as const, keys: [String(i + 1)] })),
+
+  // ---- No default key: available to bind in the shortcut editor ----
+  { id: 'ws-save-as', label: 'Save workspace as…', group: 'Workspace', keys: [] },
+  { id: 'ws-open-folder', label: 'Open the workspaces folder', group: 'Workspace', keys: [] },
+  { id: 'ws-import', label: 'Import workspace…', group: 'Workspace', keys: [] },
+  { id: 'ws-export', label: 'Export workspace…', group: 'Workspace', keys: [] },
+  { id: 'open-properties', label: 'Properties pop-out for the selected component', group: 'View', keys: [] },
+  { id: 'maximise', label: 'Maximise / restore the selected component', group: 'View', keys: [] },
+  { id: 'x-time', label: 'X axis: time', group: 'View', keys: [] },
+  { id: 'x-distance', label: 'X axis: distance', group: 'View', keys: [] },
+  { id: 'smoothing-more', label: 'More smoothing (next amount)', group: 'View', keys: [] },
+  { id: 'smoothing-less', label: 'Less smoothing (previous amount)', group: 'View', keys: [] },
+  { id: 'toggle-theme', label: 'Toggle dark / light theme', group: 'View', keys: [] },
+  { id: 'cycle-cursor-mode', label: 'Cycle cursor mode (classic / scrub / follow mouse)', group: 'View', keys: [] },
+  { id: 'sidebar-laps', label: 'Sidebar: sessions & laps', group: 'View', keys: [] },
+  { id: 'sidebar-channels', label: 'Sidebar: channels', group: 'View', keys: [] },
+  { id: 'clear-overlays', label: 'Clear comparison laps (keep the reference)', group: 'Laps', keys: [] },
+  { id: 'swap-reference', label: 'Make the first comparison lap the reference', group: 'Laps', keys: [] },
+  { id: 'whole-session', label: 'Whole session view', group: 'Laps', keys: [] },
+  { id: 'clear-measure', label: 'Clear range measurement', group: 'Cursor & zoom', keys: [] },
+  { id: 'cursor-start', label: 'Cursor to the start of the lap', group: 'Cursor & zoom', keys: [] },
+  { id: 'cursor-end', label: 'Cursor to the end of the lap', group: 'Cursor & zoom', keys: [] },
+  { id: 'add-corner', label: 'Mark a corner at the cursor…', group: 'Track & markers', keys: [] },
+  { id: 'add-split', label: 'Mark a split at the cursor…', group: 'Track & markers', keys: [] },
+  { id: 'track-profile', label: 'Track profile editor (corners, splits, rotation)', group: 'Track & markers', keys: [] },
+  { id: 'rotate-map', label: 'Rotate the track maps 90°', group: 'Track & markers', keys: [] },
+  { id: 'mirror-map', label: 'Mirror the track maps (this track)', group: 'Track & markers', keys: [] },
+  { id: 'cycle-compare', label: 'Gain/loss track maps: compare the next comparison lap', group: 'Track & markers', keys: [] },
+  { id: 'next-sheet', label: 'Next worksheet', group: 'Worksheets', keys: [] },
+  { id: 'prev-sheet', label: 'Previous worksheet', group: 'Worksheets', keys: [] },
+  { id: 'new-sheet', label: 'New worksheet', group: 'Worksheets', keys: [] },
+  { id: 'duplicate-sheet', label: 'Duplicate this worksheet', group: 'Worksheets', keys: [] },
+  { id: 'rename-sheet', label: 'Rename this worksheet', group: 'Worksheets', keys: [] },
 ];
 
 const MODIFIER_KEYS = new Set(['Control', 'Meta', 'Shift', 'Alt', 'AltGraph', 'CapsLock', 'Fn', 'OS']);

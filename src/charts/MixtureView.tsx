@@ -10,7 +10,7 @@ import { selectedLaps, useStore } from '../state/store';
 import type { MixtureConfig } from '../state/workspace';
 import { drawAxes, makeAxes, type Axes } from './axes';
 import { chartTheme, prepCanvas, useElementSize, useStoreListener } from './canvas';
-import { conv, findChannel, lapWindow, sampleGrid } from './data';
+import { channelLabel, conv, findChannel, lapWindow, sampleGrid } from './data';
 
 export function MixtureView({ config }: { config: MixtureConfig }) {
   const [wrapRef, size] = useElementSize<HTMLDivElement>();
@@ -117,7 +117,7 @@ export function MixtureView({ config }: { config: MixtureConfig }) {
           ctx.font = T.font;
         }
       }
-    drawAxes(ctx, T, A, xmn, xmx, ymn, ymx, `${config.x}${cx.unit ? ` [${cx.unit}]` : ''}`, `${config.y}${cy.unit ? ` [${cy.unit}]` : ''}`);
+    drawAxes(ctx, T, A, xmn, xmx, ymn, ymx, `${channelLabel(config.x)}${cx.unit ? ` [${cx.unit}]` : ''}`, `${channelLabel(config.y)}${cy.unit ? ` [${cy.unit}]` : ''}`);
     ctx.fillStyle = T.text3;
     ctx.textAlign = 'left';
     const what = !zs || config.mode === 'time' ? '% of time' : `${config.mode} of ${config.z}`;
