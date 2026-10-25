@@ -139,7 +139,7 @@ There are 16 component types:
 
 Properties are available in two forms that show the same settings:
 
-- the **Properties side panel** on the right, toggled with **Ctrl/⌘ + I** (or *View → Toggle Properties Panel*). It follows whichever component you click; drag its edge to resize it, and **⤢ Pop out** opens the large window;
+- the **Properties side panel** on the right, hidden when the app starts and toggled with **Ctrl/⌘ + I** (or *View → Toggle Properties Panel*). It follows whichever component you click; drag its edge to resize it, and **⤢ Pop out** opens the large window;
 - the **large centred pop-out**, opened by **right-clicking any component → Properties…** or the **☰ Properties** button in the top bar.
 
 In the pop-out:

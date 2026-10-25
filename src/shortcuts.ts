@@ -1,6 +1,8 @@
 // Keyboard shortcuts: the bindable actions, their default keys and key-combo helpers. Users can rebind
 // any of these in Help → Keyboard Shortcuts; overrides are saved in settings.shortcuts.
 //
+import { useStore } from './state/store';
+
 // A combo is written like "Mod+Shift+O", "J", "F3" or "ArrowLeft". "Mod" is Ctrl on Windows and ⌘ on
 // macOS. Letters are upper case; symbol keys (+ - [ ] ,) are written as typed, without Shift.
 
@@ -98,4 +100,9 @@ export function actionForCombo(combo: string, overrides: Record<string, string[]
 export function shortcutHint(id: string, overrides: Record<string, string[]>): string | undefined {
   const k = bindings(overrides)[id]?.[0];
   return k ? formatCombo(k) : undefined;
+}
+
+/** First key of an action with the user's current bindings (for menus built on demand). */
+export function keyHint(id: string): string | undefined {
+  return shortcutHint(id, useStore.getState().settings.shortcuts);
 }

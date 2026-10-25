@@ -1,7 +1,7 @@
 // Histogram: % of time spent in each value bin, per selected lap. Zone boundaries give a
 // breakdown table — e.g. damper velocity zones (fast/slow rebound, slow/fast bump).
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { xToTime } from '../core/axis';
 import { sampleAt } from '../core/channel';
 import { withAlpha } from '../core/colors';
@@ -27,6 +27,17 @@ export function HistogramView({ config }: { config: HistogramConfig }) {
   const overRef = useRef<HTMLCanvasElement>(null);
   const axesRef = useRef<Axes | null>(null);
   const viewRef = useRef<View | null>(null);
+  /** What the hover tooltip needs about the bars that were drawn. */
+  const binsRef = useRef<{
+    lo: number;
+    bw: number;
+    nb: number;
+    dps: number;
+    unit: string;
+    rows: { label: string; color: string; pct: number[]; secs: number[] }[];
+  } | null>(null);
+  const hoverRef = useRef<number | null>(null);
+  const [tip, setTip] = useState<{ x: number; y: number; bin: number } | null>(null);
   const sessions = useStore((s) => s.sessions);
   const lapSel = useStore((s) => s.laps);
   const refKey = useStore((s) => s.refKey);
@@ -43,6 +54,7 @@ export function HistogramView({ config }: { config: HistogramConfig }) {
     const st = useStore.getState();
     const laps = selectedLaps(st);
     axesRef.current = null;
+    binsRef.current = null;
     ctx.font = T.font;
     ctx.textBaseline = 'middle';
     const ch0 = findChannel(sessions, config.channel);
@@ -55,7 +67,7 @@ export function HistogramView({ config }: { config: HistogramConfig }) {
     const cv = conv(ch0);
     const dps = channelDps(ch0);
     // Gather samples per lap.
-    const sets: { l: (typeof laps)[number]; vals: Float64Array }[] = [];
+    const sets: { l: (typeof laps)[number]; vals: Float64Array; rate: number }[] = [];
     let mn = Infinity,
       mx = -Infinity;
     for (const l of laps) {
@@ -73,7 +85,7 @@ export function HistogramView({ config }: { config: HistogramConfig }) {
           if (v > mx) mx = v;
         }
       }
-      sets.push({ l, vals });
+      sets.push({ l, vals, rate: ch.rate });
     }
     // Box-zoom re-bins the zoomed x-range for more detail.
     const lo = viewRef.current?.x0 ?? config.min ?? mn;
@@ -90,6 +102,8 @@ export function HistogramView({ config }: { config: HistogramConfig }) {
         counts[Math.min(nb - 1, Math.floor((v - lo) / bw))]++;
       }
       const pct = Array.from(counts, (c) => (total ? (100 * c) / total : 0));
+      const rawPct = pct.slice();
+      const secs = Array.from(counts, (c) => c / s.rate);
       if (config.cumulative) for (let i = 1; i < nb; i++) pct[i] += pct[i - 1];
       const zones = new Array(config.zones.length + 1).fill(0);
       let sum = 0;
@@ -100,8 +114,16 @@ export function HistogramView({ config }: { config: HistogramConfig }) {
         while (z < config.zones.length && v >= config.zones[z]) z++;
         zones[z]++;
       }
-      return { pct, zones: zones.map((c) => (total ? (100 * c) / total : 0)), mean: total ? sum / total : NaN };
+      return { pct, rawPct, secs, zones: zones.map((c) => (total ? (100 * c) / total : 0)), mean: total ? sum / total : NaN };
     });
+    binsRef.current = {
+      lo,
+      bw,
+      nb,
+      dps,
+      unit: cv.unit,
+      rows: sets.map((st2, si) => ({ label: lapLabel(st2.l.lap), color: st2.l.color, pct: hists[si].rawPct, secs: hists[si].secs })),
+    };
     const yMax = viewRef.current ? viewRef.current.y1 : Math.max(1, ...hists.flatMap((hh) => hh.pct)) * 1.1;
     const yMin = viewRef.current ? Math.max(0, viewRef.current.y0) : 0;
     const tableH = config.zones.length ? 16 + 14 * (config.zones.length + 1) : 0;
@@ -194,16 +216,74 @@ export function HistogramView({ config }: { config: HistogramConfig }) {
     ctx.stroke();
   }, [size, config]);
 
+  /** Outline of the hovered bin (drawn on top of the cursor layer). */
+  const drawHover = useCallback(() => {
+    drawOverlay();
+    const A = axesRef.current;
+    const B = binsRef.current;
+    const b = hoverRef.current;
+    const ctx = overRef.current?.getContext('2d');
+    if (!A || !B || b == null || !ctx) return;
+    const T = chartTheme();
+    const x0 = A.px(B.lo + b * B.bw);
+    const x1 = A.px(B.lo + (b + 1) * B.bw);
+    ctx.save();
+    ctx.fillStyle = withAlpha(T.text, 0.07);
+    ctx.fillRect(x0, A.rect.y, x1 - x0, A.rect.h);
+    ctx.strokeStyle = withAlpha(T.text, 0.5);
+    ctx.strokeRect(Math.round(x0) + 0.5, A.rect.y + 0.5, Math.round(x1 - x0), A.rect.h - 1);
+    ctx.restore();
+  }, [drawOverlay]);
+
+  const onHover = (e: React.MouseEvent) => {
+    const A = axesRef.current;
+    const B = binsRef.current;
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const y = e.clientY - r.top;
+    let bin: number | null = null;
+    if (A && B && x >= A.rect.x && x <= A.rect.x + A.rect.w && y >= A.rect.y && y <= A.rect.y + A.rect.h) {
+      const b = Math.floor((A.ix(x) - B.lo) / B.bw);
+      if (b >= 0 && b < B.nb) bin = b;
+    }
+    if (bin !== hoverRef.current) {
+      hoverRef.current = bin;
+      drawHover();
+    }
+    setTip(bin == null ? null : { x, y, bin });
+  };
+
   useEffect(() => {
     drawBase();
     drawOverlay();
   }, [drawBase, drawOverlay]);
-  useStoreListener(drawOverlay, [drawOverlay]);
+  useStoreListener(drawHover, [drawHover]);
+
+  const B = binsRef.current;
+  const binLabel = (b: number) => {
+    if (!B) return '';
+    const a = B.lo + b * B.bw;
+    const c = a + B.bw / 2;
+    const f = (v: number) => formatValue(v, B.dps);
+    // Bins centred on whole numbers one unit wide (gears, modes…) read as a single value.
+    if (Math.abs(B.bw - 1) < 1e-9 && Math.abs(c - Math.round(c)) < 1e-9) {
+      const n = Math.round(c);
+      const gear = /gear/i.test(config.channel);
+      return `${config.channel} ${gear && n === 0 ? 'N' : gear && n < 0 ? 'R' : n}`;
+    }
+    return `${f(a)} – ${f(a + B.bw)}${B.unit ? ` ${B.unit}` : ''}`;
+  };
 
   return (
     <div
       ref={wrapRef}
       className="chart"
+      onMouseMove={onHover}
+      onMouseLeave={() => {
+        hoverRef.current = null;
+        setTip(null);
+        drawHover();
+      }}
       onDragOver={(e) => e.dataTransfer.types.includes('application/x-pt-channel') && (e.preventDefault(), e.stopPropagation())}
       onDrop={(e) => {
         const n = e.dataTransfer.getData('application/x-pt-channel');
@@ -216,6 +296,18 @@ export function HistogramView({ config }: { config: HistogramConfig }) {
     >
       <canvas ref={baseRef} />
       <canvas ref={overRef} />
+      {tip && B && (
+        <div className="chart-tip" style={{ left: Math.min(tip.x + 14, size.w - 220), top: Math.max(4, tip.y - 10) }}>
+          <b>{binLabel(tip.bin)}</b>
+          {B.rows.map((r) => (
+            <div key={r.label} className="row" style={{ gap: 6, background: B.rows.length > 1 ? withAlpha(r.color, 0.22) : undefined, padding: '1px 4px', borderRadius: 3 }}>
+              <span className="grow">{r.label}</span>
+              <span className="num">{r.pct[tip.bin].toFixed(1)}%</span>
+              <span className="num muted">{r.secs[tip.bin].toFixed(1)} s</span>
+            </div>
+          ))}
+        </div>
+      )}
       <BoxZoomLayer
         axesRef={axesRef}
         onView={(v) => {

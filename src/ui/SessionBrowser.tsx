@@ -6,7 +6,8 @@ import { baseName, dirName, pt, type DirFile, type DirListing } from '../core/br
 import { formatBytes, formatDateTime, formatDuration, formatGameClock, formatLapTime, prettyCar, prettyTeam, prettyTrack, relativeTime } from '../core/format';
 import { COMMON_ZONES, guessTrackZone, zoneForVenue } from '../core/timezones';
 import { summarizeFile, type SessionSummary } from '../state/loader';
-import { closeSession, openFiles, setUi, updateSettings, useStore } from '../state/store';
+import { closeSession, openFiles, setDefaultTelemetryFolder, setTelemetryFolders, setUi, telemetryFolders, updateSettings, useStore } from '../state/store';
+import { openMenu, promptText } from './overlays';
 
 type SortKey = 'savedAt' | 'gameTimeUtc' | 'driver' | 'vehicle' | 'laps' | 'bestLap' | 'duration' | 'size';
 
@@ -87,12 +88,52 @@ export function SessionBrowser() {
     return () => window.removeEventListener('pt-browse', h);
   }, []);
 
+  const telFolders = telemetryFolders(settings);
   const chooseRoot = async () => {
     const p = await pt().chooseFolder(root || undefined);
     if (p) {
-      updateSettings({ telemetryRoot: p, lastBrowsePath: p });
+      setDefaultTelemetryFolder(p);
+      updateSettings({ lastBrowsePath: p });
       setPath(p);
     }
+  };
+  const addFolder = async () => {
+    const p = await pt().chooseFolder(path || root || undefined);
+    if (!p) return;
+    if (telFolders.some((f) => normPath(f.path) === normPath(p))) return setPath(p);
+    const name = await promptText('Name this telemetry folder', baseName(p) || p);
+    if (!name) return;
+    setTelemetryFolders([...telFolders, { name, path: p }]);
+    setPath(p);
+  };
+  const folderMenu = (e: React.MouseEvent, i: number) => {
+    e.preventDefault();
+    const f = telFolders[i];
+    const set = (next: typeof telFolders) => setTelemetryFolders(next);
+    openMenu(e, [
+      { header: f.name },
+      {
+        label: 'Rename…',
+        onClick: async () => {
+          const n = await promptText('Rename telemetry folder', f.name);
+          if (n) set(telFolders.map((x, k) => (k === i ? { ...x, name: n } : x)));
+        },
+      },
+      {
+        label: 'Change folder…',
+        onClick: async () => {
+          const p = await pt().chooseFolder(f.path);
+          if (p) {
+            set(telFolders.map((x, k) => (k === i ? { ...x, path: p } : x)));
+            setPath(p);
+          }
+        },
+      },
+      { label: 'Make default', disabled: i === 0, onClick: () => set([f, ...telFolders.filter((_, k) => k !== i)]) },
+      { label: 'Show in Finder / Explorer', onClick: () => pt().showItemInFolder(f.path) },
+      { separator: true },
+      { label: 'Remove shortcut', onClick: () => set(telFolders.filter((_, k) => k !== i)) },
+    ]);
   };
 
   const rows = useMemo(() => {
@@ -151,11 +192,16 @@ export function SessionBrowser() {
     return best;
   }, [rows]);
 
-  // Breadcrumbs within the root.
+  // Breadcrumbs within whichever telemetry folder contains the current path (the deepest match).
   const crumbs: { label: string; path: string }[] = [];
   if (path) {
-    const inRoot = root && normPath(path).startsWith(normPath(root));
-    if (inRoot) {
+    const home = telFolders
+      .filter((f) => normPath(path).startsWith(normPath(f.path)))
+      .sort((a, b) => b.path.length - a.path.length)[0];
+    const crumbRoot = home?.path ?? '';
+    if (home) {
+      const root = crumbRoot;
+      crumbs.push({ label: home.name || baseName(root) || root, path: root });
       crumbs.push({ label: baseName(root) || root, path: root });
       let acc = root.replace(/[\\/]$/, '');
       for (const p of path.slice(root.length).split(/[\\/]/).filter(Boolean)) {
@@ -250,13 +296,27 @@ export function SessionBrowser() {
                 ))}
               </>
             )}
-            <div className="section-title">Telemetry folder</div>
-            <div className="item" title={root} onClick={() => root && setPath(root)}>
-              🏁 {root ? baseName(root) : <span className="muted">Not set</span>}
-            </div>
+            <div className="section-title">Telemetry folders</div>
+            {telFolders.map((f, i) => (
+              <div
+                key={f.path + i}
+                className={'item' + (normPath(path).startsWith(normPath(f.path)) ? ' on' : '')}
+                title={`${f.path}${i === 0 ? ' (default)' : ''} — right-click to rename, change or remove`}
+                onClick={() => setPath(f.path)}
+                onContextMenu={(e) => folderMenu(e, i)}
+              >
+                🏁 {f.name}
+                {i === 0 && telFolders.length > 1 && <span className="muted"> · default</span>}
+              </div>
+            ))}
+            {!telFolders.length && (
+              <div className="item muted" onClick={chooseRoot}>
+                Not set
+              </div>
+            )}
             <div style={{ padding: '4px 14px' }}>
-              <button className="btn small" onClick={chooseRoot}>
-                {root ? 'Change folder…' : 'Choose folder…'}
+              <button className="btn small" onClick={telFolders.length ? addFolder : chooseRoot}>
+                {telFolders.length ? '+ Add folder…' : 'Choose folder…'}
               </button>
             </div>
             {appInfo?.sampleDataDir && (
@@ -301,7 +361,7 @@ export function SessionBrowser() {
                     <button
                       className="btn"
                       onClick={() => {
-                        updateSettings({ telemetryRoot: appInfo.defaultTelemetryRoot });
+                        setDefaultTelemetryFolder(appInfo.defaultTelemetryRoot);
                         setPath(appInfo.defaultTelemetryRoot);
                       }}
                     >

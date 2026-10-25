@@ -30,6 +30,7 @@ import {
   type SelectedLap,
 } from '../state/store';
 import type { GraphConfig } from '../state/workspace';
+import { keyHint } from '../shortcuts';
 import { openMenu, promptText } from '../ui/overlays';
 import { chartTheme, drawTrace, fmtTick, lowerBound, prepCanvas, useElementSize, useStoreListener } from './canvas';
 import { channelDps, conv, displayData, lapRange } from './data';
@@ -689,8 +690,8 @@ export function GraphView({ config }: { config: GraphConfig }) {
     // Kept deliberately short (channels are added by dragging them from the sidebar); everything else
     // lives in Properties (appended by the frame).
     openMenu(e, [
-      { label: 'Sector & section lines', checked: config.showSectors, onClick: () => setGraphMarkers({ showSectors: !config.showSectors }) },
-      { label: 'Corner lines', checked: config.showCorners, onClick: () => setGraphMarkers({ showCorners: !config.showCorners }) },
+      { label: 'Sector & section lines', checked: config.showSectors, shortcut: keyHint('toggle-sectors'), onClick: () => setGraphMarkers({ showSectors: !config.showSectors }) },
+      { label: 'Corner lines', checked: config.showCorners, shortcut: keyHint('toggle-corners'), onClick: () => setGraphMarkers({ showCorners: !config.showCorners }) },
       { separator: true },
       { label: 'Add corner at cursor…', disabled: !canMark, onClick: () => markAtCursor('corner') },
       { label: 'Add split at cursor…', disabled: !canMark, onClick: () => markAtCursor('section') },

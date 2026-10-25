@@ -149,6 +149,9 @@ button {
   border-color: var(--accent);
   color: var(--text);
 }
+.btn.idle {
+  opacity: 0.55;
+}
 .seg {
   display: inline-flex;
   border: 1px solid var(--border);
@@ -1423,4 +1426,21 @@ table.grid td.bad {
 }
 .insp-panel .insp-body {
   gap: 8px;
+}
+
+/* Hover tooltip inside a chart (e.g. histogram bars). */
+.chart-tip {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  min-width: 170px;
+  padding: 6px 8px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
 }

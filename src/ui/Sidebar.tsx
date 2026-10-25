@@ -26,6 +26,7 @@ import {
 import type { GraphConfig } from '../state/workspace';
 import { channelDps, conv } from '../charts/data';
 import { openChannelProps, openColorPicker, openMenu } from './overlays';
+import { keyHint } from '../shortcuts';
 
 function SessionCard({ s }: { s: Session }) {
   const lapSel = useStore((st) => st.laps);
@@ -163,7 +164,7 @@ function LapsPanel() {
       ))}
       {sessions.length > 0 && (
         <div className="row" style={{ padding: '4px 8px 12px', flexWrap: 'wrap' }}>
-          <button className="btn small" onClick={fastestAsReference} title="F">
+          <button className="btn small" onClick={fastestAsReference} title={`Fastest lap as reference${keyHint('fastest-lap') ? ` (${keyHint('fastest-lap')})` : ''}`}>
             Fastest lap
           </button>
           <button className="btn small" onClick={clearOverlays}>

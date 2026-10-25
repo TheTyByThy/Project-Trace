@@ -29,8 +29,17 @@ export interface TrackProfile {
   corners: TrackCorner[];
 }
 
+/** A named shortcut to a telemetry folder in the session browser. */
+export interface TelemetryFolder {
+  name: string;
+  path: string;
+}
+
 export interface Settings {
+  /** The default telemetry folder (always the first of telemetryFolders when there are any). */
   telemetryRoot: string;
+  /** Telemetry folder shortcuts in the session browser (rename / change / remove by right-clicking). */
+  telemetryFolders: TelemetryFolder[];
   lastBrowsePath: string;
   recent: string[];
   units: UnitPrefs;
@@ -60,6 +69,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   telemetryRoot: '',
+  telemetryFolders: [],
   lastBrowsePath: '',
   recent: [],
   units: DEFAULT_UNITS,
@@ -151,6 +161,8 @@ interface State {
   zoom: [number, number] | null;
   cursor: number | null;
   measure: [number, number] | null;
+  /** Lap-distance range to highlight on track maps (hovering a corner or straight in the Corner Report). */
+  highlight: { entry: number; exit: number } | null;
   workspaces: Workspace[];
   activeComponentId: string | null;
   ui: UiState;
@@ -178,9 +190,10 @@ export const useStore = create<State>(() => ({
   zoom: null,
   cursor: null,
   measure: null,
+  highlight: null,
   workspaces: [],
   activeComponentId: null,
-  ui: { sidebar: true, browser: false, math: false, settings: false, shortcuts: false, palette: false, properties: false, inspector: true, trackProfile: false, sidebarTab: 'laps' },
+  ui: { sidebar: true, browser: false, math: false, settings: false, shortcuts: false, palette: false, properties: false, inspector: false, trackProfile: false, sidebarTab: 'laps' },
   toasts: [],
   mathErrors: {},
   notes: {},
@@ -355,6 +368,23 @@ function setMarkersOn(types: ComponentType[], patch: { showSectors?: boolean; sh
     }),
     { label: 'Graph markers' },
   );
+}
+
+/** The telemetry folder shortcuts (older settings only have the single telemetryRoot). */
+export function telemetryFolders(s: Settings = get().settings): TelemetryFolder[] {
+  if (s.telemetryFolders?.length) return s.telemetryFolders;
+  return s.telemetryRoot ? [{ name: baseName(s.telemetryRoot) || s.telemetryRoot, path: s.telemetryRoot }] : [];
+}
+
+/** Replace the folder shortcuts; the first one becomes the default telemetry folder. */
+export function setTelemetryFolders(folders: TelemetryFolder[]) {
+  updateSettings({ telemetryFolders: folders, telemetryRoot: folders[0]?.path ?? '' });
+}
+
+/** Change the default telemetry folder (keeps the other shortcuts). */
+export function setDefaultTelemetryFolder(path: string) {
+  const rest = telemetryFolders().slice(1).filter((f) => f.path !== path);
+  setTelemetryFolders([{ name: baseName(path) || path, path }, ...rest]);
 }
 
 export function setSmoothing(patch: Partial<Settings['smoothing']>) {
@@ -743,6 +773,11 @@ export function setZoom(z: [number, number] | null) {
 }
 export function setMeasure(m: [number, number] | null) {
   set({ measure: m });
+}
+export function setHighlight(h: { entry: number; exit: number } | null) {
+  const cur = get().highlight;
+  if (h === cur || (h && cur && h.entry === cur.entry && h.exit === cur.exit)) return;
+  set({ highlight: h });
 }
 
 /** Reset view (Esc or W): show the whole of the selected laps and clear any range measurement. */

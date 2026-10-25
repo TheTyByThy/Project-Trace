@@ -21,6 +21,7 @@ import {
   type SelectedLap,
 } from '../state/store';
 import type { TrackMapConfig } from '../state/workspace';
+import { keyHint } from '../shortcuts';
 import { openMenu, promptText, type MenuItem } from '../ui/overlays';
 import { chartTheme, prepCanvas, useElementSize, useStoreListener } from './canvas';
 import { channelDps, conv, lapRange } from './data';
@@ -45,6 +46,7 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
   const theme = useStore((s) => s.settings.theme);
   const profiles = useStore((s) => s.settings.trackProfiles);
   const working = useStore((s) => s.workingRotation);
+  const highlight = useStore((s) => s.highlight);
   useStore((s) => activeWorkspace(s)?.channelProps);
   const venue = selectedLaps()[0]?.session.meta.venue ?? '';
 
@@ -240,6 +242,36 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
       }
     }
 
+    // Hovered corner / straight (Corner Report): dim the rest of the track, outline the range in white.
+    if (st.highlight && ref.lap.index !== -1) {
+      const D = ref.lap.distD;
+      let ta = crossingTime(ref.lap, st.highlight.entry);
+      let tb = crossingTime(ref.lap, st.highlight.exit);
+      if (!Number.isFinite(ta) && D.length && st.highlight.entry <= D[0] + 1) ta = ref.lap.start;
+      if (!Number.isFinite(tb) && D.length && st.highlight.exit >= D[D.length - 1] - 1) tb = ref.lap.end;
+      const i0 = path.t.findIndex((t) => t >= ta);
+      let i1 = -1;
+      for (let i = n - 1; i >= 0; i--)
+        if (path.t[i] <= tb) {
+          i1 = i;
+          break;
+        }
+      if (i0 >= 0 && i1 > i0) {
+        ctx.strokeStyle = withAlpha(T.surface, 0.62);
+        ctx.lineWidth = lw + 8;
+        strokeRange(0, n - 1);
+        ctx.strokeStyle = T.cursor;
+        ctx.lineWidth = lw + 4;
+        strokeRange(i0, i1);
+        if (colorValues) colorSegments(colorValues, lo, hi, rampName, i0, i1);
+        else {
+          ctx.strokeStyle = ref.color;
+          ctx.lineWidth = lw;
+          strokeRange(i0, i1);
+        }
+      }
+    }
+
     // Markers: start/finish, sectors, user sections, user corners.
     const centroid = [w / 2 + v.ox, (h - legendH) / 2 + v.oy];
     const tickAt = (d: number, label: string, strong: boolean) => {
@@ -342,7 +374,7 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
       if (config.colorBy === 'delta') ctx.fillText('Select a second lap to see where time is gained or lost', 10, ly - 16);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [size, config, sessions, lapSel, refKey, xMode, zoom, dataVersion, theme, profiles, working]);
+  }, [size, config, sessions, lapSel, refKey, xMode, zoom, dataVersion, theme, profiles, working, highlight]);
 
   const drawOverlay = useCallback(() => {
     const { w, h } = size;
@@ -485,8 +517,9 @@ export function trackMapMenuItems(venue: string, componentId: string, flags: { s
   const canMark = !!ref && st.cursor != null && ref.lap.index !== -1;
   const distAtCursor = () => Math.round(lapDistAt(ref!.lap, xToTime(ref!.lap, st.cursor!, st.xMode)));
   return [
-    { label: 'Sector & section lines', checked: flags.showSectors, onClick: () => updateComponent(componentId, { showSectors: !flags.showSectors }) },
-    { label: 'Corner lines', checked: flags.showCorners, onClick: () => updateComponent(componentId, { showCorners: !flags.showCorners }) },
+    // The shortcuts switch these on every graph and map at once; the menu items switch this map only.
+    { label: 'Sector & section lines', checked: flags.showSectors, shortcut: keyHint('toggle-sectors'), onClick: () => updateComponent(componentId, { showSectors: !flags.showSectors }) },
+    { label: 'Corner lines', checked: flags.showCorners, shortcut: keyHint('toggle-corners'), onClick: () => updateComponent(componentId, { showCorners: !flags.showCorners }) },
     { separator: true },
     {
       label: 'Add corner at cursor…',

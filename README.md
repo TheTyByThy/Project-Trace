@@ -148,7 +148,7 @@ No telemetry yet? Click **Bundled sample session** to explore a 6-lap Singapore 
 ### Properties: everything in one pop-out
 ![Properties pop-out](docs/images/properties-graph.png)
 
-Edit any component in the docked **Properties side panel** (toggle with Ctrl/⌘+I), or right-click it → **Properties…** (or **☰ Properties** in the top bar) for a large centred pop-out with a switcher for every component on the worksheet. Graphs list each pane's channels in detail (colour, unit, rate, range), and each channel has a **Properties…** button and a right-click menu for colour (palette or any custom colour), fixed range, decimals and unit. Right-clicking any component also offers **Remove component** directly.
+Edit any component in the docked **Properties side panel** (hidden at launch; toggle with Ctrl/⌘+I), or right-click it → **Properties…** (or **☰ Properties** in the top bar) for a large centred pop-out with a switcher for every component on the worksheet. Graphs list each pane's channels in detail (colour, unit, rate, range), and each channel has a **Properties…** button and a right-click menu for colour (palette or any custom colour), fixed range, decimals and unit. Right-clicking any component also offers **Remove component** directly.
 
 ### Workspaces, worksheets, undo
 - **Workspace** and **Worksheet** menus in the menu bar (next to File, Edit, Analysis):

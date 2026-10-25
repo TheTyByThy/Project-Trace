@@ -29,6 +29,8 @@ Both share the **rotation dial**, the per-track **corners, sections and rotation
 - **Sensitivity** (×0.25 – ×4, default ×1): higher shows small gains and losses in stronger colour; lower keeps only the big differences coloured.
 - **Smoothing** (4 – 200 m, default 32 m): the distance the rate of gain/loss is averaged over. More smoothing shows broad regions; less shows every small spike.
 
+**Corner Report hover**: hovering a corner or straight in the Corner Report highlights that stretch on the track map — a white outline, with the rest of the track dimmed.
+
 **Zoom to the graphs' selection**: select a range on a time/distance graph and the track map frames that part of the lap (the rest is dimmed, without a border). Scroll/drag to adjust; double-click to reset. Both can be switched off in Properties, together with the outline, start/finish line, car dots and legend.
 
 ## GPS Track: comparing racing lines

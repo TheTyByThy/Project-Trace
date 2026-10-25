@@ -17,6 +17,14 @@ Telemetrick saves exports as `exported/<Driver>/<car>/<track>/<files>`. Project-
 - **Sort** the cards with the control above them: **Last driven** (default), **Name A–Z**, **Most sessions** or **Oldest first**. Your choice is remembered. The **Filter sessions…** box also filters track cards by name.
 - A **breadcrumb** trail lets you step back up to your telemetry folder.
 
+## Telemetry folders
+
+The **Telemetry folders** list on the left holds named shortcuts to any number of folders — e.g. one per driver, an older install, or a team-mate's shared exports.
+
+- **+ Add folder…** picks a folder and asks for a name.
+- **Click** a folder to browse it. The first folder is the **default** (the one Settings shows and the browser starts in).
+- **Right-click** a folder to **Rename…** it, **Change folder…** (point it somewhere else), **Make default**, show it in Finder / Explorer, or **Remove shortcut** (the folder on disk is untouched).
+
 Project-Trace remembers the last folder you opened a session from. Next launch it opens **one level above** (your track list) so you can pick a track straight away.
 
 ## The session table

@@ -40,6 +40,8 @@ The cursor shows as a ring on each lap's point.
 
 Shows the **% of time** a channel spends in each bin, with side-by-side bars per lap and a dashed mean line. Options: channel, number of bins, fixed min/max, **cumulative**, only zoomed range.
 
+**Hover over a bar** to outline its bin and see, for every lap, the **% of time** and the **time in seconds** spent there. One-unit bins centred on whole numbers read as a single value — on the **Gear usage** histogram, *Gear 3* (or *N* / *R*) — otherwise the bin's range is shown.
+
 **Zones** break the distribution into ranges, listed with the % time in each for every lap. The default Suspension sheet uses zones `-25, 0, 25` on damper velocity:
 
 | Zone | Meaning |

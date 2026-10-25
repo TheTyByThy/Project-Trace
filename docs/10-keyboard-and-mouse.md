@@ -11,7 +11,7 @@ Every keyboard shortcut below (except undo/redo) can be changed in **Help → Ke
 - each key combo belongs to one action — assigning it elsewhere moves it (a notice says so);
 - **Reset** restores one action; **Reset all to defaults** restores everything.
 
-Changes apply immediately, also to the hints in menus, tooltips and the command palette.
+Changes apply immediately, also to the hints everywhere a shortcut exists: right-click menus (e.g. the graph's *Sector & section lines* and *Corner lines*), top-bar tooltips (Variance, Reset view, Smoothing, Time/Distance…), Properties labels, the native menu bar and the command palette.
 
 ![Keyboard shortcuts](images/shortcuts.png)
 
@@ -75,7 +75,9 @@ Changes apply immediately, also to the hints in menus, tooltips and the command 
 | Track map, GPS track | click near the track | move the cursor there |
 | Track map, GPS track | drag / scroll / double-click | pan / zoom / reset |
 | Track map, GPS track | **drag the dial ring** (Shift = 15° steps) | rotate; **Save** / **Reset** under the dial |
-| Corner report | click a row | zoom to the corner or straight (edit corners in Properties) |
+| Corner report | hover / click a row | highlight it on the track map / zoom to the corner or straight (edit corners in Properties) |
+| Histogram (e.g. Gear usage) | hover a bar | % time and seconds in that bin for each lap |
+| Session browser | right-click a telemetry folder | rename, change folder, make default, remove |
 | Lap lists | click / Ctrl + click / Shift + click | show only / overlay / set reference |
 | Sidebar laps | click a selected lap's colour square | remove that lap |
 | Sidebar laps | right-click a selected lap's colour square | change its colour |

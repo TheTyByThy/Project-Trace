@@ -7,6 +7,7 @@ import { COMPONENT_CATALOG, pane } from '../state/components';
 import { activeSheet, activeWorkspace, addComponent, removeComponentById, setChannelProps, setGraphMarkers, setUi, updateComponent, useStore } from '../state/store';
 import { TYRE_FIELDS, type ComponentConfig, type GaugeDef, type GraphConfig, type GraphPane } from '../state/workspace';
 import { defaultTitle } from '../charts/registry';
+import { keyHint } from '../shortcuts';
 import { conv, findChannel } from '../charts/data';
 import { ChannelPickerButton, ColorField, openChannelPicker, openChannelProps, openColorPicker, openMenu } from './overlays';
 import { TrackProfileEditor } from './TrackProfileEditor';
@@ -209,7 +210,7 @@ function GraphForm({ c }: { c: GraphConfig }) {
     <div className="props-grid">
       <div>
         <G title="Display">
-          <Check label="Time variance pane (F3)" value={c.showVariance} onChange={(v) => up({ showVariance: v })} />
+          <Check label={`Time variance pane${keyHint('toggle-variance') ? ` (${keyHint('toggle-variance')})` : ''}`} value={c.showVariance} onChange={(v) => up({ showVariance: v })} />
           <Check label="Legends with live values" value={c.showLegend !== false} onChange={(v) => up({ showLegend: v })} />
           <Check label="Horizontal grid lines" value={c.showGrid !== false} onChange={(v) => up({ showGrid: v })} />
           <F label="Y range">
@@ -223,8 +224,8 @@ function GraphForm({ c }: { c: GraphConfig }) {
           </F>
         </G>
         <G title="Markers (all time / distance graphs)">
-          <Check label="Sector & section lines" value={c.showSectors} onChange={(v) => setGraphMarkers({ showSectors: v })} />
-          <Check label="Corner lines (your saved corners)" value={c.showCorners} onChange={(v) => setGraphMarkers({ showCorners: v })} />
+          <Check label={`Sector & section lines${keyHint('toggle-sectors') ? ` (${keyHint('toggle-sectors')})` : ''}`} value={c.showSectors} onChange={(v) => setGraphMarkers({ showSectors: v })} />
+          <Check label={`Corner lines — your saved corners${keyHint('toggle-corners') ? ` (${keyHint('toggle-corners')})` : ''}`} value={c.showCorners} onChange={(v) => setGraphMarkers({ showCorners: v })} />
         </G>
         <G title="Tips">
           <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>

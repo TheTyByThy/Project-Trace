@@ -7,7 +7,7 @@ import { lapTint } from '../core/colors';
 import { formatValue } from '../core/format';
 import { lapLabel } from '../core/session';
 import { convertUnit } from '../core/units';
-import { selectedLaps, setCursor, setTrackProfile, setUi, setXMode, setZoom, trackProfile, updateComponent, useStore } from '../state/store';
+import { selectedLaps, setCursor, setHighlight, setTrackProfile, setUi, setXMode, setZoom, trackProfile, updateComponent, useStore } from '../state/store';
 import type { CornersConfig } from '../state/workspace';
 
 const METRICS: { key: CornersConfig['metric']; label: string; higherIsBetter: boolean; time?: boolean }[] = [
@@ -158,6 +158,8 @@ export function CornerReportView({ config }: { config: CornersConfig }) {
                   setZoom([g.entry - 40, g.exit + 40]);
                   setCursor(g.apex);
                 }}
+                onMouseEnter={() => setHighlight({ entry: g.entry, exit: g.exit })}
+                onMouseLeave={() => setHighlight(null)}
               >
                 <td className="l">{straight ? <i>{g.name}</i> : <b>{g.name}</b>}</td>
                 <td className="num muted">

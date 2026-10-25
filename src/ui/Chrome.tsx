@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { computeVariance, varianceAt, xToTime } from '../core/axis';
 import { formatAxisTime, formatDelta, formatLapTime, prettyCar, prettyTrack } from '../core/format';
-import { fastestLap, lapAtTime, lapDistAt, lapLabel } from '../core/session';
+import { lapAtTime, lapDistAt, lapLabel } from '../core/session';
 import {
+  activeSheet,
   activeWorkspace,
   addWorksheet,
   deleteWorksheet,
@@ -32,7 +33,7 @@ import {
 import { addMenu } from './SheetView';
 import { openMenu, promptText, type MenuItem } from './overlays';
 import { toggleVarianceAll } from '../actions';
-import { shortcutHint } from '../shortcuts';
+import { keyHint, shortcutHint } from '../shortcuts';
 
 export function Logo({ size = 22 }: { size?: number }) {
   return (
@@ -48,6 +49,7 @@ const SMOOTH_PRESETS = [0.03, 0.05, 0.1, 0.2, 0.35, 0.5, 1];
 /** Smoothing toggle + amount popover (display only; statistics use raw data). */
 function SmoothingControl() {
   const sm = useStore((s) => s.settings.smoothing);
+  const hint = useStore((s) => shortcutHint('toggle-smoothing', s.settings.shortcuts));
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -59,7 +61,7 @@ function SmoothingControl() {
   const label = sm.enabled ? (sm.seconds < 1 ? (sm.seconds * 1000).toFixed(0) + ' ms' : sm.seconds.toFixed(1) + ' s') : 'off';
   return (
     <div ref={ref} style={{ position: 'relative' }}>
-      <div className="smooth-ctl" title="Smoothing: display-only moving average for graph traces (S)">
+      <div className="smooth-ctl" title={`Smoothing: display-only moving average for graph traces${hint ? ` (${hint})` : ''}`}>
         <button className={sm.enabled ? 'on' : ''} onClick={() => setSmoothing({ enabled: !sm.enabled })}>
           〰 Smooth {label}
         </button>
@@ -115,7 +117,14 @@ export function TopBar() {
   useStore((s) => s.refKey);
   const ref = selectedLaps()[0];
   const s0 = ref?.session ?? sessions[0];
-  const fl = s0 ? fastestLap(s0) : undefined;
+  // Current key binding for an action, for tooltips (follows the shortcut editor).
+  const k = (id: string) => {
+    const h = shortcutHint(id, shortcuts);
+    return h ? ` (${h})` : '';
+  };
+  // Highlighted while a graph on this worksheet is actually showing its variance pane (needs 2+ laps).
+  const varianceOn = useStore((s) => s.laps.length > 1 && Object.values(activeSheet(s)?.components ?? {}).some((c) => c.type === 'graph' && c.showVariance));
+  const canReset = !!zoom || !!measure;
 
   return (
     <div className="topbar">
@@ -123,19 +132,13 @@ export function TopBar() {
         <Logo />
         <span>Project-Trace</span>
       </div>
-      <button className="btn primary" onClick={() => setUi({ browser: true })} title="Session browser (Ctrl/⌘+O)">
+      <button className="btn primary" onClick={() => setUi({ browser: true })} title={`Session browser${k('open-browser')}`}>
         Open
       </button>
       {s0 ? (
         <div className="session-pill" title={s0.path}>
           <b>{prettyTrack(s0.meta.venue).track}</b>
           <span className="muted">{prettyCar(s0.meta.vehicle)}</span>
-          <span className="muted">· {s0.meta.driver}</span>
-          {fl && (
-            <span>
-              · best <b className="num">{formatLapTime(fl.time)}</b>
-            </span>
-          )}
           {sessions.length > 1 && <span className="tag">+{sessions.length - 1} more</span>}
         </div>
       ) : (
@@ -149,11 +152,11 @@ export function TopBar() {
       <button
         className="btn"
         onClick={() => saveCurrentWorkspace()}
-        title={ws?.locked ? 'Defaults are read-only — save your own copy' : `Save this workspace to your workspaces folder (${shortcutHint('ws-save', shortcuts) ?? 'Ctrl/⌘+S'})`}
+        title={ws?.locked ? `Defaults are read-only — save your own copy${k('ws-save')}` : `Save this workspace to your workspaces folder${k('ws-save')}`}
       >
         {ws?.locked ? 'Save as…' : 'Save'}
       </button>
-      <div className="seg" title="X axis (D)">
+      <div className="seg" title={`X axis${k('toggle-x')}`}>
         <button className={xMode === 'time' ? 'on' : ''} onClick={() => setXMode('time')}>
           Time
         </button>
@@ -162,25 +165,30 @@ export function TopBar() {
         </button>
       </div>
       <SmoothingControl />
-      <button className="btn" onClick={toggleVarianceAll} title="Toggle time variance in this worksheet's graphs (F3)">
+      <button
+        className={'btn' + (varianceOn ? ' active' : '')}
+        onClick={toggleVarianceAll}
+        title={`${varianceOn ? 'Hide' : 'Show'} time variance in this worksheet's graphs${k('toggle-variance')}`}
+      >
         Δ Variance
       </button>
-      <button className="btn" disabled={!zoom && !measure} onClick={resetView} title={`Reset view: whole lap, clear measurement (${shortcutHint('reset-view', shortcuts) ?? 'Esc'})`}>
+      {/* Not disabled when there's nothing to reset, so its tooltip (with the key binding) still shows. */}
+      <button className={'btn' + (canReset ? '' : ' idle')} onClick={resetView} title={`Reset view: whole lap, clear measurement${k('reset-view')}`}>
         Reset view
       </button>
-      <button className="btn" onClick={() => openProperties()} title="Properties of the selected component (Ctrl/⌘+I)">
+      <button className="btn" onClick={() => openProperties()} title={`Properties of the selected component (side panel${k('toggle-inspector')})`}>
         ☰ Properties
       </button>
-      <button className="btn" onClick={() => setUi({ math: true })} title="Math channels (Ctrl/⌘+M)">
+      <button className="btn" onClick={() => setUi({ math: true })} title={`Math channels${k('math')}`}>
         ƒx Math
       </button>
-      <button className="btn icon" onClick={() => setUi({ palette: true })} title="Command palette (Ctrl/⌘+K)">
+      <button className="btn icon" onClick={() => setUi({ palette: true })} title={`Command palette${k('palette')}`}>
         ⌘
       </button>
-      <button className="btn icon" onClick={() => setUi({ settings: true })} title="Settings">
+      <button className="btn icon" onClick={() => setUi({ settings: true })} title={`Settings${k('settings')}`}>
         ⚙
       </button>
-      <button className="btn icon" onClick={() => setUi({ shortcuts: true })} title="Keyboard shortcuts (F1)">
+      <button className="btn icon" onClick={() => setUi({ shortcuts: true })} title={`Keyboard shortcuts & shortcut editor${k('shortcuts')}`}>
         ?
       </button>
     </div>
@@ -199,7 +207,7 @@ function workspaceMenuItems(): MenuItem[] {
     { header: 'My workspaces' },
     ...mine.map(item),
     { separator: true },
-    { label: 'Save', onClick: () => saveCurrentWorkspace() },
+    { label: 'Save', shortcut: keyHint('ws-save'), onClick: () => saveCurrentWorkspace() },
     { label: 'Save as…', onClick: () => saveWorkspaceAs() },
     { label: 'Open workspaces folder', onClick: openWorkspacesFolder },
     { separator: true },
@@ -265,7 +273,7 @@ export function SheetTabs() {
             e.preventDefault();
             openMenu(e, sheetMenuItems(i, () => setEditing(i)));
           }}
-          title={i < 9 ? `Worksheet ${i + 1} (press ${i + 1})` : undefined}
+          title={i < 9 && keyHint(`sheet-${i + 1}`) ? `Worksheet ${i + 1} (${keyHint(`sheet-${i + 1}`)})` : undefined}
         >
           {editing === i ? (
             <input

@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { pt } from '../core/bridge';
 import { buildCommands } from '../actions';
-import { bindings, comboFromEvent, formatCombo, SHORTCUTS } from '../shortcuts';
-import { DEFAULT_SETTINGS, setSmoothing, setUi, toast, updateSettings, useStore } from '../state/store';
+import { bindings, comboFromEvent, formatCombo, keyHint, SHORTCUTS } from '../shortcuts';
+import { DEFAULT_SETTINGS, setDefaultTelemetryFolder, setSmoothing, setUi, toast, updateSettings, useStore } from '../state/store';
 
 export function SettingsDialog() {
   const s = useStore((st) => st.settings);
@@ -51,13 +51,13 @@ export function SettingsDialog() {
                 className="btn"
                 onClick={async () => {
                   const p = await pt().chooseFolder(s.telemetryRoot || undefined);
-                  if (p) updateSettings({ telemetryRoot: p });
+                  if (p) setDefaultTelemetryFolder(p);
                 }}
               >
                 Change…
               </button>
             </div>,
-            'Telemetrick export folder (exported, a driver folder or a car folder).',
+            'Default Telemetrick export folder (exported, a driver folder or a car folder). Add more folder shortcuts in the session browser.',
           )}
           {row('Speed', seg(s.units.speed, [['kph', 'km/h'], ['mph', 'mph'], ['m/s', 'm/s']], (v) => updateSettings({ units: { ...s.units, speed: v } })))}
           {row('Temperature', seg(s.units.temperature, [['C', '°C'], ['F', '°F']], (v) => updateSettings({ units: { ...s.units, temperature: v } })))}
@@ -72,7 +72,7 @@ export function SettingsDialog() {
           {row(
             'Reference lap colours',
             seg(s.refColors, [['channel', 'Per channel'], ['lap', 'Single lap colour']], (v) => updateSettings({ refColors: v })),
-            'Overlay laps are always drawn solid in their lap colour. Toggle the reference lap with J (editable in Keyboard Shortcuts).',
+            `Overlay laps are always drawn solid in their lap colour. Toggle the reference lap with ${keyHint('toggle-ref-colors') ?? 'a shortcut'} (editable in Keyboard Shortcuts).`,
           )}
           {row(
             'Smoothing',
@@ -86,7 +86,7 @@ export function SettingsDialog() {
                 ))}
               </select>
             </div>,
-            'Display-only moving average for graph traces (also in the top bar; S toggles). On by default at 50 ms. Reports always use raw data.',
+            `Display-only moving average for graph traces (also in the top bar${keyHint('toggle-smoothing') ? `; ${keyHint('toggle-smoothing')} toggles` : ''}). On by default at 50 ms. Reports always use raw data.`,
           )}
           {row(
             'In-game clock',
