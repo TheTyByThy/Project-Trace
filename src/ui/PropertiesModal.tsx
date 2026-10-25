@@ -625,6 +625,11 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
                 <input type="range" min={1} max={6} step={0.5} value={c.pointSize} onChange={(e) => up({ pointSize: Number(e.target.value) })} />
               </F>
               <Check label="Only zoomed range" value={c.useZoom} onChange={(v) => up({ useZoom: v })} />
+              <Check label="Grip envelope (outer line) and % used — for G-G plots" value={!!c.envelope} onChange={(v) => up({ envelope: v })} />
+              <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+                The envelope traces the outermost points of the selected laps in every direction — roughly the car's grip limit this session. Each lap's
+                “% used” is how close, on average, it ran to that line whenever it was cornering, braking or accelerating hard.
+              </div>
             </G>
           </div>
         </div>
@@ -642,6 +647,20 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
               </F>
             )}
             <Check label="Valid laps only" value={c.validOnly} onChange={(v) => up({ validOnly: v })} />
+            {!c.channel && (
+              <>
+                <F label="Lap times">
+                  <Select value={c.lapTimes ?? 'raw'} options={[['raw', 'Raw'], ['corrected', 'Fuel-corrected'], ['both', 'Both (corrected dashed)']]} onChange={(v) => up({ lapTimes: v })} />
+                </F>
+                <F label={`Fuel effect (${(c.fuelEffect ?? 0.03).toFixed(3)} s per litre)`}>
+                  <input type="range" min={0} max={0.1} step={0.005} value={c.fuelEffect ?? 0.03} onChange={(e) => up({ fuelEffect: Number(e.target.value) })} />
+                </F>
+                <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+                  Fuel-corrected = lap time − (fuel effect × average fuel on board during the lap): each lap as if run on an empty tank, so stint pace and tyre
+                  wear are easier to compare. Around 0.03 s per litre suits most cars; heavier, slower cars a bit more.
+                </div>
+              </>
+            )}
           </G>
           <G title="Y axis">
             <AxisRange label="Y axis" min={c.yMin} max={c.yMax} onChange={(a, b) => up({ yMin: a, yMax: b })} />

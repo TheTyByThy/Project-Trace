@@ -96,8 +96,12 @@ export function CornerReportView({ config }: { config: CornersConfig }) {
         <span className="muted shrink" style={{ fontSize: 11 }} title="Click a row to zoom to it; hover to highlight it on the track map">
           {metric.time ? 's' : speedUnit} · ref {lapLabel(ref.lap)} · click a row to zoom to it
         </span>
-        <button className="btn small" onClick={openTrackEditor} title="Track editor: corners, their ranges and speed buckets, detection settings, splits">
-          Edit corners & buckets
+        <button
+          className={'btn small' + (config.showStraights !== false ? ' active' : '')}
+          onClick={() => updateComponent(config.id, { showStraights: config.showStraights === false }, 'Show straights')}
+          title="Show or hide the straights between corners in the table (totals still count them)"
+        >
+          Straights
         </button>
       </div>
       {config.showTotals !== false && (

@@ -1,6 +1,6 @@
 # 02 · Session browser
 
-The Session Browser (**Open** button, **Ctrl/⌘ + O**) is how you find and open runs. It reads only the first ~96 KB of each file, so even folders with hundreds of 80 MB exports list instantly.
+The Session Browser (**Ctrl/⌘ + O**, **File → Session Browser…**, or **+ Compare session** in the sidebar) is how you find and open runs. It reads only the first ~96 KB of each file, so even folders with hundreds of 80 MB exports list instantly.
 
 ![Track cards](images/session-browser-tracks.png)
 

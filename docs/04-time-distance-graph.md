@@ -72,6 +72,12 @@ Everything else is the same in every mode:
 - **Zoom** is shared by every graph. Scatter, histogram, mixture, FFT and channel reports can follow it, and the Track Map and GPS Track frame the zoomed section.
 - **Esc**, **W** and **Home** all reset the view to the whole lap and clear any measurement.
 
+### Lap playback
+
+Press **▶ Play** in the top bar (or **Space**) to play the reference lap: the cursor runs through it in **real time**, and every graph, track map, GPS track, gauge, driver-input panel and tyre panel moves with it. Pick the speed next to the button — **0.25× / 0.5× / 1× / 2× / 4×**. It starts from the cursor (or the lap start), keeps a zoomed graph scrolling along with the cursor, and stops at the end of the lap. **While it plays, the lap is locked**: clicking, dragging, scrolling or the arrow keys on graphs and maps don't move the cursor or change the zoom (a short note reminds you) — **pause** (button or Space) to look around, then play again from there. The status bar shows **▶ Playing 1×**. *Playback faster / slower* can be given keys in the shortcut editor.
+
+![Playing a lap](images/playback.png)
+
 ### Datum: pinning the cursor
 
 Press **M** (or right-click a graph or track map → **Set datum at cursor**) to **pin the cursor where it is**. While the datum is set, moving the mouse, clicking and the arrow keys don't move the cursor — so you can move around, switch worksheets and read every gauge, legend, tyre panel, map dot and channel value at that exact point. The cursor is drawn in the accent colour with a **⚑ datum** label and the status bar shows **⚑ Datum**. Press **M** again (or *Release datum*) to let the cursor follow you again. The key can be changed in the shortcut editor.

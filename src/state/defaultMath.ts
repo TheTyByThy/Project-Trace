@@ -18,6 +18,13 @@ const corners = ['FL', 'FR', 'RL', 'RR'];
 
 export const DEFAULT_MATH_CHANNELS: MathChannelDef[] = [
   def('Combined G', "hypot('CG Accel Lateral', 'CG Accel Longitudinal')", 'G', 'Total horizontal acceleration — the radius of the friction circle.'),
+  def(
+    'Corner Radius',
+    "gate(min(('Ground Speed' [m/s]) ^ 2 / (abs('CG Accel Lateral') * 9.81), 2000), abs('CG Accel Lateral') > 0.3)",
+    'm',
+    'Radius of the path the car is on (speed² ÷ lateral acceleration), shown while cornering (> 0.3 G). Smaller = tighter line; compare laps to see who opened the corner up.',
+    0,
+  ),
   def('Steering Rate', "derivative('Steering Angle')", 'deg/s', 'How fast the driver turns the wheel; spikes show corrections.', 0),
   def('Throttle Brake Overlap', "choose('Throttle Pos' > 5 and 'Brake Pos' > 5, 1, 0)", '', '1 while throttle and brake are both applied.', 2),
   def('Coasting', "choose('Throttle Pos' < 2 and 'Brake Pos' < 2 and 'Ground Speed' > 30, 1, 0)", '', '1 while neither pedal is used (lost time!).', 2),

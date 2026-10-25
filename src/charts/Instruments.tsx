@@ -307,9 +307,9 @@ export function InputsView({ config }: { config: InputsConfig }) {
         ctx.restore();
       };
       if (showWheel) {
-        // AC reports steering as wheel degrees, positive = left; rotate the drawing to match.
-        drawWheel(-steer, T.text2, false);
-        if (cmp) drawWheel(-val(cmp.session, cmp.session.key.steering, tc), cmp.color, true);
+        // Rotate with the same sign as the Steering Angle trace, so the wheel turns the way the trace goes.
+        drawWheel(steer, T.text2, false);
+        if (cmp) drawWheel(val(cmp.session, cmp.session.key.steering, tc), cmp.color, true);
         ctx.fillStyle = T.text;
         ctx.textAlign = 'center';
         ctx.font = T.mono;

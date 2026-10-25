@@ -4,6 +4,7 @@ import { xToTime } from './core/axis';
 import { pt } from './core/bridge';
 import { sampleAt } from './core/channel';
 import { lapDistAt, lapLabel } from './core/session';
+import { formatLapTime, prettyCar, prettyTrack } from './core/format';
 import { COMPONENT_CATALOG } from './state/components';
 import {
   activeSheet,
@@ -43,7 +44,10 @@ import {
   setZoom,
   stepReferenceLap,
   toast,
+  PLAYBACK_SPEEDS,
+  setPlaybackSpeed,
   toggleDatum,
+  togglePlayback,
   toggleRefColors,
   undo,
   updateSheet,
@@ -139,6 +143,30 @@ export async function exportVisibleCsv() {
   if (p) toast(`Exported ${lines.length - 2} rows to ${p}`, 'success');
 }
 
+/** Save the worksheet on screen — exactly as shown — as a one-page PDF with a title line. */
+export async function printWorksheetPdf() {
+  const el = document.querySelector('.sheet-area');
+  const sheet = activeSheet();
+  if (!el || !sheet) return;
+  const r = el.getBoundingClientRect();
+  const ws = activeWorkspace();
+  const ref = selectedLaps()[0];
+  const tr = ref ? prettyTrack(ref.session.meta.venue) : null;
+  const date = new Date();
+  const subtitle = [
+    tr ? `${tr.track}${tr.layout ? ` ${tr.layout}` : ''}` : '',
+    ref ? prettyCar(ref.session.meta.vehicle) : '',
+    ref ? `ref ${lapLabel(ref.lap)}${ref.lap.complete ? ` ${formatLapTime(ref.lap.time)}` : ''}` : '',
+    date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }),
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const safe = (s: string) => s.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-');
+  const defaultName = `${[tr ? safe(tr.track) : '', safe(sheet.name), date.toISOString().slice(0, 10)].filter(Boolean).join('_')}.pdf`;
+  const p = await pt().printSheetPdf({ rect: { x: r.left, y: r.top, width: r.width, height: r.height }, title: `${sheet.name} — ${ws.name}`, subtitle, defaultName });
+  if (p) toast(`Saved ${p}`, 'success', 3500);
+}
+
 /** Capture the whole window (via the main process) and save it as a PNG. */
 export async function saveScreenshot() {
   const png = await pt().capture();
@@ -168,6 +196,14 @@ export async function markAtCursor(kind: 'corner' | 'split') {
     const name = await promptText(`Split name at ${dist} m`, `Split ${prof.sections.length + 1}`);
     if (name) setTrackProfile(venue, { sections: [...prof.sections, { name, dist }].sort((a, b) => a.dist - b.dist) }, 'Add section');
   }
+}
+
+function stepPlaybackSpeed(dir: 1 | -1) {
+  const cur = useStore.getState().playback.speed;
+  const i = PLAYBACK_SPEEDS.indexOf(cur);
+  const next = PLAYBACK_SPEEDS[Math.max(0, Math.min(PLAYBACK_SPEEDS.length - 1, (i < 0 ? 2 : i) + dir))];
+  setPlaybackSpeed(next);
+  toast(`Playback ${next}×`, 'info', 1000);
 }
 
 /** Step the smoothing amount through the top-bar presets (and switch smoothing on). */
@@ -215,6 +251,7 @@ const SHORTCUT_ACTIONS: Record<string, () => void> = {
   settings: () => setUi({ settings: true }),
   'export-csv': () => exportVisibleCsv(),
   screenshot: () => saveScreenshot(),
+  'print-pdf': () => printWorksheetPdf(),
   shortcuts: () => setUi({ shortcuts: true }),
   'toggle-inspector': () => setUi({ inspector: !useStore.getState().ui.inspector }),
   'toggle-sidebar': () => setUi({ sidebar: !useStore.getState().ui.sidebar }),
@@ -227,6 +264,9 @@ const SHORTCUT_ACTIONS: Record<string, () => void> = {
   'next-lap': () => stepReferenceLap(1),
   'reset-view': resetView,
   'toggle-datum': toggleDatum,
+  'toggle-playback': togglePlayback,
+  'playback-faster': () => stepPlaybackSpeed(1),
+  'playback-slower': () => stepPlaybackSpeed(-1),
   'cursor-left': () => moveCursor(-0.005),
   'cursor-right': () => moveCursor(0.005),
   'cursor-left-big': () => moveCursor(-0.05),
@@ -300,10 +340,12 @@ export function buildCommands(): Command[] {
     { id: 'fast', label: 'Fastest lap as reference', hint: k('fastest-lap'), run: fastestAsReference },
     { id: 'prev', label: 'Previous lap', hint: k('prev-lap'), run: () => stepReferenceLap(-1) },
     { id: 'next', label: 'Next lap', hint: k('next-lap'), run: () => stepReferenceLap(1) },
+    { id: 'play', label: 'Play / pause the reference lap', hint: k('toggle-playback'), run: togglePlayback },
     { id: 'datum', label: 'Datum: pin / release the cursor', hint: k('toggle-datum'), run: toggleDatum },
     { id: 'reset', label: 'Reset view (whole lap, clear measurement)', hint: k('reset-view'), run: resetView },
     { id: 'csv', label: 'Export visible data to CSV', hint: k('export-csv'), run: exportVisibleCsv },
     { id: 'shot', label: 'Save screenshot', hint: k('screenshot'), run: saveScreenshot },
+    { id: 'pdf', label: 'Print worksheet to PDF…', hint: k('print-pdf'), run: printWorksheetPdf },
     { id: 'sidebar', label: 'Toggle sidebar', hint: k('toggle-sidebar'), run: () => setUi({ sidebar: !useStore.getState().ui.sidebar }) },
     { id: 'keys', label: 'Keyboard shortcuts & shortcut editor', hint: k('shortcuts'), run: () => setUi({ shortcuts: true }) },
     { id: 'sheet-reset', label: 'Reset this worksheet to the Starter version', run: () => resetSheetToStarter(activeWorkspace().activeSheet) },
@@ -378,6 +420,8 @@ export async function handleMenuAction(action: string) {
       return exportVisibleCsv();
     case 'screenshot':
       return saveScreenshot();
+    case 'print-pdf':
+      return printWorksheetPdf();
     case 'settings':
       return setUi({ settings: true });
     case 'math':
@@ -401,6 +445,8 @@ export async function handleMenuAction(action: string) {
       return resetView();
     case 'toggle-datum':
       return toggleDatum();
+    case 'toggle-playback':
+      return togglePlayback();
     case 'theme':
       return updateSettings({ theme: arg === 'light' ? 'light' : 'dark' });
     case 'toggle-theme':

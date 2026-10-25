@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld('pt', {
   watchDir: (dir) => ipcRenderer.invoke('fs:watch', dir),
   showItemInFolder: (p) => ipcRenderer.invoke('shell:showItem', p),
   capture: () => ipcRenderer.invoke('app:capture'),
+  printSheetPdf: (opts) => ipcRenderer.invoke('print:sheetPdf', opts),
   getLibrary: () => ipcRenderer.invoke('library:get'),
   setLibrary: (lib) => ipcRenderer.invoke('library:set', lib),
   setMenuState: (state) => ipcRenderer.send('menu:state', state),

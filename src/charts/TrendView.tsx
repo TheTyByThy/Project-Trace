@@ -7,7 +7,7 @@ import { CATEGORICAL } from '../core/colors';
 import { formatLapTime, formatValue, prettyTrack } from '../core/format';
 import { rangeStats } from '../core/stats';
 import { lapKey, type Lap, type Session } from '../core/types';
-import { selectLap, sessionsWithSelection, useStore } from '../state/store';
+import { selectLap, sessionsWithSelection, updateComponent, useStore } from '../state/store';
 import type { TrendConfig } from '../state/workspace';
 import { drawAxes, drawMarker, makeAxes, padRange, type Axes } from './axes';
 import { BoxZoomLayer, type View } from './BoxZoom';
@@ -24,6 +24,19 @@ function lapStat(s: Session, lap: Lap, cfg: TrendConfig): number {
   const c = conv(ch);
   const raw = cfg.stat === 'mean' ? st.mean : cfg.stat === 'max' ? st.max : cfg.stat === 'min' ? st.min : cfg.stat === 'first' ? st.first : cfg.stat === 'last' ? st.last : st.last - st.first;
   return cfg.stat === 'delta' ? raw * c.k : raw * c.k + c.b;
+}
+
+export const DEFAULT_FUEL_EFFECT = 0.03;
+
+/**
+ * Fuel-corrected lap time: the lap time minus the time the fuel on board cost, i.e. the lap as if run
+ * on an empty tank (lap time − seconds-per-litre × mean fuel during the lap). NaN without a fuel channel.
+ */
+export function fuelCorrected(s: Session, lap: Lap, secPerLitre: number): number {
+  if (!lap.complete || !s.key.fuel) return NaN;
+  const ch = s.channels.get(s.key.fuel)!;
+  const st = rangeStats(ch.data, Math.max(0, Math.ceil((lap.start - ch.t0) * ch.rate)), Math.min(ch.n - 1, Math.floor((lap.end - ch.t0) * ch.rate)));
+  return st.count ? lap.time - secPerLitre * st.mean : NaN;
 }
 
 export function TrendView({ config }: { config: TrendConfig }) {
@@ -49,18 +62,22 @@ export function TrendView({ config }: { config: TrendConfig }) {
     ctx.textBaseline = 'middle';
     hitsRef.current = [];
     axesRef.current = null;
+    // Lap times can be shown raw, fuel-corrected, or both (corrected = dashed line, diamond markers).
+    const mode = config.channel ? 'raw' : config.lapTimes ?? 'raw';
+    const k = config.fuelEffect ?? DEFAULT_FUEL_EFFECT;
+    const keep = (p: { l: Lap; v: number }) => Number.isFinite(p.v) && (!config.validOnly || !p.l.invalid) && (config.channel ? true : p.l.complete);
     const series = sessions.map((s, si) => ({
       s,
       color: CATEGORICAL[theme][si % 8],
-      pts: s.laps
-        .map((l) => ({ l, v: lapStat(s, l, config) }))
-        .filter((p) => Number.isFinite(p.v) && (!config.validOnly || !p.l.invalid) && (config.channel ? true : p.l.complete)),
+      pts: mode === 'corrected' ? [] : s.laps.map((l) => ({ l, v: lapStat(s, l, config) })).filter(keep),
+      corr: mode === 'raw' ? [] : s.laps.map((l) => ({ l, v: fuelCorrected(s, l, k) })).filter(keep),
     }));
-    const all = series.flatMap((sr) => sr.pts);
+    const noFuel = mode !== 'raw' && series.every((sr) => !sr.corr.length);
+    const all = series.flatMap((sr) => [...sr.pts, ...sr.corr]);
     if (!all.length) {
       ctx.fillStyle = T.text3;
       ctx.textAlign = 'center';
-      ctx.fillText(sessions.length ? 'No data for this statistic' : 'Open a session', w / 2, h / 2);
+      ctx.fillText(!sessions.length ? 'Open a session' : noFuel ? 'No fuel level channel — fuel-corrected times need one' : 'No data for this statistic', w / 2, h / 2);
       return;
     }
     const maxLap = Math.max(...all.map((p) => p.l.number));
@@ -126,6 +143,49 @@ export function TrendView({ config }: { config: TrendConfig }) {
         }
       }
     }
+    // Fuel-corrected series: dashed line, diamond markers.
+    for (const sr of series) {
+      if (!sr.corr.length) continue;
+      ctx.strokeStyle = sr.color;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      sr.corr.forEach((p, i) => {
+        const X = A.px(p.l.number),
+          Y = A.py(p.v);
+        if (i === 0) ctx.moveTo(X, Y);
+        else ctx.lineTo(X, Y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+      for (const p of sr.corr) {
+        const X = A.px(p.l.number),
+          Y = A.py(p.v);
+        const key = lapKey({ sessionId: sr.s.id, lapIndex: p.l.index });
+        hitsRef.current.push({ x: X, y: Y, key });
+        ctx.beginPath();
+        ctx.moveTo(X, Y - 5);
+        ctx.lineTo(X + 5, Y);
+        ctx.lineTo(X, Y + 5);
+        ctx.lineTo(X - 5, Y);
+        ctx.closePath();
+        ctx.fillStyle = p.l.invalid ? T.surface : sr.color;
+        ctx.fill();
+        ctx.strokeStyle = sr.color;
+        ctx.stroke();
+        if (lapSel.some((l) => l.key === key)) {
+          ctx.strokeStyle = key === refKey ? T.cursor : T.text3;
+          ctx.beginPath();
+          ctx.arc(X, Y, 8, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        if (rect.w / Math.max(1, x1 - x0) > 46) {
+          ctx.fillStyle = T.text3;
+          ctx.textAlign = 'center';
+          ctx.fillText(formatLapTime(p.v), X, Y + 15);
+        }
+      }
+    }
     ctx.restore();
     if (series.length > 1) {
       let x = rect.x + 8;
@@ -141,14 +201,31 @@ export function TrendView({ config }: { config: TrendConfig }) {
     }
     ctx.fillStyle = T.text3;
     ctx.textAlign = 'left';
-    ctx.fillText(viewRef.current ? 'zoomed — double-click to reset' : 'hollow = invalid lap · click a point to make it the reference · drag to zoom', rect.x, h - 8);
+    const fuelNote = mode === 'raw' ? '' : `${mode === 'both' ? 'dashed ◆ = ' : ''}fuel-corrected (−${k} s per litre on board) · `;
+    ctx.fillText(viewRef.current ? 'zoomed — double-click to reset' : `${fuelNote}hollow = invalid lap · click a point to make it the reference · drag to zoom`, rect.x, h - 8);
   }, [size, config, sessions, lapSel, refKey, dataVersion, theme]);
 
   useEffect(draw, [draw]);
 
+  const mode = config.lapTimes ?? 'raw';
   return (
     <div ref={wrapRef} className="chart">
       <canvas ref={ref} />
+      {!config.channel && (
+        <div className="seg chart-seg" title="Lap times as logged, corrected for the fuel on board, or both">
+          {(
+            [
+              ['raw', 'Raw'],
+              ['corrected', 'Fuel-corrected'],
+              ['both', 'Both'],
+            ] as const
+          ).map(([m, l]) => (
+            <button key={m} className={mode === m ? 'on' : ''} onClick={() => updateComponent(config.id, { lapTimes: m }, 'Lap time mode')}>
+              {l}
+            </button>
+          ))}
+        </div>
+      )}
       <BoxZoomLayer
         axesRef={axesRef}
         onView={(v) => {

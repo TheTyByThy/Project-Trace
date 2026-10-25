@@ -71,7 +71,7 @@ Everything saved for a circuit is edited in one place, the **Track editor**. Ope
 - **clicking the track name in the top bar** (it highlights on hover and shows *Edit track ›*);
 - **Analysis → Track Editor…** or the command palette;
 - **Edit corners & track…** when you right-click a graph or track map;
-- **Edit corners & buckets** (right of the Corner Report's and Time Breakdown's toolbar);
+- **Edit corners & buckets** (right of the Time Breakdown's toolbar);
 - the Track section of a map's or report's Properties.
 
 Every "edit corners" link in the app leads here. On the **left** is the reference lap's map, with each corner's range drawn as a line in its speed-bucket colour (at least 15 m either side of the apex, so short corners stay visible) (L orange, M amber, H pink) and the straights in grey. On the **right** are the corner table, the detection settings and the splits.

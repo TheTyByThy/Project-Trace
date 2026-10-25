@@ -102,7 +102,7 @@ The corner report uses **the corners you define for the track**. Nothing is gene
 
 You only mark a corner's apex; its range comes from the **reference lap's driving**: from where you **leave full throttle** before the apex (lift or brake) to where you're **back at full throttle** after it. Ranges never reach past halfway to the neighbouring corners (or 400 m from the apex). A corner taken flat out is just the padding either side of the apex.
 
-Adjust how it's measured with the sliders in the **Track editor** (click the **track name** in the top bar, or **Edit corners & buckets** in the Corner Report / Time Breakdown):
+Adjust how it's measured with the sliders in the **Track editor** (click the **track name** in the top bar, or **Edit corners & buckets** in the Time Breakdown):
 
 | Slider | Default | |
 |---|---|---|
@@ -134,4 +134,4 @@ Any corner can be **set to Low, Medium or High by hand** in the Track editor (*S
 | Entry speed | speed at the start of the range |
 | Exit speed | speed at the end of the range |
 
-At the top, **Total time** sums each lap's time in **low-, medium- and high-speed corners** and **on straights** (with how many of each), plus the **whole lap**, with the gain/loss against the reference — so you can see at once where time goes. Below, each corner and straight is listed with the chosen metric; each lap's column is tinted in its colour, and each comparison lap's delta to the reference is shown next to its value in green (better) or red (worse). Straights and totals can be hidden in Properties. **Hover a row** to highlight that corner or straight on the track map (white outline, the rest dimmed); **click a row** to zoom all graphs to it in distance mode.
+At the top, **Total time** sums each lap's time in **low-, medium- and high-speed corners** and **on straights** (with how many of each), plus the **whole lap**, with the gain/loss against the reference — so you can see at once where time goes. Below, each corner and straight is listed with the chosen metric; each lap's column is tinted in its colour, and each comparison lap's delta to the reference is shown next to its value in green (better) or red (worse). The **Straights** button (top right of the report) hides or shows the straight rows (the totals still include them); totals can be hidden in Properties. **Hover a row** to highlight that corner or straight on the track map (white outline, the rest dimmed); **click a row** to zoom all graphs to it in distance mode.

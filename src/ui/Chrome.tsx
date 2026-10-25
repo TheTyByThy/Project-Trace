@@ -24,8 +24,12 @@ import {
   setActiveWorkspace,
   selectedLaps,
   setActiveSheet,
+  setPlaybackSpeed,
   setSmoothing,
   SMOOTH_PRESETS,
+  PLAYBACK_SPEEDS,
+  togglePlayback,
+  toast,
   setUi,
   setXMode,
   resetView,
@@ -33,7 +37,7 @@ import {
 } from '../state/store';
 import { addMenu } from './SheetView';
 import { openMenu, promptText, useDismiss, type MenuItem } from './overlays';
-import { toggleVarianceAll } from '../actions';
+import { printWorksheetPdf, toggleVarianceAll } from '../actions';
 import { keyHint, shortcutHint } from '../shortcuts';
 
 export function Logo({ size = 22 }: { size?: number }) {
@@ -101,6 +105,26 @@ function SmoothingControl() {
   );
 }
 
+/** Play / pause the reference lap, with the playback speed. */
+function PlaybackControl() {
+  const pb = useStore((s) => s.playback);
+  const hint = useStore((s) => shortcutHint('toggle-playback', s.settings.shortcuts));
+  return (
+    <div className="smooth-ctl" title={`Play the reference lap: the cursor runs through it in real time${hint ? ` (${hint})` : ''}`}>
+      <button className={pb.playing ? 'on' : ''} onClick={togglePlayback}>
+        {pb.playing ? '❚❚ Pause' : '▶ Play'}
+      </button>
+      <select className="playback-speed" value={pb.speed} onChange={(e) => setPlaybackSpeed(Number(e.target.value))} title="Playback speed">
+        {PLAYBACK_SPEEDS.map((v) => (
+          <option key={v} value={v}>
+            {v}×
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export function TopBar() {
   const sessions = useStore((s) => s.sessions);
   const xMode = useStore((s) => s.xMode);
@@ -123,6 +147,8 @@ export function TopBar() {
   };
   // Highlighted while a graph on this worksheet is actually showing its variance pane (needs 2+ laps).
   const varianceOn = useStore((s) => s.laps.length > 1 && Object.values(activeSheet(s)?.components ?? {}).some((c) => c.type === 'graph' && c.showVariance));
+  // Greyed out when this worksheet has no time/distance graph to show variance in.
+  const hasGraph = useStore((s) => Object.values(activeSheet(s)?.components ?? {}).some((c) => c.type === 'graph'));
   const canReset = !!zoom || !!measure;
 
   return (
@@ -131,9 +157,6 @@ export function TopBar() {
         <Logo />
         <span>Project-Trace</span>
       </div>
-      <button className="btn primary" onClick={() => setUi({ browser: true })} title={`Session browser${k('open-browser')}`}>
-        Open
-      </button>
       {s0 ? (
         // The track is the way into the Track editor (corners, ranges, speed buckets, splits, rotation).
         <button className="session-pill clickable" title={`Edit this track — corners, ranges, speed buckets, splits, map rotation${k('track-profile')}`} onClick={() => setUi({ trackProfile: true })}>
@@ -154,13 +177,6 @@ export function TopBar() {
         ▦ {ws?.name}
         {ws?.locked ? ' (default)' : ''} ▾
       </button>
-      <button
-        className="btn"
-        onClick={() => saveCurrentWorkspace()}
-        title={ws?.locked ? `Defaults are read-only — save your own copy${k('ws-save')}` : `Save this workspace to your workspaces folder${k('ws-save')}`}
-      >
-        {ws?.locked ? 'Save as…' : 'Save'}
-      </button>
       <div className="seg" title={`X axis${k('toggle-x')}`}>
         <button className={xMode === 'time' ? 'on' : ''} onClick={() => setXMode('time')}>
           Time
@@ -171,30 +187,19 @@ export function TopBar() {
       </div>
       <SmoothingControl />
       <button
-        className={'btn' + (varianceOn ? ' active' : '')}
-        onClick={toggleVarianceAll}
-        title={`${varianceOn ? 'Hide' : 'Show'} time variance in this worksheet's graphs${k('toggle-variance')}`}
+        className={'btn' + (varianceOn ? ' active' : '') + (hasGraph ? '' : ' idle')}
+        onClick={() => (hasGraph ? toggleVarianceAll() : toast('This worksheet has no time / distance graph to show variance in.', 'info', 2200))}
+        title={hasGraph ? `${varianceOn ? 'Hide' : 'Show'} time variance in this worksheet's graphs${k('toggle-variance')}` : 'No time / distance graph on this worksheet'}
       >
         Δ Variance
       </button>
+      <PlaybackControl />
       {/* Not disabled when there's nothing to reset, so its tooltip (with the key binding) still shows. */}
       <button className={'btn' + (canReset ? '' : ' idle')} onClick={resetView} title={`Reset view: whole lap, clear measurement${k('reset-view')}`}>
         Reset view
       </button>
       <button className="btn" onClick={() => openProperties()} title={`Properties of the selected component (side panel${k('toggle-inspector')})`}>
         ☰ Properties
-      </button>
-      <button className="btn" onClick={() => setUi({ math: true })} title={`Math channels${k('math')}`}>
-        ƒx Math
-      </button>
-      <button className="btn icon" onClick={() => setUi({ palette: true })} title={`Command palette${k('palette')}`}>
-        ⌘
-      </button>
-      <button className="btn icon" onClick={() => setUi({ settings: true })} title={`Settings${k('settings')}`}>
-        ⚙
-      </button>
-      <button className="btn icon" onClick={() => setUi({ shortcuts: true })} title={`Keyboard shortcuts & shortcut editor${k('shortcuts')}`}>
-        ?
       </button>
     </div>
   );
@@ -238,6 +243,7 @@ export function sheetMenuItems(i: number, startRename: () => void) {
       },
     },
     { label: 'Export to file…', onClick: () => exportWorksheet(i) },
+    { label: 'Print to PDF…', shortcut: keyHint('print-pdf'), disabled: i !== ws.activeSheet, onClick: () => printWorksheetPdf() },
     { separator: true },
     { label: 'Move left', disabled: i === 0, onClick: () => moveWorksheet(i, i - 1) },
     { label: 'Move right', disabled: i === ws.worksheets.length - 1, onClick: () => moveWorksheet(i, i + 1) },
@@ -320,6 +326,8 @@ export function StatusBar() {
   const refColors = useStore((s) => s.settings.refColors);
   const shortcuts = useStore((s) => s.settings.shortcuts);
   const datum = useStore((s) => s.datum);
+  const playing = useStore((s) => s.playback.playing);
+  const playSpeed = useStore((s) => s.playback.speed);
   const version = useStore((s) => s.appInfo?.version);
   useStore((s) => s.laps);
   useStore((s) => s.refKey);
@@ -365,6 +373,12 @@ export function StatusBar() {
         <>
           <span className="sep" />
           <span className="num">{delta}</span>
+        </>
+      )}
+      {playing && (
+        <>
+          <span className="sep" />
+          <span className="datum-badge">▶ Playing {playSpeed}×</span>
         </>
       )}
       {datum && (

@@ -31,11 +31,11 @@ Build a proper, double-clickable **Project-Trace** app with its own name and ico
 npm run dist:mac
 ```
 
-1. When it finishes, open the `release/` folder and double-click the **`.dmg`**.
+1. When it finishes (a minute or two), open the `release/` folder and double-click **`Project-Trace-<version>-arm64.dmg`**.
 2. Drag **Project-Trace** into **Applications**.
-3. The first time you open it, **right-click → Open → Open**. The app isn't signed with an Apple developer certificate, so macOS asks once. If it says the app *"is damaged"* or *"can't be opened"*, go to **System Settings → Privacy & Security → Open Anyway**.
+3. From then on, open it like any other app — Launchpad, Spotlight or the Dock (right-click its Dock icon → *Options → Keep in Dock*). **No terminal needed.** Only build again when you want the latest changes, then drag the new app over the old one.
 
-To share it, send the `.dmg` (or the `.zip`). It is built for your Mac's chip type (Apple silicon or Intel).
+The app is ad-hoc signed (no paid Apple developer certificate), so a copy you build yourself opens straight away. Someone you **send** the `.dmg` to will be asked once: **right-click → Open → Open**, or **System Settings → Privacy & Security → Open Anyway**. It is built for your Mac's chip type (Apple silicon or Intel).
 
 **Windows** (build on a Windows PC):
 
@@ -176,6 +176,7 @@ No telemetry yet? Click **Bundled sample session** to explore a 6-lap Singapore 
 - **Out, in, partial and invalid laps** flagged.
 - **Lap report** (selected laps; sectors as times or **Δ to the reference**) and **stint report** (every lap of the selected stints, with the **ideal lap**). Bests fill the cell: green = stint best, purple = best of everything open.
 - **Channel report** (min/max/avg/std per lap) and a **corner report** built from your corners — ranges found from your braking and throttle (adjustable with sliders), each corner tagged low / medium / high speed, plus the straights between them.
+- **Lap playback** (▶ / Space, 0.25×–4×), **PDF printout** of any worksheet (Ctrl/⌘+P), **fuel-corrected lap times**, a **grip envelope** on the G-G diagram, and a **Corner Radius** channel.
 - **Time breakdown**: time gained or lost against the reference in low, medium and high-speed corners and on the straights — the whole lap in four buckets. Side-by-side lap data is tinted in each lap's colour.
 
 → [Laps & reports guide](docs/08-laps-sectors-reports.md)

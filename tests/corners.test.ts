@@ -51,3 +51,19 @@ describe('corner ranges and speed buckets', () => {
     expect(segs.some((g) => g.bucket === 'straight')).toBe(true);
   });
 });
+
+describe('corner radius math channel', () => {
+  it('evaluates on the sample session to sensible radii', async () => {
+    const { applyMathChannels } = await import('../src/core/math/evaluate');
+    const { DEFAULT_MATH_CHANNELS } = await import('../src/state/defaultMath');
+    const res = applyMathChannels(s, DEFAULT_MATH_CHANNELS.filter((d) => d.name === 'Corner Radius'), []);
+    expect(res.errors['Corner Radius']).toBeUndefined();
+    const ch = s.channels.get('Corner Radius')!;
+    const vals = Array.from(ch.data).filter(Number.isFinite);
+    expect(vals.length).toBeGreaterThan(100);
+    const sorted = vals.sort((a, b) => a - b);
+    // Tight corners tens of metres, never above the 2 km cap.
+    expect(sorted[Math.floor(sorted.length * 0.05)]).toBeLessThan(100);
+    expect(sorted[sorted.length - 1]).toBeLessThanOrEqual(2000);
+  });
+});

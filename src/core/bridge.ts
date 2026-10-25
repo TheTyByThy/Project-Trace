@@ -84,6 +84,8 @@ export interface PtBridge {
   onDirChanged(cb: (dir: string) => void): () => void;
   /** Files changed in the workspaces folder (e.g. a shared workspace was dropped in). */
   onWorkspacesChanged(cb: () => void): () => void;
+  /** Capture a rectangle of the window (CSS px) and save it as a titled one-page PDF; resolves to the path or null. */
+  printSheetPdf(opts: { rect: { x: number; y: number; width: number; height: number }; title: string; subtitle: string; defaultName: string }): Promise<string | null>;
   /** macOS: the window entered / left full screen (the traffic lights are hidden in full screen). */
   onFullscreen(cb: (on: boolean) => void): () => void;
 }

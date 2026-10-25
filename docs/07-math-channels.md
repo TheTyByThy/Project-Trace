@@ -4,7 +4,7 @@ Math channels are calculated channels defined by an expression. Once applied the
 
 ![Math editor](images/math-editor.png)
 
-Open the editor with **ƒx Math** in the top bar or **Ctrl/⌘ + M**.
+Open the editor with **Ctrl/⌘ + M**, **Analysis → Math Channels…** or the command palette.
 
 ## The editor
 
@@ -23,6 +23,8 @@ Open the editor with **ƒx Math** in the top bar or **Ctrl/⌘ + M**.
 - **Add missing defaults** restores any of the shipped channels you've deleted.
 
 Math channels and constants are stored **in the workspace**.
+
+New default channels (like **Corner Radius**) appear in existing workspaces when you click **Add missing defaults** in the math editor.
 
 ### Renaming a math channel
 
@@ -136,10 +138,11 @@ A notice lists the renames, and **Ctrl/⌘ + Z** undoes the whole thing. To chan
 | `lap_number()` | lap number (1 = out lap) |
 | `lap_distance()` | distance from the start/finish line (m) |
 
-## The default library (30 channels)
+## The default library (31 channels)
 
 | Channel | Expression (abridged) | Unit |
 |---|---|---|
+| Corner Radius | `gate(min(('Ground Speed' [m/s])^2 / (abs('CG Accel Lateral') × 9.81), 2000), abs('CG Accel Lateral') > 0.3)` — the radius of the path while cornering; smaller = tighter line | m |
 | Combined G | `hypot('CG Accel Lateral', 'CG Accel Longitudinal')` | G |
 | Steering Rate | `derivative('Steering Angle')` | deg/s |
 | Throttle Brake Overlap | `choose('Throttle Pos' > 5 and 'Brake Pos' > 5, 1, 0)` | |

@@ -1679,3 +1679,29 @@ table.grid tr.group-title td {
   color: var(--text-3);
   background: var(--surface);
 }
+
+/* A small toggle floating in a chart's top-right corner (e.g. Lap Times: raw / fuel-corrected). */
+.seg.chart-seg {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  z-index: 4;
+  font-size: 11px;
+}
+.seg.chart-seg button {
+  padding: 2px 8px;
+}
+
+/* Playback speed picker inside the top-bar Play control. */
+.smooth-ctl > select.playback-speed {
+  width: 46px;
+  border: 0;
+  border-left: 1px solid var(--border);
+  height: 26px;
+  padding: 0 4px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}

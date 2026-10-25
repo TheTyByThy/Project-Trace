@@ -44,14 +44,18 @@ Open it with **Workspace → Open Workspaces Folder**, the workspace menu in the
 - **Renaming** a workspace renames its file; **deleting** it removes the file.
 - Workspaces from older versions (kept in the hidden settings folder) are copied here once, automatically. The originals are left where they were.
 
+## The top bar
+
+From left to right: the **track** (click to open the Track editor), the **workspace** menu (switch, save, folder, import / export), **Time / Distance**, **Smoothing**, **Δ Variance** (greyed out when the worksheet has no time / distance graph; highlighted while variance is showing), **▶ Play** with its speed, **Reset view** and **Properties**. Everything else is in the menu bar and the command palette: the session browser (Ctrl/⌘ + O), math channels (Ctrl/⌘ + M), command palette (Ctrl/⌘ + K), settings (Ctrl/⌘ + ,) and keyboard shortcuts (F1).
+
 ## Saving
 
 Changes are saved automatically within a second. To save explicitly, or to make a copy:
 
 | Action | Where | Keys |
 |---|---|---|
-| **Save** | **Save** button in the top bar, workspace menu, **Workspace → Save Workspace** | Ctrl/⌘ + S |
-| **Save as…** | workspace menu, **Workspace → Save Workspace As…** (on a default, the top-bar button becomes *Save as…*) | |
+| **Save** | the workspace name menu in the top bar, **Workspace → Save Workspace** | Ctrl/⌘ + S |
+| **Save as…** | the workspace name menu, **Workspace → Save Workspace As…** (on a default, *Save* saves a copy) | |
 
 A notice confirms the file it was saved to.
 
@@ -95,6 +99,8 @@ The workspace name in the top bar (**▦ name ▾**) opens a menu with the defau
 | **Insert Saved Worksheet ▸** | Adds a library worksheet as a new tab in the current workspace. |
 | **Remove from Library ▸** | |
 | **Export Worksheet…** / **Import Worksheet…** | Share one tab as a `.ptsheet.json` file. |
+
+**Print to PDF**: **File → Print Worksheet to PDF…**, **Ctrl/⌘ + P**, or right-click the tab → *Print to PDF…* saves the worksheet on screen — exactly as shown, every component — as a one-page PDF titled with the worksheet, workspace, track, car, reference lap and date.
 
 Tabs themselves:
 - **click** a tab or press **1–9** to switch;

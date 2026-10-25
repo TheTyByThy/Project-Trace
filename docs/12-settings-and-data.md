@@ -1,6 +1,6 @@
 # 12 · Settings & data
 
-Open **Settings** with ⚙ in the top bar or **Ctrl/⌘ + ,**.
+Open **Settings** with **Ctrl/⌘ + ,** or **File → Settings…** (also in the command palette).
 
 ![Settings](images/settings.png)
 

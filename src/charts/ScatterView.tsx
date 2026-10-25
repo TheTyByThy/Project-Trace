@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { xToTime } from '../core/axis';
 import { sampleAt } from '../core/channel';
-import { rampColor, withAlpha } from '../core/colors';
+import { CATEGORICAL, rampColor, withAlpha } from '../core/colors';
 import { formatValue } from '../core/format';
 import { lapLabel } from '../core/session';
 import { evalPoly, polyFit } from '../core/stats';
@@ -16,6 +16,66 @@ import { drawAxes, drawMarker, makeAxes, padRange, type Axes } from './axes';
 import { BoxZoomLayer, type View } from './BoxZoom';
 import { chartTheme, prepCanvas, useElementSize, useStoreListener } from './canvas';
 import { channelLabel, conv, findChannel, lapWindow, sampleGrid } from './data';
+
+const ENV_BINS = 72;
+
+type ScatterSet = { xs: Float64Array; ys: Float64Array; gate: Float64Array | null };
+
+/**
+ * The grip envelope: in each 5° direction around the origin, the 99.5th-percentile distance of the
+ * points (so a single kerb strike doesn't stretch it), pushed 3 % outward so the line sits just outside
+ * the points. Directions with too few points borrow from their neighbours. Null with too little data.
+ */
+function gripEnvelope(sets: ScatterSet[]): Float64Array | null {
+  const bins: number[][] = Array.from({ length: ENV_BINS }, () => []);
+  for (const s of sets)
+    for (let i = 0; i < s.xs.length; i++) {
+      if (s.gate && !s.gate[i]) continue;
+      const x = s.xs[i],
+        y = s.ys[i];
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      const b = Math.min(ENV_BINS - 1, Math.floor(((Math.atan2(y, x) + Math.PI) / (2 * Math.PI)) * ENV_BINS));
+      bins[b].push(Math.hypot(x, y));
+    }
+  const env = new Float64Array(ENV_BINS).fill(NaN);
+  bins.forEach((v, b) => {
+    if (v.length < 5) return;
+    v.sort((p, q) => p - q);
+    env[b] = v[Math.floor((v.length - 1) * 0.995)] * 1.03;
+  });
+  if (env.every((v) => !Number.isFinite(v))) return null;
+  // Fill gaps from the nearest directions either side.
+  for (let b = 0; b < ENV_BINS; b++) {
+    if (Number.isFinite(env[b])) continue;
+    let k = 1;
+    while (k < ENV_BINS && !Number.isFinite(env[(b + k) % ENV_BINS]) && !Number.isFinite(env[(b - k + ENV_BINS) % ENV_BINS])) k++;
+    const a = env[(b + k) % ENV_BINS];
+    const c = env[(b - k + ENV_BINS) % ENV_BINS];
+    env[b] = Number.isFinite(a) && Number.isFinite(c) ? (a + c) / 2 : Number.isFinite(a) ? a : c;
+  }
+  // Light smoothing around the circle.
+  const out = new Float64Array(ENV_BINS);
+  for (let b = 0; b < ENV_BINS; b++) out[b] = (env[(b + ENV_BINS - 1) % ENV_BINS] + 2 * env[b] + env[(b + 1) % ENV_BINS]) / 4;
+  return out;
+}
+
+/** Average share of the envelope a lap used, over the points away from the centre (> 25 % of it). */
+function envelopeUse(s: ScatterSet, env: Float64Array): number {
+  let sum = 0,
+    n = 0;
+  for (let i = 0; i < s.xs.length; i++) {
+    if (s.gate && !s.gate[i]) continue;
+    const x = s.xs[i],
+      y = s.ys[i];
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    const b = Math.min(ENV_BINS - 1, Math.floor(((Math.atan2(y, x) + Math.PI) / (2 * Math.PI)) * ENV_BINS));
+    const u = Math.hypot(x, y) / env[b];
+    if (!Number.isFinite(u) || u < 0.25) continue;
+    sum += Math.min(1.2, u);
+    n++;
+  }
+  return n ? sum / n : NaN;
+}
 
 export function ScatterView({ config }: { config: ScatterConfig }) {
   const [wrapRef, size] = useElementSize<HTMLDivElement>();
@@ -207,10 +267,45 @@ export function ScatterView({ config }: { config: ScatterConfig }) {
         }
       }
     }
+    // Grip envelope (G-G): the outer edge of every selected lap's points, and how much of it each lap
+    // used on average while cornering / braking / accelerating.
+    const envNotes: { color: string; text: string }[] = [];
+    if (config.envelope && sets.length) {
+      const env = gripEnvelope(sets);
+      if (env) {
+        // Amber, so it stands apart from the lap colours (blue reference, white comparison…).
+        ctx.strokeStyle = CATEGORICAL[theme][3];
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([8, 4]);
+        ctx.beginPath();
+        for (let b = 0; b <= ENV_BINS; b++) {
+          const a = ((b % ENV_BINS) + 0.5) * ((2 * Math.PI) / ENV_BINS) - Math.PI;
+          const r = env[b % ENV_BINS];
+          const X = A.px(r * Math.cos(a));
+          const Y = A.py(r * Math.sin(a));
+          if (b === 0) ctx.moveTo(X, Y);
+          else ctx.lineTo(X, Y);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+        for (const s of sets) {
+          const u = envelopeUse(s, env);
+          if (Number.isFinite(u)) envNotes.push({ color: s.l.color, text: `${lapLabel(s.l.lap)}: ${Math.round(u * 100)}% of the grip envelope used` });
+        }
+      }
+    }
     ctx.restore();
     ctx.fillStyle = T.text2;
     ctx.textAlign = 'left';
     notes.slice(0, 4).forEach((n, i) => ctx.fillText(n, rect.x + 8, rect.y + 12 + i * 14));
+    envNotes.slice(0, 4).forEach((n, i) => {
+      const y = rect.y + 12 + (notes.length + i) * 16;
+      const tw = ctx.measureText(n.text).width + 10;
+      ctx.fillStyle = withAlpha(n.color, 0.3);
+      ctx.fillRect(rect.x + 6, y - 7, tw, 14);
+      ctx.fillStyle = T.text;
+      ctx.fillText(n.text, rect.x + 11, y);
+    });
     if (viewRef.current) {
       ctx.fillStyle = T.text3;
       ctx.textAlign = 'right';

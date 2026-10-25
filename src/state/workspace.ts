@@ -113,6 +113,8 @@ export interface ScatterConfig extends Base {
   intervalCount: number;
   ramp: RampName;
   gate?: string; // optional channel: only plot samples where gate channel is non-zero
+  /** Grip envelope: the outer edge of the points (G-G) and how much of it each lap used. */
+  envelope?: boolean;
   /** Fixed axis ranges (display units); undefined = automatic. */
   xMin?: number;
   xMax?: number;
@@ -320,6 +322,10 @@ export interface TrendConfig extends Base {
   validOnly: boolean;
   yMin?: number;
   yMax?: number;
+  /** Lap times: raw, fuel-corrected, or both (default raw). */
+  lapTimes?: 'raw' | 'corrected' | 'both';
+  /** Fuel correction: seconds of lap time per litre of fuel on board (default 0.03). */
+  fuelEffect?: number;
 }
 
 export interface CornersConfig extends Base {

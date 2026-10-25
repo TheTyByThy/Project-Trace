@@ -33,6 +33,7 @@ import {
   setZoom,
   syncWorkspacesFromFolder,
   toggleDatum,
+  togglePlayback,
   toast,
   updateComponent,
   updateSettings,
@@ -138,6 +139,9 @@ function installAutomation() {
       'command-palette',
       'settings',
       'zoom-measure',
+      'fuel-corrected',
+      'gg-envelope',
+      'playback',
       'bars',
       'bars-combined',
       'datum',
@@ -187,7 +191,19 @@ function installAutomation() {
         setActiveSheet(0);
         setZoom([850, 2000]);
         setMeasure([1180, 1420]);
+      } else if (name === 'fuel-corrected') {
+        setActiveSheet(sheetIndex('Lap Analysis'));
+        const t = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'trend' && !c.channel);
+        if (t) updateComponent(t.id, { lapTimes: 'both' });
+      } else if (name === 'gg-envelope') {
+        setActiveSheet(sheetIndex('Driver'));
+      } else if (name === 'playback') {
+        setActiveSheet(0);
+        setZoom(null);
+        setCursor(200);
+        togglePlayback();
       } else if (name === 'bars') {
+        if (useStore.getState().playback.playing) togglePlayback();
         // A Bars component directly under the Overview graph (screenshot profile only).
         setMeasure(null);
         setActiveSheet(0);

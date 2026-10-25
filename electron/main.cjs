@@ -199,6 +199,7 @@ function buildMenu() {
         { type: 'separator' },
         { label: 'Export Visible Data to CSV…', ...acc('export-csv'), click: () => sendMenu('export-csv') },
         { label: 'Save Screenshot (PNG)…', ...acc('screenshot'), click: () => sendMenu('screenshot') },
+        { label: 'Print Worksheet to PDF…', ...acc('print-pdf'), click: () => sendMenu('print-pdf') },
         { type: 'separator' },
         { label: 'Settings…', ...acc('settings'), click: () => sendMenu('settings') },
         { type: 'separator' },
@@ -294,6 +295,7 @@ function buildMenu() {
         { type: 'separator' },
         { label: 'Reset View (whole lap)', ...acc('reset-view'), click: () => sendMenu('reset-view') },
         { label: 'Pin / Release Datum (cursor)', ...acc('toggle-datum'), click: () => sendMenu('toggle-datum') },
+        { label: 'Play / Pause Lap', ...acc('toggle-playback'), click: () => sendMenu('toggle-playback') },
         { label: 'Fastest Lap as Reference', ...acc('fastest-lap'), click: () => sendMenu('fastest-lap') },
         { label: 'Previous Lap', ...acc('prev-lap'), click: () => sendMenu('prev-lap') },
         { label: 'Next Lap', ...acc('next-lap'), click: () => sendMenu('next-lap') },
@@ -452,6 +454,52 @@ function registerIpc() {
   ipcMain.handle('fs:watch', (_e, dir) => watchDir(dir));
   ipcMain.handle('shell:showItem', (_e, p) => shell.showItemInFolder(p));
   ipcMain.handle('app:capture', async () => toArrayBuffer((await mainWindow.webContents.capturePage()).toPNG()));
+  ipcMain.handle('print:sheetPdf', (_e, opts) => printSheetPdf(opts));
+}
+
+// ---------------------------------------------------------------------------------------------
+// PDF printout of the worksheet on screen
+// ---------------------------------------------------------------------------------------------
+
+const escHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+/**
+ * Capture the worksheet area exactly as shown and lay it out as a one-page PDF (A4-wide, as tall as
+ * the worksheet's shape needs) with a title line. Returns the saved path, or null if cancelled.
+ */
+async function printSheetPdf({ rect, title, subtitle, defaultName }) {
+  const r = { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) };
+  const img = await mainWindow.webContents.capturePage(r);
+  const res = await dialog.showSaveDialog(mainWindow, { defaultPath: defaultName, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+  if (res.canceled || !res.filePath) return null;
+  // A temporary page (image + title) rendered in a hidden window, then printed to PDF.
+  const dir = await fsp.mkdtemp(path.join(app.getPath('temp'), 'pt-print-'));
+  const png = path.join(dir, 'sheet.png');
+  const html = path.join(dir, 'sheet.html');
+  await fsp.writeFile(png, img.toPNG());
+  await fsp.writeFile(
+    html,
+    `<!doctype html><meta charset="utf-8"><body style="margin:0;background:#0f1216;color:#e8e6e1;font:13px -apple-system,Segoe UI,sans-serif">` +
+      `<div style="padding:10px 14px;display:flex;gap:12px;align-items:baseline"><b style="font-size:15px">${escHtml(title)}</b><span style="color:#8d8b86">${escHtml(subtitle)}</span></div>` +
+      `<img src="sheet.png" style="display:block;width:100%">`,
+    'utf8',
+  );
+  const win = new BrowserWindow({ show: false, width: 1400, height: 1000, webPreferences: { sandbox: true, contextIsolation: true } });
+  try {
+    await win.loadFile(html);
+    const pageW = 11.69; // A4 landscape width (inches)
+    const headerIn = 0.45;
+    const pdf = await win.webContents.printToPDF({
+      printBackground: true,
+      pageSize: { width: pageW, height: headerIn + (pageW * r.height) / Math.max(1, r.width) + 0.05 },
+      margins: { top: 0, bottom: 0, left: 0, right: 0 },
+    });
+    await fsp.writeFile(res.filePath, pdf);
+    return res.filePath;
+  } finally {
+    win.destroy();
+    fsp.rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
 }
 
 // ---------------------------------------------------------------------------------------------

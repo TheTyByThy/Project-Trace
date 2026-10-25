@@ -31,6 +31,7 @@ Changes apply immediately, also to the hints everywhere a shortcut exists: right
 | Ctrl + E | Export the visible data to CSV |
 | Ctrl + S | Save the workspace (defaults: Save as…) |
 | Ctrl + Shift + S | Save a screenshot (PNG) |
+| Ctrl + P | **Print this worksheet to PDF** — exactly as on screen, one page with the worksheet, track, car and reference lap as a title |
 | F1 | Keyboard & mouse help |
 | 1 … 9 | Switch to worksheet 1–9 |
 
@@ -49,6 +50,7 @@ Changes apply immediately, also to the hints everywhere a shortcut exists: right
 | ← / → | Move the cursor (hold Shift for larger steps) |
 | + / − | Zoom in / out around the cursor |
 | Esc, W, Home | Reset view: whole lap, clear the range measurement |
+| **Space** | **Play / pause** the reference lap (playback) |
 | **M** | **Datum**: pin the cursor at its current point / release it (see [04](04-time-distance-graph.md#datum-pinning-the-cursor)) |
 
 ## Actions without a default key

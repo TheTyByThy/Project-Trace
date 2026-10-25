@@ -62,7 +62,7 @@ export function buildDefaultWorkspace(name = 'Starter'): Workspace {
               'col',
               [
                 b.add('trackmap', { title: 'Time gained / lost', colorBy: 'delta', ramp: 'gainloss' } as Partial<ComponentConfig>),
-                split('row', [b.add('inputs'), b.add('scatter', { title: 'G-G diagram' } as Partial<ComponentConfig>)], [0.45, 0.55]),
+                split('row', [b.add('inputs'), b.add('scatter', { title: 'G-G diagram', envelope: true } as Partial<ComponentConfig>)], [0.45, 0.55]),
                 b.add('corners'),
               ],
               [0.38, 0.32, 0.3],

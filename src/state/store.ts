@@ -167,6 +167,8 @@ interface State {
   /** Datum: the cursor is pinned where it was (mouse, clicks and arrow keys don't move it) until released. */
   datum: boolean;
   measure: [number, number] | null;
+  /** Lap playback: the cursor runs through the reference lap in real time × speed. */
+  playback: { playing: boolean; speed: number };
   /** Lap-distance range to highlight on track maps (hovering a corner or straight in the Corner Report). */
   highlight: { entry: number; exit: number } | null;
   workspaces: Workspace[];
@@ -196,6 +198,7 @@ export const useStore = create<State>(() => ({
   zoom: null,
   cursor: null,
   datum: false,
+  playback: { playing: false, speed: 1 },
   measure: null,
   highlight: null,
   workspaces: [],
@@ -770,10 +773,76 @@ export function selectWholeSession(sessionId: string) {
 // View
 // ---------------------------------------------------------------------------------------------
 
+/** While a lap plays back, only playback moves the cursor or zoom; anything else is ignored. */
+function blockedByPlayback(what: string): boolean {
+  if (!get().playback.playing) return false;
+  const now = performance.now();
+  if (now - lastPlaybackHint > 3000) {
+    lastPlaybackHint = now;
+    toast(`Pause playback to ${what}.`, 'info', 1600);
+  }
+  return true;
+}
+let lastPlaybackHint = 0;
+
 export function setCursor(x: number | null) {
   const s = get();
-  if (s.datum) return;
+  if (s.datum || blockedByPlayback('move the cursor')) return;
   if (s.cursor !== x) set({ cursor: x });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Lap playback
+// ---------------------------------------------------------------------------------------------
+
+export const PLAYBACK_SPEEDS = [0.25, 0.5, 1, 2, 4];
+let playFrame = 0;
+
+/**
+ * Play the reference lap: the cursor advances in real time (× speed) from where it is (or the lap
+ * start), so every graph, map, gauge and input moves with it. The zoomed graphs page along to keep
+ * the cursor in view. While it plays, nothing else can move the cursor or change the zoom — only pause.
+ */
+export function togglePlayback() {
+  const s = get();
+  if (s.playback.playing) return stopPlayback();
+  const ref = refLap(s);
+  if (!ref) return toast('Select a lap to play it back.', 'info', 2000);
+  const lap = ref.lap;
+  let t = s.cursor != null ? xToTime(lap, s.cursor, s.xMode) : lap.start;
+  if (!(t >= lap.start && t < lap.end - 0.05)) t = lap.start;
+  set({ datum: false, playback: { ...s.playback, playing: true } });
+  let last = performance.now();
+  const step = (now: number) => {
+    const st = get();
+    if (!st.playback.playing) return;
+    const r = refLap(st);
+    if (!r || r.key !== ref.key) return stopPlayback();
+    t += Math.min(0.1, (now - last) / 1000) * st.playback.speed;
+    last = now;
+    if (t >= lap.end) {
+      t = lap.end;
+      stopPlayback();
+    }
+    const x = timeToX(lap, t, st.xMode);
+    set({ cursor: x });
+    // Keep the cursor in view when zoomed: page so it sits near the left of the window.
+    if (st.zoom && (x > st.zoom[1] || x < st.zoom[0])) {
+      const span = st.zoom[1] - st.zoom[0];
+      applyZoom([x - span * 0.1, x + span * 0.9]);
+    }
+    if (get().playback.playing) playFrame = requestAnimationFrame(step);
+  };
+  playFrame = requestAnimationFrame(step);
+}
+
+export function stopPlayback() {
+  cancelAnimationFrame(playFrame);
+  set((s) => ({ playback: { ...s.playback, playing: false } }));
+}
+
+export function setPlaybackSpeed(speed: number) {
+  set((s) => ({ playback: { ...s.playback, speed } }));
 }
 
 /** Pin the cursor where it is (datum), or release it. */
@@ -789,6 +858,12 @@ export function toggleDatum() {
   toast('Datum set — the cursor stays here while you look around (press again to release)', 'info', 2500);
 }
 export function setZoom(z: [number, number] | null) {
+  if (blockedByPlayback('zoom')) return;
+  applyZoom(z);
+}
+
+/** Set the zoom (clamped to the laps' extent). Playback uses this directly to page along the lap. */
+function applyZoom(z: [number, number] | null) {
   if (z) {
     const [a, b] = xExtent();
     let [x0, x1] = z[0] <= z[1] ? z : [z[1], z[0]];
@@ -804,6 +879,7 @@ export function setZoom(z: [number, number] | null) {
   set({ zoom: z });
 }
 export function setMeasure(m: [number, number] | null) {
+  if (m && blockedByPlayback('measure a range')) return;
   set({ measure: m });
 }
 export function setHighlight(h: { entry: number; exit: number } | null) {
@@ -814,12 +890,13 @@ export function setHighlight(h: { entry: number; exit: number } | null) {
 
 /** Reset view (Esc or W): show the whole of the selected laps and clear any range measurement. */
 export function resetView() {
+  if (blockedByPlayback('reset the view')) return;
   set({ zoom: null, measure: null });
 }
 
 export function setXMode(mode: XMode) {
   const s = get();
-  if (s.xMode === mode) return;
+  if (s.xMode === mode || blockedByPlayback('switch between time and distance')) return;
   const ref = refLap(s);
   const conv = (x: number) => (ref ? timeToX(ref.lap, xToTime(ref.lap, x, s.xMode), mode) : x);
   set({
