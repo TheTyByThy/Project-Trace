@@ -687,9 +687,9 @@ table.grid tr > td.pb {
   background: color-mix(in srgb, var(--pb) 26%, transparent);
   color: var(--text);
 }
+/* Invalid laps aren't struck through; the INV / invalid tag marks them. */
 table.grid td.bad {
-  color: var(--text-3);
-  text-decoration: line-through;
+  color: var(--text-2);
 }
 .swatch {
   display: inline-block;
@@ -1666,4 +1666,16 @@ table.grid td.bad {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* A session heading inside a report table (keeps every session in one table so columns line up). */
+table.grid tr.group-title td {
+  text-align: left;
+  padding: 10px 8px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  background: var(--surface);
 }

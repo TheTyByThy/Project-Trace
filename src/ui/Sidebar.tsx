@@ -34,10 +34,11 @@ function SessionCard({ s }: { s: Session }) {
   const refKey = useStore((st) => st.refKey);
   useStore((st) => st.settings.theme);
   const colorOf = new Map(selectedLaps().map((l) => [l.key, l.color]));
-  const fl = fastestLap(s);
+  // The best lap may be an invalid one (it's still the fastest you went); it keeps its INV tag.
+  const fl = fastestLap(s, false);
   // Best of every open session at this track: the stint best is purple only when it is also this.
   const sessions = useStore((st) => st.sessions);
-  const overallBest = Math.min(...sessions.filter((o) => o.meta.venue === s.meta.venue).map((o) => fastestLap(o)?.time ?? Infinity));
+  const overallBest = Math.min(...sessions.filter((o) => o.meta.venue === s.meta.venue).map((o) => fastestLap(o, false)?.time ?? Infinity));
   const tr = prettyTrack(s.meta.venue);
   const wholeKey = lapKey({ sessionId: s.id, lapIndex: -1 });
   return (
@@ -118,7 +119,7 @@ function SessionCard({ s }: { s: Session }) {
               {lap.invalid && <span className="tag bad">inv</span>}
               {isBest && fl && <span className={'tag ' + (fl.time <= overallBest + 1e-6 ? 'best' : 'pb')}>best</span>}
             </span>
-            <span className="num" style={{ color: lap.complete ? 'var(--text)' : 'var(--text-3)', textDecoration: lap.invalid ? 'line-through' : undefined }}>
+            <span className="num" style={{ color: lap.complete ? 'var(--text)' : 'var(--text-3)' }}>
               {formatLapTime(lap.time)}
             </span>
             <span className="num muted" style={{ fontSize: 11, width: 52, textAlign: 'right' }}>

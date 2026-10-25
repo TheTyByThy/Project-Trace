@@ -3,7 +3,7 @@
 // session (stint), purple = the best of every lap currently open at this track.
 // Click = make reference, Ctrl/⌘+click = toggle overlay.
 
-import { useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
 import { lapTint } from '../core/colors';
 import { formatDelta, formatLapTime, formatValue, prettyTrack } from '../core/format';
 import { fastestLap, segmentTimes, theoreticalBest } from '../core/session';
@@ -99,6 +99,7 @@ export function LapReportView({ config }: { config: LapReportConfig | SelectedLa
     [sessions, config.split, profiles, dataVersion, speedUnit],
   );
 
+  type Table = (typeof tables)[number];
   if (!sessions.length) return <div className="empty-state">Open a session to see lap times.</div>;
   if (!selected.length) return <div className="empty-state">Select a lap to see {onlySelected ? 'its times' : 'its stint'}.</div>;
 
@@ -110,11 +111,30 @@ export function LapReportView({ config }: { config: LapReportConfig | SelectedLa
   const shown = tables
     .filter((t) => t.rows.some((r) => lapColors.has(r.key)))
     .map((t) => ({ ...t, rows: onlySelected ? t.rows.filter((r) => lapColors.has(r.key)) : t.rows }));
-  // Lap report: reference first, then comparisons in selection order.
+  // Each row keeps its own stint, for its bests and session label.
+  type Group = { id: string; title: string | null; splitNames: string[]; rows: (Table['rows'][number] & { t: Table })[]; t: Table | null };
+  let groups: Group[];
   if (onlySelected) {
+    // Lap report: one table of every selected lap — reference first, then comparisons in selection
+    // order — whatever session they come from.
     const order = new Map(selected.map((l, i) => [l.key, i]));
-    for (const t of shown) t.rows.sort((a, b) => (order.get(a.key) ?? 0) - (order.get(b.key) ?? 0));
-  }
+    const rows = shown.flatMap((t) => t.rows.map((r) => ({ ...r, t }))).sort((a, b) => (order.get(a.key) ?? 0) - (order.get(b.key) ?? 0));
+    const refT = rows[0]?.t;
+    const splitNames = refT ? refT.splitNames : [];
+    groups = [{ id: 'selected', title: null, splitNames, rows, t: null }];
+  } else
+    groups = shown.map((t) => ({
+      id: t.s.id,
+      title: shown.length > 1 ? `${prettyTrack(t.s.meta.venue).track} · ${new Date(t.s.meta.savedAt ?? 0).toLocaleString()}` : null,
+      splitNames: t.splitNames,
+      rows: t.rows.map((r) => ({ ...r, t })),
+      t,
+    }));
+  // Columns shared by every row: the widest set of splits, and fuel if any session logs it.
+  const headSplits = groups.reduce<string[]>((a, g) => (g.splitNames.length > a.length ? g.splitNames : a), []);
+  const hasFuel = groups.some((g) => g.rows.some((r) => r.t.s.key.fuel));
+  const colCount = 3 + (show.delta ? 1 : 0) + (show.splits ? headSplits.length : 0) + (config.showStats ? 1 + (hasFuel ? 1 : 0) : 0);
+  const multiSession = onlySelected && new Set(groups[0]?.rows.map((r) => r.t.s.id)).size > 1;
 
   return (
     <div className="html-panel">
@@ -144,102 +164,108 @@ export function LapReportView({ config }: { config: LapReportConfig | SelectedLa
           <span className="legend-chip pb" /> stint best <span className="legend-chip best" /> best of all open laps
         </span>
       </div>
-      {shown.map(({ s, splitNames, rows, best, fl, ideal, overallLap, overallSplits }) => (
-        <div key={s.id}>
-          {shown.length > 1 && (
-            <div className="section-title">
-              {prettyTrack(s.meta.venue).track} · {new Date(s.meta.savedAt ?? 0).toLocaleString()}
-            </div>
-          )}
-          {config.split === 'sections' && !splitNames.length && (
-            <div className="muted" style={{ padding: '8px 12px', fontSize: 12 }}>
-              No custom sections yet — right-click a graph or the track map and choose “Add split at cursor”.
-            </div>
-          )}
-          <table className="grid">
-            <thead>
-              <tr>
-                <th className="l" style={{ width: 22 }}></th>
-                <th className="l">Lap</th>
-                <th>Time</th>
-                {show.delta && <th>{onlySelected ? 'Δ ref' : 'Δ best'}</th>}
-                {show.splits && splitNames.map((n) => <th key={n}>{n}</th>)}
-                {config.showStats && <th>V max</th>}
-                {config.showStats && s.key.fuel && <th>Fuel</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(({ lap, key, splits, vmax, fuel }) => {
-                const sel = lapSel.find((l) => l.key === key);
-                const isBest = fl === lap;
-                const delta = onlySelected
-                  ? refRow && key !== refKey && lap.complete && refRow.lap.complete
-                    ? formatDelta(lap.time - refRow.lap.time)
-                    : ''
-                  : lap.complete && fl && !isBest
-                    ? formatDelta(lap.time - fl.time)
-                    : '';
-                return (
-                  <tr
-                    key={lap.index}
-                    className={'click' + (sel ? ' sel' : '')}
-                    onClick={(e) => selectLap(key, e.ctrlKey || e.metaKey ? 'toggle' : e.shiftKey ? 'reference' : 'replace')}
-                  >
-                    <td className="l">{sel && <span className="swatch" style={{ background: lapColors.get(key), outline: key === refKey ? '2px solid var(--text)' : undefined }} />}</td>
-                    <td className="l" style={sel ? { background: lapTint(lapColors.get(key)!) } : undefined}>
-                      {lap.number}{' '}
-                      {show.tags && lap.kind === 'out' && <span className="tag">out</span>}
-                      {show.tags && lap.kind === 'in' && <span className="tag">in</span>}
-                      {show.tags && lap.kind === 'partial' && <span className="tag">partial</span>}
-                      {show.tags && lap.invalid && <span className="tag bad">invalid</span>}
-                      {show.tags && onlySelected && key === refKey && <span className="tag">ref</span>}
-                    </td>
-                    <td className={'num' + (isBest && fl ? bestClass(lap.time, fl.time, overallLap) : '') + (lap.invalid ? ' bad' : '')}>
-                      {lap.complete ? formatLapTime(lap.time) : <span className="muted">{formatLapTime(lap.time)}</span>}
-                    </td>
-                    {show.delta && <td className="num muted">{delta}</td>}
-                    {show.splits &&
-                      splitNames.map((_, i) => {
-                        const v = splits[i];
-                        if (deltaMode && refRow && key !== refKey) {
-                          const d = v - refRow.splits[i];
+      {config.split === 'sections' && !headSplits.length && (
+        <div className="muted" style={{ padding: '8px 12px', fontSize: 12 }}>
+          No custom sections yet — right-click a graph or the track map and choose “Add split at cursor”.
+        </div>
+      )}
+      {/* One table for every session, so the columns always line up; sessions are titled rows. */}
+      <table className="grid">
+        <thead>
+          <tr>
+            <th className="l" style={{ width: 22 }}></th>
+            <th className="l">Lap</th>
+            <th>Time</th>
+            {show.delta && <th>{onlySelected ? 'Δ ref' : 'Δ best'}</th>}
+            {show.splits && headSplits.map((n) => <th key={n}>{n}</th>)}
+            {config.showStats && <th>V max</th>}
+            {config.showStats && hasFuel && <th>Fuel</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {groups.map(({ id, title, rows, t: group }) => {
+            const splitNames = headSplits;
+            return (
+              <Fragment key={id}>
+                {title && (
+                  <tr className="group-title">
+                    <td colSpan={colCount}>{title}</td>
+                  </tr>
+                )}
+                {rows.map(({ lap, key, splits, vmax, fuel, t }) => {
+                  const { s, best, fl, overallLap, overallSplits } = t;
+                  const sel = lapSel.find((l) => l.key === key);
+                  const isBest = fl === lap;
+                  const delta = onlySelected
+                    ? refRow && key !== refKey && lap.complete && refRow.lap.complete
+                      ? formatDelta(lap.time - refRow.lap.time)
+                      : ''
+                    : lap.complete && fl && !isBest
+                      ? formatDelta(lap.time - fl.time)
+                      : '';
+                  return (
+                    <tr key={key} className={'click' + (sel ? ' sel' : '')} onClick={(e) => selectLap(key, e.ctrlKey || e.metaKey ? 'toggle' : e.shiftKey ? 'reference' : 'replace')}>
+                      <td className="l">{sel && <span className="swatch" style={{ background: lapColors.get(key), outline: key === refKey ? '2px solid var(--text)' : undefined }} />}</td>
+                      <td className="l" style={sel ? { background: lapTint(lapColors.get(key)!) } : undefined}>
+                        {lap.number}{' '}
+                        {multiSession && (
+                          <span className="muted" style={{ fontSize: 11 }} title={s.fileName}>
+                            {s.meta.driver || prettyTrack(s.meta.venue).track} · {new Date(s.meta.savedAt ?? 0).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}{' '}
+                          </span>
+                        )}
+                        {show.tags && lap.kind === 'out' && <span className="tag">out</span>}
+                        {show.tags && lap.kind === 'in' && <span className="tag">in</span>}
+                        {show.tags && lap.kind === 'partial' && <span className="tag">partial</span>}
+                        {show.tags && lap.invalid && <span className="tag bad">invalid</span>}
+                        {show.tags && onlySelected && key === refKey && <span className="tag">ref</span>}
+                      </td>
+                      <td className={'num' + (isBest && fl ? bestClass(lap.time, fl.time, overallLap) : '') + (lap.invalid ? ' bad' : '')}>
+                        {lap.complete ? formatLapTime(lap.time) : <span className="muted">{formatLapTime(lap.time)}</span>}
+                      </td>
+                      {show.delta && <td className="num muted">{delta}</td>}
+                      {show.splits &&
+                        splitNames.map((_, i) => {
+                          const v = splits[i];
+                          if (deltaMode && refRow && key !== refKey) {
+                            const d = v - refRow.splits[i];
+                            return (
+                              <td key={i} className="num" style={{ color: !Number.isFinite(d) ? undefined : d < 0 ? 'var(--gain)' : d > 0 ? 'var(--loss)' : undefined }}>
+                                {valid(v) && valid(refRow.splits[i]) ? formatDelta(d) : <span className="muted">—</span>}
+                              </td>
+                            );
+                          }
                           return (
-                            <td key={i} className="num" style={{ color: !Number.isFinite(d) ? undefined : d < 0 ? 'var(--gain)' : d > 0 ? 'var(--loss)' : undefined }}>
-                              {valid(v) && valid(refRow.splits[i]) ? formatDelta(d) : <span className="muted">—</span>}
+                            <td key={i} className={'num' + (lap.invalid ? '' : bestClass(v, best[i], overallSplits[i]))}>
+                              {valid(v) ? formatLapTime(v) : <span className="muted">—</span>}
                             </td>
                           );
-                        }
-                        return (
-                          <td key={i} className={'num' + (lap.invalid ? '' : bestClass(v, best[i], overallSplits[i]))}>
-                            {valid(v) ? formatLapTime(v) : <span className="muted">—</span>}
-                          </td>
-                        );
-                      })}
-                    {config.showStats && <td className="num">{formatValue(vmax, 1)}</td>}
-                    {config.showStats && s.key.fuel && <td className="num">{formatValue(fuel, 2)}</td>}
+                        })}
+                      {config.showStats && <td className="num">{formatValue(vmax, 1)}</td>}
+                      {config.showStats && hasFuel && <td className="num">{s.key.fuel ? formatValue(fuel, 2) : ''}</td>}
+                    </tr>
+                  );
+                })}
+                {show.ideal && group?.ideal && (
+                  <tr className="sub">
+                    <td></td>
+                    <td className="l">Ideal</td>
+                    <td className="num">{formatLapTime(group.ideal.time)}</td>
+                    {show.delta && <td className="num">{group.fl ? formatDelta(group.ideal.time - group.fl.time) : ''}</td>}
+                    {show.splits &&
+                      splitNames.map((_, i) => (
+                        <td key={i} className="num">
+                          {formatLapTime(group.ideal!.sectors[i])}
+                        </td>
+                      ))}
+                    {config.showStats && <td></td>}
+                    {config.showStats && hasFuel && <td></td>}
                   </tr>
-                );
-              })}
-              {show.ideal && ideal && (
-                <tr className="sub">
-                  <td></td>
-                  <td className="l">Ideal</td>
-                  <td className="num">{formatLapTime(ideal.time)}</td>
-                  {show.delta && <td className="num">{fl ? formatDelta(ideal.time - fl.time) : ''}</td>}
-                  {show.splits &&
-                    splitNames.map((_, i) => (
-                      <td key={i} className="num">
-                        {formatLapTime(ideal.sectors[i])}
-                      </td>
-                    ))}
-                  {config.showStats && <td></td>}
-                  {config.showStats && s.key.fuel && <td></td>}
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      ))}
+                )}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

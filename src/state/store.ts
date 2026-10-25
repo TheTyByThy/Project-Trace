@@ -641,8 +641,8 @@ export async function openFiles(paths: string[], mode: 'replace' | 'add' = 'repl
         mathErrors: { ...s.mathErrors, [session.id]: res.errors },
         dataVersion: s.dataVersion + 1,
       }));
-      // Select the fastest lap: as reference for the first session, as an overlay for later ones.
-      const fl = fastestLap(session) ?? session.laps[0];
+      // Select the fastest lap — valid or not: as reference for the first session, as an overlay for later ones.
+      const fl = fastestLap(session, false) ?? session.laps[0];
       if (fl) {
         const key = lapKey({ sessionId: session.id, lapIndex: fl.index });
         if (!get().refKey) selectLap(key, 'replace');
@@ -742,7 +742,7 @@ export function clearOverlays() {
 export function fastestAsReference() {
   const s = get().sessions[0];
   if (!s) return;
-  const fl = fastestLap(s);
+  const fl = fastestLap(s, false);
   if (fl) selectLap(lapKey({ sessionId: s.id, lapIndex: fl.index }), 'reference');
 }
 

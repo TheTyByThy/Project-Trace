@@ -19,7 +19,7 @@ Project-Trace uses the best evidence in the file, in this order:
 | **IN** | the log ended with the car stopped (pit entry) |
 | **PART** | the log ended mid-lap while moving |
 | **INV** | AC's `Lap Invalidated` flag was set during the lap (track limits, cuts) |
-| **BEST** | fastest complete, **valid** lap (falls back to the fastest lap if none are valid) |
+| **BEST** | fastest complete lap in the sidebar, **even if it's invalid** (it keeps its INV tag); green = stint best, purple = best of everything open |
 
 ## Reference and overlay laps
 
@@ -35,7 +35,7 @@ Project-Trace uses the best evidence in the file, in this order:
 
 **Lap colours**: each selected lap gets a colour that stays with it. **Right-click a selected lap's coloured square** (or right-click the lap → *Lap colour…*); a plain click on the square removes the lap. The reference is blue and the first comparison lap white by default. The picker offers any colour from the palette, a custom colour picker or a hex value. Overlay laps are drawn in their colour on every graph, map and report; the reference lap uses channel colours or its lap colour (toggle with **J**, see [04](04-time-distance-graph.md#lap-colours)).
 
-The **reference** is what variance, gain/loss maps and corner deltas compare against. It is drawn on top in every chart and listed first in reports. Opening a session selects its fastest valid lap. Opening a *second* session adds its fastest lap as an overlay, so comparing two runs takes one action.
+The **reference** is what variance, gain/loss maps and corner deltas compare against. It is drawn on top in every chart and listed first in reports. Opening a session selects its fastest lap (even if it's invalid). Opening a *second* session adds its fastest lap as an overlay, so comparing two runs takes one action.
 
 ## Sectors
 
@@ -51,15 +51,15 @@ Two components show lap and sector times:
 
 | Component | Shows |
 |---|---|
-| **Lap Report** | only the **selected laps** — the reference first, then the comparison laps |
-| **Stint Report** | every lap of each **stint (session) that has a selected lap** — open a second session and it only appears once you select one of its laps |
+| **Lap Report** | only the **selected laps**, in **one table** — the reference first, then the comparison laps — even when they come from different sessions (each row then shows its driver and time, e.g. *Lewis Hamilton · 15:25*) |
+| **Stint Report** | every lap of each **stint (session) that has a selected lap** — open a second session and it only appears once you select one of its laps. Sessions are headings inside **one table**, so the columns always line up |
 
 ![Lap report with sectors as Δ to the reference](images/lap-report-delta.png)
 
 | Column | |
 |---|---|
 | swatch / Lap | the lap's colour if selected (outlined = reference); the lap cell is tinted in the lap's colour |
-| Time | lap time (struck through if invalid, grey if incomplete) |
+| Time | lap time (grey if incomplete; invalid laps are marked by their *invalid* tag, not crossed out) |
 | Δ ref / Δ best | Lap Report: gap to the reference · Stint Report: gap to the fastest lap |
 | S1…Sn | sector or section times |
 | V max | maximum speed (in your speed unit) |
