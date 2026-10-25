@@ -19,7 +19,7 @@ Project-Trace ships with two **read-only default workspaces**:
 | Default | What it is |
 |---|---|
 | **Starter** | The general layout: Overview, Driver, Racing Lines, Tyres, Brakes, Suspension, Aero, Engine & ERS, Lap Analysis, Session & Setup. |
-| **Basic FA26** | A compact Formula Alpha 2026 layout: Overview (lap report, racing lines, corners, gain/loss map), Driver, PU, Tyres, Stint Analysis, Session & Setup. |
+| **Basic FA26** | A compact Formula Alpha 2026 layout: Overview (lap report, racing lines, corners, gain/loss map), Driver, Toggles, PU, Tyres, Stint Analysis, Session & Setup. |
 
 ![Basic FA26](images/basic-fa26.png)
 
@@ -151,7 +151,7 @@ What's inside depends on the component:
 
 | Component | Highlights |
 |---|---|
-| Graph | Display options (variance, legends, grid lines, line widths, marker lines for all graphs) plus a **panes & channels** section: each pane lists its channels with **colour swatch**, unit, sample rate and range, a **Properties…** button and a right-click menu (colour, move to another pane, remove). Pane scale, height, order and shared y-range are here too. |
+| Graph | Display options (variance, legends, grid lines, line widths, marker lines for all graphs) plus a **panes & channels** section: each pane lists its channels with **colour swatch**, unit, sample rate and range, a **Properties…** button and a right-click menu (colour, move to another pane, remove). Pane scale, height, order (drag a pane by its **⋮⋮** title, or ↑ / ↓) and shared y-range are here too. |
 | Scatter | **Axes & scales**: fixed X and Y min/max (blank = automatic) and equal aspect, plus channels, colour, gate, fit, interval averages. |
 | Lap Trend | Statistic and **Y-axis min/max**. |
 | Track Map | Colouring, including **custom low/high colours** and gain/loss **sensitivity** and **smoothing**, display options (zoom to the graphs' selection, outline, start/finish, car dots, legend), and the **track profile** (rotation, corners, splits). |

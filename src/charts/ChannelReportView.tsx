@@ -1,7 +1,7 @@
 // Channel report: statistics of chosen channels for each selected lap (whole lap or zoomed range).
 
 import { formatValue } from '../core/format';
-import { lapTint } from '../core/colors';
+import { lapHeaderTint, lapTint } from '../core/colors';
 import { lapLabel } from '../core/session';
 import { rangeStats } from '../core/stats';
 import { selectedLaps, updateComponent, useStore } from '../state/store';
@@ -42,7 +42,7 @@ export function ChannelReportView({ config }: { config: ChannelReportConfig }) {
             <th className="l">Channel</th>
             {laps.map((l) =>
               config.stats.map((s, i) => (
-                <th key={l.key + s} style={{ background: lapTint(l.color, 0.32), color: 'var(--text)' }} title={lapLabel(l.lap)}>
+                <th key={l.key + s} style={{ background: lapHeaderTint(l.color), color: 'var(--text)' }} title={lapLabel(l.lap)}>
                   {laps.length > 1 && i === 0 ? `L${l.lap.number} ` : ''}
                   {STAT_LABEL[s]}
                 </th>

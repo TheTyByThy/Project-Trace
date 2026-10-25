@@ -216,6 +216,126 @@
       }
     },
     {
+      "id": "wmvn2fhat4yhwig",
+      "name": "Toggles",
+      "layout": {
+        "kind": "split",
+        "id": "smvn2fhat4ztgoy",
+        "dir": "row",
+        "children": [
+          {
+            "kind": "leaf",
+            "id": "lmvn2fhat50xujv",
+            "componentId": "cmvn2fhas4vjgv8"
+          },
+          {
+            "kind": "split",
+            "id": "smvn2fhat51rsqq",
+            "dir": "col",
+            "children": [
+              {
+                "kind": "leaf",
+                "id": "lmvn2fhat52cz9t",
+                "componentId": "cmvn2fhat4wsaht"
+              },
+              {
+                "kind": "leaf",
+                "id": "lmvn2fhat53d62x",
+                "componentId": "cmvn2fhat4xcei4"
+              }
+            ],
+            "sizes": [
+              0.5,
+              0.5
+            ]
+          }
+        ],
+        "sizes": [
+          0.6400000000000001,
+          0.36
+        ]
+      },
+      "components": {
+        "cmvn2fhas4vjgv8": {
+          "id": "cmvn2fhas4vjgv8",
+          "type": "graph",
+          "panes": [
+            {
+              "id": "pmvmr5t8h4bidw6",
+              "channels": [
+                "Ground Speed"
+              ],
+              "weight": 1.2685578377016133,
+              "scale": "auto"
+            },
+            {
+              "id": "pmvn2g6lw55gd0i",
+              "channels": [
+                "Diff Entry",
+                "Diff Mid",
+                "Diff Exit"
+              ],
+              "weight": 1,
+              "scale": "auto"
+            },
+            {
+              "id": "pmvn2i79i58oqck",
+              "channels": [
+                "EB Setting"
+              ],
+              "weight": 1,
+              "scale": "auto"
+            },
+            {
+              "id": "pmvn2gtoo5783fx",
+              "channels": [
+                "Brake Migration Migration"
+              ],
+              "weight": 1,
+              "scale": "auto"
+            },
+            {
+              "id": "pmvn2g47w54nn4v",
+              "channels": [
+                "Brake Bias Base",
+                "Brake Bias Live"
+              ],
+              "weight": 1,
+              "scale": "auto"
+            }
+          ],
+          "showVariance": true,
+          "showSectors": true,
+          "showCorners": true,
+          "yRange": "full",
+          "title": "Driver channels",
+          "varianceWeight": 0.8814421622983871
+        },
+        "cmvn2fhat4wsaht": {
+          "id": "cmvn2fhat4wsaht",
+          "type": "trackmap",
+          "colorBy": "delta",
+          "ramp": "blue",
+          "showSectors": true,
+          "showCorners": true,
+          "showZoom": true,
+          "lineWidth": 4,
+          "rotation": 0,
+          "title": "Track map — speed"
+        },
+        "cmvn2fhat4xcei4": {
+          "id": "cmvn2fhat4xcei4",
+          "type": "gpstrack",
+          "lineWidth": 1.5,
+          "fitToZoom": true,
+          "followCursor": false,
+          "showRoad": true,
+          "showSectors": true,
+          "showCorners": true
+        }
+      }
+    },
+    {
       "id": "wmvmr5t8i7yuqrs",
       "name": "PU",
       "layout": {
@@ -365,6 +485,17 @@
               "id": "pmvmx7djw53v0m2",
               "channels": [
                 "Rear Wheelspin"
+              ],
+              "weight": 1,
+              "scale": "auto"
+            },
+            {
+              "id": "pmvn2s3jh5foya5",
+              "channels": [
+                "Tire Slip Angle FL",
+                "Tire Slip Angle FR",
+                "Tire Slip Angle RL",
+                "Tire Slip Angle RR"
               ],
               "weight": 1,
               "scale": "auto"

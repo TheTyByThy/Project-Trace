@@ -43,6 +43,7 @@ import {
   setZoom,
   stepReferenceLap,
   toast,
+  toggleDatum,
   toggleRefColors,
   undo,
   updateSheet,
@@ -164,6 +165,7 @@ const SHORTCUT_ACTIONS: Record<string, () => void> = {
   'prev-lap': () => stepReferenceLap(-1),
   'next-lap': () => stepReferenceLap(1),
   'reset-view': resetView,
+  'toggle-datum': toggleDatum,
   'cursor-left': () => moveCursor(-0.005),
   'cursor-right': () => moveCursor(0.005),
   'cursor-left-big': () => moveCursor(-0.05),
@@ -194,6 +196,7 @@ export function buildCommands(): Command[] {
     { id: 'fast', label: 'Fastest lap as reference', hint: k('fastest-lap'), run: fastestAsReference },
     { id: 'prev', label: 'Previous lap', hint: k('prev-lap'), run: () => stepReferenceLap(-1) },
     { id: 'next', label: 'Next lap', hint: k('next-lap'), run: () => stepReferenceLap(1) },
+    { id: 'datum', label: 'Datum: pin / release the cursor', hint: k('toggle-datum'), run: toggleDatum },
     { id: 'reset', label: 'Reset view (whole lap, clear measurement)', hint: k('reset-view'), run: resetView },
     { id: 'csv', label: 'Export visible data to CSV', hint: k('export-csv'), run: exportVisibleCsv },
     { id: 'shot', label: 'Save screenshot', hint: k('screenshot'), run: saveScreenshot },
@@ -290,6 +293,8 @@ export async function handleMenuAction(action: string) {
     case 'zoom-lap':
     case 'reset-view':
       return resetView();
+    case 'toggle-datum':
+      return toggleDatum();
     case 'fastest-lap':
       return fastestAsReference();
     case 'prev-lap':

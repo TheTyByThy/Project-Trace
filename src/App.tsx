@@ -29,6 +29,7 @@ import {
   setNamePrompt,
   setZoom,
   syncWorkspacesFromFolder,
+  toggleDatum,
   toast,
   updateComponent,
   updateSettings,
@@ -132,6 +133,7 @@ function installAutomation() {
       'command-palette',
       'settings',
       'zoom-measure',
+      'datum',
       'lap-report-delta',
       'shortcuts',
       'basic-fa26',
@@ -176,7 +178,13 @@ function installAutomation() {
         setActiveSheet(0);
         setZoom([850, 2000]);
         setMeasure([1180, 1420]);
+      } else if (name === 'datum') {
+        setMeasure(null);
+        setZoom([850, 2000]);
+        setCursor(1300);
+        if (!useStore.getState().datum) toggleDatum();
       } else if (name === 'lap-report-delta') {
+        if (useStore.getState().datum) toggleDatum();
         setMeasure(null);
         setZoom(null);
         const lr = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'lapreport');

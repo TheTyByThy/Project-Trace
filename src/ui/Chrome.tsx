@@ -314,6 +314,7 @@ export function StatusBar() {
   const units = useStore((s) => s.settings.units);
   const refColors = useStore((s) => s.settings.refColors);
   const shortcuts = useStore((s) => s.settings.shortcuts);
+  const datum = useStore((s) => s.datum);
   const version = useStore((s) => s.appInfo?.version);
   useStore((s) => s.laps);
   useStore((s) => s.refKey);
@@ -359,6 +360,14 @@ export function StatusBar() {
         <>
           <span className="sep" />
           <span className="num">{delta}</span>
+        </>
+      )}
+      {datum && (
+        <>
+          <span className="sep" />
+          <span className="datum-badge" title="The cursor is pinned. Press the datum key again, or right-click a graph → Release datum.">
+            ⚑ Datum{shortcutHint('toggle-datum', shortcuts) ? ` — ${shortcutHint('toggle-datum', shortcuts)} to release` : ''}
+          </span>
         </>
       )}
       {zoom && (

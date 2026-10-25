@@ -1444,3 +1444,23 @@ table.grid td.bad {
   border-radius: 6px;
   box-shadow: var(--shadow);
 }
+
+/* Graph Properties: pane cards can be dragged by their header to reorder them. */
+.drag-handle {
+  cursor: grab;
+  user-select: none;
+}
+.pane-card.drop-over {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+}
+.drag-grip {
+  color: var(--text-3);
+  letter-spacing: -2px;
+  margin-right: 2px;
+}
+
+.datum-badge {
+  color: var(--accent);
+  font-weight: 600;
+}

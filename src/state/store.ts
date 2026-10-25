@@ -160,6 +160,8 @@ interface State {
   xMode: XMode;
   zoom: [number, number] | null;
   cursor: number | null;
+  /** Datum: the cursor is pinned where it was (mouse, clicks and arrow keys don't move it) until released. */
+  datum: boolean;
   measure: [number, number] | null;
   /** Lap-distance range to highlight on track maps (hovering a corner or straight in the Corner Report). */
   highlight: { entry: number; exit: number } | null;
@@ -189,6 +191,7 @@ export const useStore = create<State>(() => ({
   xMode: 'distance',
   zoom: null,
   cursor: null,
+  datum: false,
   measure: null,
   highlight: null,
   workspaces: [],
@@ -606,7 +609,7 @@ export async function openFiles(paths: string[], mode: 'replace' | 'add' = 'repl
   paths = paths.filter((p) => /\.(csv|txt|ld)$/i.test(p));
   if (!paths.length) return;
   if (mode === 'replace') {
-    set({ sessions: [], laps: [], refKey: null, zoom: null, cursor: null, measure: null, mathErrors: {} });
+    set({ sessions: [], laps: [], refKey: null, zoom: null, cursor: null, datum: false, measure: null, mathErrors: {} });
   }
   setUi({ browser: false });
   for (const path of paths) {
@@ -754,7 +757,22 @@ export function selectWholeSession(sessionId: string) {
 // ---------------------------------------------------------------------------------------------
 
 export function setCursor(x: number | null) {
-  if (get().cursor !== x) set({ cursor: x });
+  const s = get();
+  if (s.datum) return;
+  if (s.cursor !== x) set({ cursor: x });
+}
+
+/** Pin the cursor where it is (datum), or release it. */
+export function toggleDatum() {
+  const s = get();
+  if (s.datum) {
+    set({ datum: false });
+    toast('Datum released — the cursor follows you again', 'info', 1800);
+    return;
+  }
+  if (s.cursor == null) return toast('Place the cursor on a graph or map first, then set the datum.', 'info', 2500);
+  set({ datum: true });
+  toast('Datum set — the cursor stays here while you look around (press again to release)', 'info', 2500);
 }
 export function setZoom(z: [number, number] | null) {
   if (z) {

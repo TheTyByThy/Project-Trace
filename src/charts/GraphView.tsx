@@ -20,6 +20,7 @@ import {
   selectedLaps,
   setCursor,
   setGraphMarkers,
+  toggleDatum,
   setMeasure,
   setTrackProfile,
   setZoom,
@@ -251,7 +252,9 @@ export function GraphView({ config }: { config: GraphConfig }) {
         P.vMax = mx;
         const py = (val: number) => P.top + 6 + ((P.vMax - val) / (P.vMax - P.vMin)) * (ph - 12);
         drawYAxis(ctx, T, P, py, -mx, mx, config.showGrid !== false);
-        ctx.strokeStyle = T.gridStrong;
+        // Zero line: clearly visible so you can see at a glance which side of the reference a lap is on.
+        ctx.strokeStyle = withAlpha(T.text, 0.6);
+        ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(plotL, Math.round(py(0)) + 0.5);
         ctx.lineTo(plotR, Math.round(py(0)) + 0.5);
@@ -439,15 +442,17 @@ export function GraphView({ config }: { config: GraphConfig }) {
 
     if (cursor != null && cursor >= L.v0 && cursor <= L.v1) {
       const X = Math.round(px(cursor)) + 0.5;
-      ctx.strokeStyle = T.cursor;
-      ctx.lineWidth = 1;
+      // A pinned cursor (datum) is drawn in the accent colour.
+      const cc = st.datum ? T.accent : T.cursor;
+      ctx.strokeStyle = cc;
+      ctx.lineWidth = st.datum ? 1.5 : 1;
       ctx.beginPath();
       ctx.moveTo(X, TOP);
       ctx.lineTo(X, h - BOTTOM);
       ctx.stroke();
-      const label = mode === 'time' ? formatAxisTime(cursor, 0.01) : `${cursor.toFixed(0)} m`;
+      const label = (st.datum ? '⚑ datum ' : '') + (mode === 'time' ? formatAxisTime(cursor, 0.01) : `${cursor.toFixed(0)} m`);
       const tw = ctx.measureText(label).width + 10;
-      ctx.fillStyle = T.cursor;
+      ctx.fillStyle = cc;
       ctx.fillRect(X - tw / 2, h - BOTTOM + 2, tw, BOTTOM - 4);
       ctx.fillStyle = T.surface;
       ctx.textAlign = 'center';
@@ -692,6 +697,8 @@ export function GraphView({ config }: { config: GraphConfig }) {
     openMenu(e, [
       { label: 'Sector & section lines', checked: config.showSectors, shortcut: keyHint('toggle-sectors'), onClick: () => setGraphMarkers({ showSectors: !config.showSectors }) },
       { label: 'Corner lines', checked: config.showCorners, shortcut: keyHint('toggle-corners'), onClick: () => setGraphMarkers({ showCorners: !config.showCorners }) },
+      { separator: true },
+      { label: st.datum ? 'Release datum' : 'Set datum at cursor', checked: st.datum, disabled: !st.datum && st.cursor == null, shortcut: keyHint('toggle-datum'), onClick: toggleDatum },
       { separator: true },
       { label: 'Add corner at cursor…', disabled: !canMark, onClick: () => markAtCursor('corner') },
       { label: 'Add split at cursor…', disabled: !canMark, onClick: () => markAtCursor('section') },

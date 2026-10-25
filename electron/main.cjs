@@ -285,6 +285,7 @@ function buildMenu() {
         },
         { type: 'separator' },
         { label: 'Reset View (whole lap)', ...acc('reset-view'), click: () => sendMenu('reset-view') },
+        { label: 'Pin / Release Datum (cursor)', ...acc('toggle-datum'), click: () => sendMenu('toggle-datum') },
         { label: 'Fastest Lap as Reference', ...acc('fastest-lap'), click: () => sendMenu('fastest-lap') },
         { label: 'Previous Lap', ...acc('prev-lap'), click: () => sendMenu('prev-lap') },
         { label: 'Next Lap', ...acc('next-lap'), click: () => sendMenu('next-lap') },

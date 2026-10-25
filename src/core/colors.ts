@@ -146,6 +146,9 @@ export function rampGradientCss(name: RampName, theme: Theme, custom?: string[])
 /** Translucent cell / label background in a lap's colour (data stays readable on top). */
 export const lapTint = (color: string, a = 0.2) => withAlpha(color, a);
 
+/** Tinted background for sticky table headers: the tint over an opaque base, so rows can't show through. */
+export const lapHeaderTint = (color: string) => `linear-gradient(${withAlpha(color, 0.32)}, ${withAlpha(color, 0.32)}), var(--surface-2)`;
+
 export function withAlpha(color: string, a: number): string {
   if (color.startsWith('#') && color.length === 7) {
     const [r, g, b] = hex(color);

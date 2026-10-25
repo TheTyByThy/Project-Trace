@@ -14,6 +14,7 @@ import {
   selectedLaps,
   setCursor,
   setTrackProfile,
+  toggleDatum,
   trackProfile,
   trackRotation,
   updateComponent,
@@ -520,6 +521,8 @@ export function trackMapMenuItems(venue: string, componentId: string, flags: { s
     // The shortcuts switch these on every graph and map at once; the menu items switch this map only.
     { label: 'Sector & section lines', checked: flags.showSectors, shortcut: keyHint('toggle-sectors'), onClick: () => updateComponent(componentId, { showSectors: !flags.showSectors }) },
     { label: 'Corner lines', checked: flags.showCorners, shortcut: keyHint('toggle-corners'), onClick: () => updateComponent(componentId, { showCorners: !flags.showCorners }) },
+    { separator: true },
+    { label: st.datum ? 'Release datum' : 'Set datum at cursor', checked: st.datum, disabled: !st.datum && st.cursor == null, shortcut: keyHint('toggle-datum'), onClick: toggleDatum },
     { separator: true },
     {
       label: 'Add corner at cursor…',

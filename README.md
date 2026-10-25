@@ -178,7 +178,7 @@ Four-corner tyre and brake panel, driver inputs (pedals, wheel, gear), dial/bar/
 
 ## Default workspaces
 
-Project-Trace ships with two built-in, **read-only default workspaces**: the **Starter** (the layout you see on first launch, described below) and **Basic FA26**, a compact Formula Alpha 2026 layout (Overview, Driver, PU, Tyres, Stint Analysis, Session & Setup). Your own workspace (**My Workspace**) starts as a copy of the Starter. If you edit a default, your change is saved into a new personal copy, so the defaults never change. To get the original back:
+Project-Trace ships with two built-in, **read-only default workspaces**: the **Starter** (the layout you see on first launch, described below) and **Basic FA26**, a compact Formula Alpha 2026 layout (Overview, Driver, Toggles, PU, Tyres, Stint Analysis, Session & Setup). Your own workspace (**My Workspace**) starts as a copy of the Starter. If you edit a default, your change is saved into a new personal copy, so the defaults never change. To get the original back:
 
 - **Workspace → Revert Current Workspace to Starter**, or **Worksheet → Reset Worksheet to Starter Version** for one tab;
 - or simply switch to a default in the workspace menu (top bar or menu bar).

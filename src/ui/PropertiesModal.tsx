@@ -92,6 +92,15 @@ function PaneCard({ c, p, i, up }: { c: GraphConfig; p: GraphPane; i: number; up
     [panes[i], panes[j]] = [panes[j], panes[i]];
     up({ panes }, 'Move pane');
   };
+  // Drag a pane card by its header onto another card to move it there.
+  const [dropOver, setDropOver] = useState(false);
+  const dropPane = (from: number) => {
+    if (from === i || from < 0 || from >= c.panes.length) return;
+    const panes = c.panes.slice();
+    const [m] = panes.splice(from, 1);
+    panes.splice(i, 0, m);
+    up({ panes }, 'Move pane');
+  };
   const removeChannel = (name: string) => setPane({ channels: p.channels.filter((x) => x !== name) }, 'Remove channel');
   const moveChannelTo = (name: string, target: number | 'new') => {
     const panes = c.panes.map((x, k) => (k === i ? { ...x, channels: x.channels.filter((n) => n !== name) } : x));
@@ -113,9 +122,35 @@ function PaneCard({ c, p, i, up }: { c: GraphConfig; p: GraphPane; i: number; up
     ]);
   };
   return (
-    <div className="pane-card">
+    <div
+      className={'pane-card' + (dropOver ? ' drop-over' : '')}
+      onDragOver={(e) => {
+        if (!e.dataTransfer.types.includes('application/x-pt-pane')) return;
+        e.preventDefault();
+        setDropOver(true);
+      }}
+      onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDropOver(false)}
+      onDrop={(e) => {
+        setDropOver(false);
+        const from = e.dataTransfer.getData('application/x-pt-pane');
+        if (from === '') return;
+        e.preventDefault();
+        dropPane(Number(from));
+      }}
+    >
       <div className="ph">
-        <b>Pane {i + 1}</b>
+        <span
+          className="drag-handle"
+          draggable
+          title="Drag onto another pane to reorder"
+          onDragStart={(e) => {
+            e.dataTransfer.setData('application/x-pt-pane', String(i));
+            e.dataTransfer.effectAllowed = 'move';
+          }}
+        >
+          <span className="drag-grip">⋮⋮</span>
+          <b>Pane {i + 1}</b>
+        </span>
         <select className="input" style={{ height: 24, width: 200, fontSize: 12 }} value={p.scale} onChange={(e) => setPane({ scale: e.target.value as GraphPane['scale'] })}>
           <option value="auto">Scale: automatic</option>
           <option value="shared">Scale: shared (tiled)</option>

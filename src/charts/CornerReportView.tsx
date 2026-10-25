@@ -3,7 +3,7 @@
 // in corners vs on straights (and the gain/loss against the reference). Click a row to zoom to it.
 
 import { cornerMetrics, cornerWindows, suggestCorners, trackSegments, type CornerLapMetrics, type TrackSegment } from '../core/corners';
-import { lapTint } from '../core/colors';
+import { lapHeaderTint, lapTint } from '../core/colors';
 import { formatValue } from '../core/format';
 import { lapLabel } from '../core/session';
 import { convertUnit } from '../core/units';
@@ -95,7 +95,7 @@ export function CornerReportView({ config }: { config: CornersConfig }) {
             <tr>
               <th className="l">Total time</th>
               {laps.map((l, i) => (
-                <th key={l.key} style={{ background: lapTint(l.color, 0.32), color: 'var(--text)' }}>
+                <th key={l.key} style={{ background: lapHeaderTint(l.color), color: 'var(--text)' }}>
                   L{l.lap.number}
                   {i === 0 ? ' (ref)' : ''}
                 </th>
@@ -133,20 +133,17 @@ export function CornerReportView({ config }: { config: CornersConfig }) {
             <th className="l">{config.showStraights === false ? 'Corner' : 'Corner / straight'}</th>
             <th>Range</th>
             {laps.map((l, i) => (
-              <th key={l.key} style={{ background: lapTint(l.color, 0.32), color: 'var(--text)' }}>
+              <th key={l.key} style={{ background: lapHeaderTint(l.color), color: 'var(--text)' }}>
                 L{l.lap.number}
                 {i === 0 ? ' (ref)' : ''}
               </th>
             ))}
-            {laps.length > 1 && <th>Δ best−ref</th>}
           </tr>
         </thead>
         <tbody>
           {shownSegments.map((g) => {
             const vals = metrics.get(g)!.map(value);
             const refV = vals[0];
-            const others = vals.slice(1).filter(Number.isFinite);
-            const bestOther = others.length ? (metric.higherIsBetter ? Math.max(...others) : Math.min(...others)) : NaN;
             const straight = g.kind === 'straight';
             return (
               <tr
@@ -175,7 +172,6 @@ export function CornerReportView({ config }: { config: CornersConfig }) {
                     </td>
                   );
                 })}
-                {laps.length > 1 && <td className="num muted">{Number.isFinite(bestOther - refV) ? (bestOther - refV).toFixed(metric.time ? 2 : 1) : '—'}</td>}
               </tr>
             );
           })}

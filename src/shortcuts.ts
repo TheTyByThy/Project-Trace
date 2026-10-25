@@ -34,6 +34,7 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'fastest-lap', label: 'Fastest lap as reference', group: 'Laps', keys: ['F'] },
   { id: 'prev-lap', label: 'Previous lap as reference', group: 'Laps', keys: ['ArrowUp', 'PageUp', '['] },
   { id: 'next-lap', label: 'Next lap as reference', group: 'Laps', keys: ['ArrowDown', 'PageDown', ']'] },
+  { id: 'toggle-datum', label: 'Datum: pin / release the cursor at its current point', group: 'Cursor & zoom', keys: ['M'] },
   { id: 'reset-view', label: 'Reset view (whole lap, clear measurement)', group: 'Cursor & zoom', keys: ['Escape', 'W', 'Home'] },
   { id: 'cursor-left', label: 'Move cursor left', group: 'Cursor & zoom', keys: ['ArrowLeft'] },
   { id: 'cursor-right', label: 'Move cursor right', group: 'Cursor & zoom', keys: ['ArrowRight'] },

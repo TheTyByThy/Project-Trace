@@ -64,13 +64,19 @@ Everything else is the same in every mode:
 | Zoom to a range | see the mode table | + / − around the cursor |
 | Zoom at the mouse | scroll wheel | |
 | Pan | right-drag, middle-drag, Ctrl/⌘ + drag, Shift + wheel, trackpad swipe | |
-| **Whole lap** | | **W** |
+| **Pin the cursor (datum)** | right-click → *Set datum at cursor* | **M** (toggle) |
 | Reset view | **Reset view** button (hover it to see its current key) | Esc, W or Home |
 | **Measure range** | **Shift + drag** | Esc clears |
 
 - The **cursor** is shared by every component: legends, the track-map and GPS-track dots, gauges, inputs, tyres and the Channels list all follow it.
-- **Zoom** is shared by every graph. Scatter, histogram, mixture, FFT and channel reports can follow it, the Track Map highlights the zoomed section, and the GPS Track frames it.
-- **W** zooms to the whole reference lap. In *Whole session* view it zooms to the lap under the cursor.
+- **Zoom** is shared by every graph. Scatter, histogram, mixture, FFT and channel reports can follow it, and the Track Map and GPS Track frame the zoomed section.
+- **Esc**, **W** and **Home** all reset the view to the whole lap and clear any measurement.
+
+### Datum: pinning the cursor
+
+Press **M** (or right-click a graph or track map → **Set datum at cursor**) to **pin the cursor where it is**. While the datum is set, moving the mouse, clicking and the arrow keys don't move the cursor — so you can move around, switch worksheets and read every gauge, legend, tyre panel, map dot and channel value at that exact point. The cursor is drawn in the accent colour with a **⚑ datum** label and the status bar shows **⚑ Datum**. Press **M** again (or *Release datum*) to let the cursor follow you again. The key can be changed in the shortcut editor.
+
+![Datum: the pinned cursor](images/datum.png)
 
 
 ## Smoothing
@@ -85,7 +91,7 @@ Smoothing affects only graph traces and their legend values. Discrete channels (
 
 ## Time variance (F3)
 
-The variance pane shows **overlay lap time − reference lap time** along the lap, so rising means the overlay is losing time. Toggle per graph (Properties) or for the whole sheet (**Δ Variance** in the top bar, **F3**, **V**). The **Δ Variance** button is highlighted while variance is shown on this worksheet. It needs two or more laps.
+The variance pane shows **overlay lap time − reference lap time** along the lap, so rising means the overlay is losing time. The **zero line** (level with the reference) is drawn clearly, so you can see at a glance which side of the reference each lap is. Toggle per graph (Properties) or for the whole sheet (**Δ Variance** in the top bar, **F3**, **V**). The **Δ Variance** button is highlighted while variance is shown on this worksheet. It needs two or more laps.
 
 ## Markers, corners and sections
 
@@ -100,7 +106,7 @@ The graph's right-click menu is deliberately short: the two line toggles, *Add c
 ## Adding and editing channels
 
 - Drag from the **Channels** sidebar onto a pane (near the bottom edge, or hold Shift, for a new pane).
-- **Properties** gives the full pane-and-channel table (see [03](03-workspaces-and-layout.md#the-properties-pop-out)).
+- **Properties** gives the full pane-and-channel table (see [03](03-workspaces-and-layout.md#the-properties-pop-out)). Reorder panes there by **dragging a pane card by its ⋮⋮ Pane n title** onto another pane, or with the ↑ / ↓ buttons.
 
 ## Exporting
 

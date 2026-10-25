@@ -49,6 +49,7 @@ Changes apply immediately, also to the hints everywhere a shortcut exists: right
 | ← / → | Move the cursor (hold Shift for larger steps) |
 | + / − | Zoom in / out around the cursor |
 | Esc, W, Home | Reset view: whole lap, clear the range measurement |
+| **M** | **Datum**: pin the cursor at its current point / release it (see [04](04-time-distance-graph.md#datum-pinning-the-cursor)) |
 
 ## Mouse: graphs
 
@@ -62,7 +63,7 @@ Changes apply immediately, also to the hints everywhere a shortcut exists: right
 | Shift + scroll, trackpad swipe | Pan |
 | Right-drag, middle-drag, Ctrl + drag | Pan |
 | **Drag a pane border** (highlights on hover) | Resize panes |
-| Right-click | Sector & split lines, corner lines (all graphs), **Add corner** / **Add split** at the cursor, then Properties / Maximise / Remove |
+| Right-click | Sector & split lines, corner lines (all graphs), **Set / Release datum**, **Add corner** / **Add split** at the cursor, then Properties / Maximise / Remove — each with its current key |
 | Drag a channel from the sidebar | Onto a pane to add it there; onto the bottom edge (or with Shift) for a new pane |
 
 ## Mouse: other components
@@ -82,6 +83,7 @@ Changes apply immediately, also to the hints everywhere a shortcut exists: right
 | Sidebar laps | click a selected lap's colour square | remove that lap |
 | Sidebar laps | right-click a selected lap's colour square | change its colour |
 | Any component | right-click | its main options (graphs and maps: marker lines, add corner / split) + **Properties…** / Maximise / **Remove component** |
+| Graph Properties | drag a pane by its ⋮⋮ title | reorder panes (↑ / ↓ also work) |
 | Divider between components | drag | resize; snaps to line up with other dividers (hold Alt/⌥ for free movement) |
 | Component header | drag | dock elsewhere (edges split, centre swaps) |
 | Component header | double-click | maximise / restore |
