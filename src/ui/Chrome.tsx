@@ -112,6 +112,10 @@ export function TopBar() {
   useStore((s) => s.refKey);
   const ref = selectedLaps()[0];
   const s0 = ref?.session ?? sessions[0];
+  // Other open sessions only count when they're a different car or track (same car = nothing to add).
+  const others = s0
+    ? [...new Map(sessions.filter((o) => o.meta.vehicle !== s0.meta.vehicle || o.meta.venue !== s0.meta.venue).map((o) => [o.meta.venue + '|' + o.meta.vehicle, o.meta])).values()]
+    : [];
   // Current key binding for an action, for tooltips (follows the shortcut editor).
   const k = (id: string) => {
     const h = shortcutHint(id, shortcuts);
@@ -135,7 +139,11 @@ export function TopBar() {
         <button className="session-pill clickable" title={`Edit this track — corners, ranges, speed buckets, splits, map rotation${k('track-profile')}`} onClick={() => setUi({ trackProfile: true })}>
           <b>{prettyTrack(s0.meta.venue).track}</b>
           <span className="muted">{prettyCar(s0.meta.vehicle)}</span>
-          {sessions.length > 1 && <span className="tag">+{sessions.length - 1} more</span>}
+          {others.length > 0 && (
+            <span className="tag" title={others.map((o) => `${prettyTrack(o.venue).track} · ${prettyCar(o.vehicle)}`).join('\n')}>
+              +{others.length} more
+            </span>
+          )}
           <span className="pill-action">Edit track ›</span>
         </button>
       ) : (

@@ -195,19 +195,8 @@ export function GraphView({ config }: { config: GraphConfig }) {
         ref.session.sectorSplits.forEach((d, i) => markers.push({ x: toX(d), label: `S${i + 2}`, color: pal[6] }));
         prof.sections.forEach((s) => markers.push({ x: toX(s.dist), label: s.name, color: pal[2] }));
       }
-      if (config.showCorners)
-        for (const c of prof.corners) {
-          // Corners with an exact range (advanced mode) get a faint band over that range.
-          if (c.start != null && c.end != null) {
-            const a = px(toX(c.start));
-            const b = px(toX(c.end));
-            if (Number.isFinite(a) && Number.isFinite(b)) {
-              ctx.fillStyle = withAlpha(pal[3], 0.07);
-              ctx.fillRect(Math.max(plotL, a), TOP, Math.min(plotR, b) - Math.max(plotL, a), h - TOP - BOTTOM);
-            }
-          }
-          markers.push({ x: toX(c.dist), label: c.name, color: pal[3] });
-        }
+      // Corners are always a single line at the apex (whatever their range).
+      if (config.showCorners) prof.corners.forEach((c) => markers.push({ x: toX(c.dist), label: c.name, color: pal[3] }));
       ctx.lineWidth = 1;
       for (const m of markers) {
         if (!Number.isFinite(m.x) || m.x < v0 || m.x > v1) continue;

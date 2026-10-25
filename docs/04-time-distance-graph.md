@@ -96,7 +96,7 @@ The variance pane shows **overlay lap time − reference lap time** along the la
 ## Markers, corners and sections
 
 - **Sector lines** (S2, S3…, purple) and your **splits** (green): *Sector & section lines*.
-- **Corner lines** (orange) show the corners you've defined for the track: *Corner lines*. Corners with an exact range (advanced mode) also get a faint band over that range.
+- **Corner lines** (orange) show the corners you've defined for the track: *Corner lines*.
 - Lines are coloured at low opacity; their labels sit along the **top** of the graph (in the variance pane when it's shown). There are no other vertical grid lines.
 - Turning lines on or off — right-click, Properties, or the shortcuts **C** (corners) and **Shift + S** (sectors & splits) — applies to **every graph** in the workspace (the shortcuts also switch the track maps and GPS tracks).
 - **Right-click the graph → Add corner at cursor… / Add split at cursor…** to define them right where the cursor is. They're saved to the track profile (see [05](05-track-map.md#the-track-editor-corners-ranges-speed-buckets-splits)).
