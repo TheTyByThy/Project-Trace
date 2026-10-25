@@ -14,6 +14,8 @@ export interface TrackCorner {
   /** Advanced mode: exact start / end of the corner (lap distance, m). Otherwise derived from neighbours. */
   start?: number;
   end?: number;
+  /** Speed bucket set by hand (overrides the automatic one from the minimum speed). */
+  bucket?: 'low' | 'medium' | 'high';
 }
 
 export interface CornerWindow {
@@ -21,22 +23,92 @@ export interface CornerWindow {
   apex: number;
   entry: number;
   exit: number;
+  /** Bucket set by hand for this corner, if any. */
+  bucket?: 'low' | 'medium' | 'high';
+}
+
+/** How corner ranges are found and how corners are bucketed by speed (global, in Settings). */
+export interface CornerSettings {
+  /** Metres added before the point where the driver leaves full throttle (lift / brake). */
+  before: number;
+  /** Metres added after the point where the driver is back at full throttle. */
+  after: number;
+  /** Throttle (%) that counts as full throttle. */
+  fullThrottle: number;
+  /** Corners with a minimum speed (kph) below this are low speed. */
+  lowMax: number;
+  /** Corners with a minimum speed (kph) at or above this are high speed; in between is medium. */
+  highMin: number;
+}
+
+export const DEFAULT_CORNER_SETTINGS: CornerSettings = { before: 20, after: 20, fullThrottle: 98, lowMax: 110, highMin: 180 };
+
+/** The lap a corner's range is detected on (the reference lap). */
+export interface CornerContext {
+  session: Session;
+  lap: Lap;
+  settings: CornerSettings;
+}
+
+/** A channel of a lap as a function of lap distance (in %, for pedals logged 0–1). */
+function pedalByDistance(s: Session, lap: Lap, name: string | undefined): ((d: number) => number) | null {
+  const ch = name ? s.channels.get(name) : undefined;
+  if (!ch) return null;
+  const ser = lapSeries(lap, ch, 'distance');
+  if (ser.xs.length < 2) return null;
+  const k = ch.max <= 1.01 ? 100 : 1;
+  const ys = new Float64Array(ser.xs.length);
+  for (let i = 0; i < ys.length; i++) ys[i] = ch.data[ser.i0 + i] * k;
+  return (d) => interp(ser.xs, ys, d);
 }
 
 /**
- * Analysis window per corner: the exact range when one is set (advanced mode), otherwise halfway to
- * the neighbouring corners, capped at ±200 m.
+ * A corner's range from the driving: from where the driver last left full throttle (lifted or braked)
+ * before the apex, to where they're back at full throttle after it, each padded by the settings.
+ * Searches stay within [lo, hi]. Null when the lap has no throttle channel.
  */
-export function cornerWindows(corners: TrackCorner[], trackLength: number): CornerWindow[] {
+function detectRange(ctx: CornerContext, apex: number, lo: number, hi: number): [number, number] | null {
+  const thr = pedalByDistance(ctx.session, ctx.lap, ctx.session.key.throttle);
+  if (!thr) return null;
+  const brk = pedalByDistance(ctx.session, ctx.lap, ctx.session.key.brake);
+  const full = ctx.settings.fullThrottle;
+  const onStraight = (d: number) => thr(d) >= full && (!brk || brk(d) < 2);
+  const step = 2;
+  let entry = lo;
+  for (let d = apex; d >= lo; d -= step)
+    if (onStraight(d)) {
+      entry = d;
+      break;
+    }
+  let exit = hi;
+  for (let d = apex; d <= hi; d += step)
+    if (thr(d) >= full) {
+      exit = d;
+      break;
+    }
+  return [Math.max(lo, entry - ctx.settings.before), Math.min(hi, exit + ctx.settings.after)];
+}
+
+/**
+ * Analysis window per corner:
+ *  • the exact range when one is set (advanced mode);
+ *  • otherwise, with a lap to look at, from the lift / braking point to full throttle again (padded by
+ *    the corner settings), never past halfway to the neighbouring corners or ±400 m from the apex;
+ *  • without one, halfway to the neighbouring corners, capped at ±200 m.
+ */
+export function cornerWindows(corners: TrackCorner[], trackLength: number, ctx?: CornerContext): CornerWindow[] {
   const sorted = corners.slice().sort((a, b) => a.dist - b.dist);
   return sorted.map((c, i) => {
     const prev = sorted[i - 1]?.dist ?? (trackLength ? sorted[sorted.length - 1].dist - trackLength : -Infinity);
     const next = sorted[i + 1]?.dist ?? (trackLength ? sorted[0].dist + trackLength : Infinity);
-    const autoEntry = Math.max(c.dist - 200, (prev + c.dist) / 2, 0);
-    const autoExit = Math.min(c.dist + 200, (c.dist + next) / 2, trackLength || Infinity);
+    const lo = Math.max(c.dist - 400, (prev + c.dist) / 2, 0);
+    const hi = Math.min(c.dist + 400, (c.dist + next) / 2, trackLength || Infinity);
+    const detected = ctx && ctx.lap.index !== -1 ? detectRange(ctx, c.dist, lo, hi) : null;
+    const autoEntry = detected ? detected[0] : Math.max(c.dist - 200, (prev + c.dist) / 2, 0);
+    const autoExit = detected ? detected[1] : Math.min(c.dist + 200, (c.dist + next) / 2, trackLength || Infinity);
     const entry = c.start != null && Number.isFinite(c.start) ? Math.max(0, c.start) : autoEntry;
     const exit = c.end != null && Number.isFinite(c.end) ? c.end : autoExit;
-    return { name: c.name, apex: c.dist, entry: Math.min(entry, exit), exit: Math.max(entry, exit) };
+    return { name: c.name, apex: c.dist, entry: Math.min(entry, exit), exit: Math.max(entry, exit), bucket: c.bucket };
   });
 }
 
@@ -47,6 +119,8 @@ export interface TrackSegment {
   exit: number;
   /** Apex for corners; the midpoint for straights. */
   apex: number;
+  /** Corners: the bucket set by hand, if any. */
+  fixedBucket?: 'low' | 'medium' | 'high';
 }
 
 /**
@@ -63,7 +137,7 @@ export function trackSegments(windows: CornerWindow[], trackLength: number): Tra
   };
   for (const w of windows) {
     straight(pos, w.entry, w.name);
-    out.push({ kind: 'corner', name: w.name, entry: Math.max(pos, w.entry), exit: w.exit, apex: w.apex });
+    out.push({ kind: 'corner', name: w.name, entry: Math.max(pos, w.entry), exit: w.exit, apex: w.apex, fixedBucket: w.bucket });
     pos = Math.max(pos, w.exit);
     prevName = w.name;
   }
@@ -155,4 +229,53 @@ export function cornerMetrics(s: Session, lap: Lap, w: { entry: number; exit: nu
     exitSpeed: ch.data[i1] * conv.k + conv.b,
     time: tb - ta,
   };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Speed buckets: the lap split into low / medium / high-speed corners and straights
+// ---------------------------------------------------------------------------------------------
+
+export type Bucket = 'low' | 'medium' | 'high' | 'straight';
+export const BUCKETS: { key: Bucket; label: string; short: string }[] = [
+  { key: 'low', label: 'Low-speed corners', short: 'L' },
+  { key: 'medium', label: 'Medium-speed corners', short: 'M' },
+  { key: 'high', label: 'High-speed corners', short: 'H' },
+  { key: 'straight', label: 'Straights', short: 'S' },
+];
+
+export function speedBucket(minSpeedKph: number, s: CornerSettings): Exclude<Bucket, 'straight'> {
+  if (!(minSpeedKph >= s.lowMax)) return 'low';
+  return minSpeedKph >= s.highMin ? 'high' : 'medium';
+}
+
+export interface BucketedSegment extends TrackSegment {
+  bucket: Bucket;
+  /** The bucket from the minimum speed (what "Auto" would give), and whether it was overridden. */
+  autoBucket: Bucket;
+  overridden: boolean;
+  /** Minimum speed (kph) on the reference lap; NaN for straights. */
+  refMinSpeed: number;
+}
+
+/** Give every segment its bucket: corners by the reference lap's minimum speed, unless set by hand. */
+export function bucketSegments(ctx: CornerContext, segments: TrackSegment[]): BucketedSegment[] {
+  return segments.map((g) => {
+    if (g.kind === 'straight') return { ...g, bucket: 'straight' as const, autoBucket: 'straight' as const, overridden: false, refMinSpeed: NaN };
+    const m = cornerMetrics(ctx.session, ctx.lap, g);
+    const auto = m ? speedBucket(m.minSpeed, ctx.settings) : 'medium';
+    return { ...g, bucket: g.fixedBucket ?? auto, autoBucket: auto, overridden: !!g.fixedBucket, refMinSpeed: m?.minSpeed ?? NaN };
+  });
+}
+
+/** Time a lap spends in each bucket (NaN where a segment couldn't be measured). */
+export function bucketTimes(s: Session, lap: Lap, segs: BucketedSegment[]): Record<Bucket, number> {
+  const out: Record<Bucket, number> = { low: 0, medium: 0, high: 0, straight: 0 };
+  for (const g of segs) out[g.bucket] += cornerMetrics(s, lap, g)?.time ?? NaN;
+  return out;
+}
+
+/** Everything the corner report and time breakdown need for one reference lap. */
+export function lapBuckets(ctx: CornerContext, corners: TrackCorner[]): BucketedSegment[] {
+  const windows = cornerWindows(corners, ctx.session.trackLength, ctx);
+  return bucketSegments(ctx, trackSegments(windows, ctx.session.trackLength));
 }

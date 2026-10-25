@@ -175,7 +175,8 @@ No telemetry yet? Click **Bundled sample session** to explore a 6-lap Singapore 
 - **Exact lap and sector times** matching the game.
 - **Out, in, partial and invalid laps** flagged.
 - **Lap report** (selected laps; sectors as times or **Δ to the reference**) and **stint report** (every lap of the selected stints, with the **ideal lap**). Bests fill the cell: green = stint best, purple = best of everything open.
-- **Channel report** (min/max/avg/std per lap) and a **corner report** built from your corners — with the straights between them and total time in corners vs straights. Side-by-side lap data is tinted in each lap's colour.
+- **Channel report** (min/max/avg/std per lap) and a **corner report** built from your corners — ranges found from your braking and throttle (adjustable with sliders), each corner tagged low / medium / high speed, plus the straights between them.
+- **Time breakdown**: time gained or lost against the reference in low, medium and high-speed corners and on the straights — the whole lap in four buckets. Side-by-side lap data is tinted in each lap's colour.
 
 → [Laps & reports guide](docs/08-laps-sectors-reports.md)
 
@@ -279,7 +280,7 @@ Project-Trace/
 │  ├─ core/           parsers (CSV, .ld), session/lap model, math engine, corners, units, stats
 │  ├─ state/          app store (incl. undo/redo), workspaces, layout tree, Starter workspace & math
 │  ├─ charts/         every component (graphs, track map, GPS track, scatter, reports, instruments)
-│  ├─ ui/             app shell: browser, sidebar, Properties pop-out, track profile, math editor
+│  ├─ ui/             app shell: browser, sidebar, Properties pop-out, track editor, math editor
 │  └─ workers/        background CSV/.ld parsing
 ├─ tests/             parser, math engine and .ld↔CSV cross-check tests
 ├─ sample-data/       a real Telemetrick export to try
@@ -301,7 +302,7 @@ Useful commands: `npm test`, `npm run typecheck`, `npm run dev` (hot reload), an
 | Window doesn't appear when started from a VS Code terminal | Use `npm start` (not `electron .`); it clears VS Code's `ELECTRON_RUN_AS_NODE`. |
 | I deleted something by accident | **Ctrl/⌘+Z** (Edit → Undo). For a whole tab: **Worksheet → Reset Worksheet to Starter Version**. |
 | The in-game time looks off by some hours | Pick the right zone for that track in the Session Browser's details pane, or **Settings → In-game clock → Raw UTC**. |
-| The track map is rotated or mirrored | Drag the dial ring, then **Save**; mirror in the track profile (both saved per track). |
+| The track map is rotated or mirrored | Drag the dial ring, then **Save**; mirror in the Track editor (click the track name in the top bar) (both saved per track). |
 | A math channel says "n/a" | The session doesn't contain one of its input channels (normal for non-AC data). |
 
 ---

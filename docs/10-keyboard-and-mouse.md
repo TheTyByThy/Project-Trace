@@ -57,7 +57,7 @@ These are listed in the shortcut editor as *not set* — give any of them a key 
 
 | Group | Actions |
 |---|---|
-| Track & markers | **Mark a corner at the cursor…**, **Mark a split at the cursor…**, track profile editor, rotate the track maps 90°, mirror the track maps, gain/loss maps: compare the next comparison lap |
+| Track & markers | **Mark a corner at the cursor…**, **Mark a split at the cursor…**, Track editor, rotate the track maps 90°, mirror the track maps, gain/loss maps: compare the next comparison lap |
 | Laps | clear comparison laps, make the first comparison lap the reference, whole session view |
 | Cursor & zoom | clear range measurement, cursor to the start / end of the lap |
 | View | Properties pop-out, maximise / restore the selected component, x axis: time, x axis: distance, more / less smoothing, toggle dark / light theme, cycle cursor mode, sidebar: laps / channels |

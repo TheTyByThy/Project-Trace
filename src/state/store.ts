@@ -5,7 +5,7 @@ import { create } from 'zustand';
 import { baseName, dirName, pt, type AppInfo } from '../core/bridge';
 import { lapXRange, timeToX, xToTime } from '../core/axis';
 import { lapColor, type Theme } from '../core/colors';
-import type { TrackCorner } from '../core/corners';
+import { DEFAULT_CORNER_SETTINGS, type CornerSettings, type TrackCorner } from '../core/corners';
 import { applyMathChannels, type MathChannelDef, type MathConstant } from '../core/math/evaluate';
 import { fastestLap, getLap, theoreticalBest } from '../core/session';
 import { lapKey, parseLapKey, type Lap, type Session, type XMode } from '../core/types';
@@ -62,6 +62,8 @@ export interface Settings {
   /** What double-click / drag-and-drop does when sessions are already open. */
   browserOpenMode: 'add' | 'replace';
   showBrowserOnLaunch: boolean;
+  /** How corner ranges are detected and the low / medium / high-speed bucket thresholds. */
+  corners: CornerSettings;
   /** Keyboard shortcut overrides: action id → key combos (see src/shortcuts.ts). Missing = defaults. */
   shortcuts: Record<string, string[]>;
   /** Bumped when a default changes in a way existing users should pick up (see initApp). */
@@ -88,6 +90,7 @@ export const DEFAULT_SETTINGS: Settings = {
   trackSort: 'recent',
   browserOpenMode: 'add',
   showBrowserOnLaunch: true,
+  corners: DEFAULT_CORNER_SETTINGS,
   shortcuts: {},
   settingsVersion: 2,
 };
@@ -342,7 +345,7 @@ export function updateSettings(patch: Partial<Settings>) {
   set((s) => ({ settings: { ...s.settings, ...patch } }));
   saveSettings();
   if (patch.theme) document.documentElement.dataset.theme = patch.theme;
-  if (patch.units || patch.theme || patch.smoothing || patch.refColors) set((s) => ({ dataVersion: s.dataVersion + 1 }));
+  if (patch.units || patch.theme || patch.smoothing || patch.refColors || patch.corners) set((s) => ({ dataVersion: s.dataVersion + 1 }));
 }
 
 /** Show/hide sector & corner markers on every time/distance graph in the workspace at once. */
@@ -393,6 +396,10 @@ export function setDefaultTelemetryFolder(path: string) {
 
 /** Smoothing amounts offered in the top bar and stepped through by the more/less shortcuts. */
 export const SMOOTH_PRESETS = [0.03, 0.05, 0.1, 0.2, 0.35, 0.5, 1];
+
+export function setCornerSettings(patch: Partial<CornerSettings>) {
+  updateSettings({ corners: { ...get().settings.corners, ...patch } });
+}
 
 export function setSmoothing(patch: Partial<Settings['smoothing']>) {
   updateSettings({ smoothing: { ...get().settings.smoothing, ...patch } });
@@ -566,6 +573,7 @@ export async function initApp() {
     units: { ...DEFAULT_UNITS, ...(raw.units ?? {}) },
     smoothing: { ...DEFAULT_SETTINGS.smoothing, ...(raw.smoothing ?? {}) },
     shortcuts: { ...(raw.shortcuts ?? {}) },
+    corners: { ...DEFAULT_CORNER_SETTINGS, ...(raw.corners ?? {}) },
     settingsVersion: DEFAULT_SETTINGS.settingsVersion,
   };
   // v2: smoothing is on by default at 50 ms (older settings files saved it switched off).

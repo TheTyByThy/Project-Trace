@@ -37,7 +37,7 @@ export function buildDefaultWorkspace(name = 'Starter'): Workspace {
               panes: [pane(['Ground Speed'], 1.6), pane(['Throttle Pos', 'Brake Pos'], 1.1), pane(['Gear'], 0.7), pane(['Steering Angle']), pane(['Engine RPM'])],
               showVariance: true,
             } as Partial<ComponentConfig>),
-            split('col', [b.add('trackmap', { title: 'Track map — speed' } as Partial<ComponentConfig>), b.add('lapreport')], [0.55, 0.45]),
+            split('col', [b.add('trackmap', { title: 'Track map — speed' } as Partial<ComponentConfig>), b.add('lapreport'), b.add('breakdown')], [0.46, 0.2, 0.34]),
           ],
           [0.64, 0.36],
         ),

@@ -279,7 +279,7 @@ function buildMenu() {
       label: 'Analysis',
       submenu: [
         { label: 'Math Channels…', ...acc('math'), click: () => sendMenu('math') },
-        { label: 'Track Profile (corners, sections, rotation)…', click: () => sendMenu('track-profile') },
+        { label: 'Track Editor (corners, ranges, speed buckets, splits)…', ...acc('track-profile'), click: () => sendMenu('track-profile') },
         { type: 'separator' },
         { label: 'Toggle Time / Distance', ...acc('toggle-x'), click: () => sendMenu('toggle-x') },
         { label: 'Toggle Time Variance', ...acc('toggle-variance'), click: () => sendMenu('toggle-variance') },

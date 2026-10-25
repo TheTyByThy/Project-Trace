@@ -17,9 +17,25 @@
             "dir": "row",
             "children": [
               {
-                "kind": "leaf",
-                "id": "lmvmzzocs5xyob1",
-                "componentId": "cmvmz8uwg51gy5w"
+                "kind": "split",
+                "id": "lbreakdownsplit",
+                "dir": "col",
+                "sizes": [
+                  0.4,
+                  0.6
+                ],
+                "children": [
+                  {
+                    "kind": "leaf",
+                    "id": "lmvmzzocs5xyob1",
+                    "componentId": "cmvmz8uwg51gy5w"
+                  },
+                  {
+                    "kind": "leaf",
+                    "id": "lbreakdownleaf",
+                    "componentId": "cbreakdownbasicfa26"
+                  }
+                ]
               },
               {
                 "kind": "leaf",
@@ -95,6 +111,12 @@
           "followCursor": false,
           "showSectors": true,
           "showCorners": true
+        },
+        "cbreakdownbasicfa26": {
+          "id": "cbreakdownbasicfa26",
+          "type": "breakdown",
+          "showBars": true,
+          "showTimes": true
         }
       }
     },

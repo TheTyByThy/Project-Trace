@@ -68,7 +68,7 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'cursor-end', label: 'Cursor to the end of the lap', group: 'Cursor & zoom', keys: [] },
   { id: 'add-corner', label: 'Mark a corner at the cursor…', group: 'Track & markers', keys: [] },
   { id: 'add-split', label: 'Mark a split at the cursor…', group: 'Track & markers', keys: [] },
-  { id: 'track-profile', label: 'Track profile editor (corners, splits, rotation)', group: 'Track & markers', keys: [] },
+  { id: 'track-profile', label: 'Track editor (corners, ranges, speed buckets, splits, rotation)', group: 'Track & markers', keys: [] },
   { id: 'rotate-map', label: 'Rotate the track maps 90°', group: 'Track & markers', keys: [] },
   { id: 'mirror-map', label: 'Mirror the track maps (this track)', group: 'Track & markers', keys: [] },
   { id: 'cycle-compare', label: 'Gain/loss track maps: compare the next comparison lap', group: 'Track & markers', keys: [] },

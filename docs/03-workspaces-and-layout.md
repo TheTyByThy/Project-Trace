@@ -19,7 +19,7 @@ Project-Trace ships with two **read-only default workspaces**:
 | Default | What it is |
 |---|---|
 | **Starter** | The general layout: Overview, Driver, Racing Lines, Tyres, Brakes, Suspension, Aero, Engine & ERS, Lap Analysis, Session & Setup. |
-| **Basic FA26** | A compact Formula Alpha 2026 layout: Overview (lap report, racing lines, corners, gain/loss map), Driver, Toggles, PU, Tyres, Stint Analysis, Session & Setup. |
+| **Basic FA26** | A compact Formula Alpha 2026 layout: Overview (lap report, time breakdown, racing lines, corners, gain/loss map), Driver, Toggles, PU, Tyres, Stint Analysis, Session & Setup. |
 
 ![Basic FA26](images/basic-fa26.png)
 
@@ -105,7 +105,7 @@ Tabs themselves:
 
 ## Components
 
-There are 17 component types:
+There are 18 component types:
 
 | Component | Purpose |
 |---|---|
@@ -119,7 +119,8 @@ There are 17 component types:
 | Lap Report | Lap & sector/section times of the selected laps only; sectors as absolute times or Δ to the reference |
 | Stint Report | Every lap of each stint that has a selected lap: lap & sector/section times, ideal lap |
 | Channel Report | Min/max/avg/std per lap |
-| Corner Report | Your corners and the straights between them: time and speeds vs the reference, plus corner vs straight totals |
+| Corner Report | Your corners (tagged low / medium / high speed) and the straights between them: time and speeds vs the reference, plus totals per bucket |
+| Time Breakdown | Time gained / lost vs the reference in low, medium and high-speed corners and on straights |
 | Lap Trend | A statistic per lap across the session |
 | Gauges | Dial/bar/digital at the cursor |
 | Driver Inputs | Pedals, wheel, gear, speed, RPM |
@@ -159,9 +160,9 @@ What's inside depends on the component:
 | Graph | Display options (variance, legends, grid lines, line widths, marker lines for all graphs) plus a **panes & channels** section: each pane lists its channels with a **show / hide** toggle, **colour swatch**, unit, sample rate and range, a **Properties…** button and a right-click menu (colour, move to another pane, remove). Pane scale, height, order (drag a pane by its **⋮⋮** title, or ↑ / ↓) and shared y-range are here too. |
 | Scatter | **Axes & scales**: fixed X and Y min/max (blank = automatic) and equal aspect, plus channels, colour, gate, fit, interval averages. |
 | Lap Trend | Statistic and **Y-axis min/max**. |
-| Track Map | Colouring, including **custom low/high colours** and gain/loss **sensitivity** and **smoothing**, display options (zoom to the graphs' selection, outline, start/finish, car dots, legend), and the **track profile** (rotation, corners, splits). |
-| GPS Track | Line width, framing, follow-cursor, scale bar, legend, offset readout, plus the track profile. |
-| Corner Report | Metric, straights and totals, plus the track profile (with advanced corner ranges). |
+| Track Map | Colouring, including **custom low/high colours** and gain/loss **sensitivity** and **smoothing**, display options (zoom to the graphs' selection, outline, start/finish, car dots, legend), and a link to the **Track editor** (rotation, corners, splits). |
+| GPS Track | Line width, framing, follow-cursor, scale bar, legend, offset readout, plus a link to the Track editor. |
+| Corner Report / Time Breakdown | Metric, straights and totals, or bars; plus a link to the Track editor (corners, ranges, speed buckets). |
 | Bars | Rows (channel, condition, value(s), label, colour, order / priority), combine all rows into one, every lap or the reference only, row labels, x-axis labels, marker lines. |
 | Lap / Stint Report | Split columns, Δ column, ideal row, tags, max speed & fuel. |
 | Tyres & Brakes | Values (cursor / lap mean / lap max) and which of 20 fields each tyre shows. |

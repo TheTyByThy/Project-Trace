@@ -25,7 +25,7 @@ Both share the **rotation dial**, the per-track **corners, sections and rotation
 
 **Colour ramps**: Blue or Orange (sequential), Blue ↔ Red (diverging), Green ↔ Red (gain/loss), or **Custom colours…**. Custom means you pick the **low** and **high** colours (or the *gaining* and *losing* colours in gain/loss mode) with the full colour picker in Properties.
 
-**Which comparison lap** (with two or more comparison laps selected): **click the colour blocks in the legend** (*click to change lap*) and pick one, right-click the map → **Compare with the reference**, or use the drop-down in Properties. Each map remembers its choice; if that lap is deselected it falls back to the first comparison lap. There's also a bindable shortcut, *Gain/loss track maps: compare the next comparison lap*, which steps every gain/loss map on the worksheet through the comparison laps.
+**Which comparison lap** (with two or more comparison laps selected): **click the colour blocks in the legend** (*click to change lap*) and pick one — each lap is listed with its colour and lap time — right-click the map → **Compare with the reference**, or use the drop-down in Properties. Each map remembers its choice; if that lap is deselected it falls back to the first comparison lap. There's also a bindable shortcut, *Gain/loss track maps: compare the next comparison lap*, which steps every gain/loss map on the worksheet through the comparison laps.
 
 **Gain/loss sensitivity** (Properties, in gain/loss mode):
 - **Sensitivity** (×0.25 – ×4, default ×1): higher shows small gains and losses in stronger colour; lower keeps only the big differences coloured.
@@ -61,28 +61,32 @@ Both maps have a small **dial** in the top-right corner:
 - **Save** stores the current angle as **this track's default rotation**, used every time you open that track.
 - **Reset** returns to the saved rotation after you've been experimenting. "unsaved" shows while they differ.
 
-You can also type an angle, or use ⟲ 90° / ⟳ 90°, in the track profile (Properties, or **Analysis → Track Profile…**). **Mirror** is in the same place.
+You can also type an angle, or use ⟲ 90° / ⟳ 90°, in the **Track editor**. **Mirror** is in the same place.
 
-## Corners, sections and the track profile
+## The Track editor: corners, ranges, speed buckets, splits
 
-![Track profile editor](images/track-profile.png)
+![Track editor](images/track-profile.png)
 
-Corners are **not** generated automatically: you define them once per track and they're remembered.
+Everything saved for a circuit is edited in one place, the **Track editor**. Open it from:
+- **clicking the track name in the top bar** (it highlights on hover and shows *Edit track ›*);
+- **Analysis → Track Editor…** or the command palette;
+- **Edit corners & track…** when you right-click a graph or track map;
+- **Edit corners & buckets** (right of the Corner Report's and Time Breakdown's toolbar);
+- the Track section of a map's or report's Properties.
 
-**Add a corner**
-1. Put the cursor on the corner's apex (click a graph or the map).
-2. Right-click a graph, the Track Map or the GPS Track → **Add corner at cursor…**, and name it (e.g. "T7" or "Turn 7 – Memorial").
+Every "edit corners" link in the app leads here. On the **left** is the reference lap's map, with each corner's range drawn as a line in its speed-bucket colour (at least 15 m either side of the apex, so short corners stay visible) (L orange, M amber, H pink) and the straights in grey. On the **right** are the corner table, the detection settings and the splits.
 
-**Edit corners** in the **track profile** editor (Properties of a map or corner report, or **Analysis → Track Profile (corners, sections, rotation)…**):
-- rename;
-- type an exact distance;
-- **⇢ cursor** to move a corner to the cursor;
-- delete, or **Clear all**.
+**Corners** are **not** generated automatically: you mark each apex once per track, and it's remembered.
+- **Add**: double-click the track on the editor's map; or put the cursor on the apex and use **+ Add at cursor**, or right-click a graph / map → **Add corner at cursor…**.
+- **Move**: click a corner on the map to select it, then click the track where its apex should be. Or type the apex distance, or use **⇢ cursor**.
+- **Rename** in the table; **×** deletes; **Clear all**; **Suggest from speed minima** proposes corners at the reference lap's slowest points (only when you click it).
 
-Right-click a corner in the Corner Report for Rename / Move to cursor / Delete. **Suggest from speed minima** proposes corners at the reference lap's slowest points, but only when you click it; edit or delete them afterwards.
+**Ranges**: *Start* and *End* are detected from the reference lap's driving and shown in grey: from the lift / braking point to full throttle again, padded by the detection sliders. **Type a distance to fix one** for that corner; clear it to go back to automatic. See [08](08-laps-sectors-reports.md#corner-ranges).
 
-**Splits** work the same way (**Add split at cursor…**). They divide the lap into named parts for the Lap and Stint Reports' *Custom sections* columns.
+**Speed bucket**: *Auto* shows the bucket from the corner's minimum speed, e.g. *Auto (Low, 86 kph)*. **Pick Low, Medium or High to override it** for that corner. The override is saved with the track and used by the Corner Report and the Time Breakdown (hover a corner's tag to see whether its bucket was set by you).
 
-**Advanced corner ranges**: in the track profile, tick *Advanced: exact start / end distance for each corner* to set where each corner begins and ends. Everything outside a corner counts as a straight, and the Corner Report shows total time (and gain/loss vs the reference) in corners and on straights.
+**Corner detection & speed buckets** (sliders, for every track): padding before the lift / braking point and after full throttle, the full-throttle level, and the low / high speed thresholds.
 
-Corners appear on graphs (*Corner markers*), both maps (*Corner labels*) and in the **Corner Report**. Everything in a track profile is saved per venue, shared by all workspaces, and undoable.
+**Splits** work like corners (**+ Add at cursor**, or right-click → **Add split at cursor…**). They divide the lap into named parts for the Lap and Stint Reports' *Custom sections* columns.
+
+Everything outside a corner counts as a straight. Corners appear on graphs (*Corner markers*), both maps (*Corner labels*) and in the **Corner Report**. Everything in the Track editor is saved per venue, shared by all workspaces, and undoable.

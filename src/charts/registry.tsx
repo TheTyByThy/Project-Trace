@@ -15,6 +15,7 @@ import { LapReportView } from './LapReportView';
 import { MixtureView } from './MixtureView';
 import { ScatterView } from './ScatterView';
 import { TrackMapView } from './TrackMapView';
+import { TimeBreakdownView } from './TimeBreakdownView';
 import { TrendView } from './TrendView';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -23,6 +24,7 @@ export const VIEWS: Record<ComponentType, FC<{ config: any }>> = {
   trackmap: TrackMapView,
   gpstrack: GpsTrackView,
   bars: BarsView,
+  breakdown: TimeBreakdownView,
   scatter: ScatterView,
   histogram: HistogramView,
   mixture: MixtureView,
@@ -72,6 +74,8 @@ export function defaultTitle(c: ComponentConfig): string {
       return 'Session & setup';
     case 'gpstrack':
       return 'GPS track — racing lines';
+    case 'breakdown':
+      return 'Time breakdown';
     case 'bars':
       return c.rows.map((r) => r.label || channelLabel(r.channel)).slice(0, 3).join(', ') || 'Bars';
   }

@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { computeVariance, timeToX, xToTime } from '../core/axis';
 import { interp, sampleAt } from '../core/channel';
 import { rampColor, rampLUT, withAlpha, type RampName } from '../core/colors';
-import { formatValue } from '../core/format';
+import { formatLapTime, formatValue } from '../core/format';
 import { crossingTime, lapDistAt, lapLabel } from '../core/session';
 import {
   activeWorkspace,
@@ -23,6 +23,7 @@ import type { TrackMapConfig } from '../state/workspace';
 import { markAtCursor } from '../actions';
 import { keyHint } from '../shortcuts';
 import { openMenu, type MenuItem } from '../ui/overlays';
+import { openTrackEditor } from '../ui/TrackProfileEditor';
 import { chartTheme, prepCanvas, useElementSize, useStoreListener } from './canvas';
 import { channelDps, channelLabel, conv, lapRange } from './data';
 import { RotationDial } from './RotationDial';
@@ -476,6 +477,8 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
       { header: 'Compare with the reference' },
       ...laps.slice(1).map((l) => ({
         label: lapLabel(l.lap) + (l.session !== laps[0].session ? ` · ${l.session.meta.driver || l.session.fileName}` : ''),
+        color: l.color,
+        detail: formatLapTime(l.lap.time),
         checked: l.key === cur.key,
         onClick: () => updateComponent(config.id, { compareKey: l.key }, 'Compare lap'),
       })),
@@ -574,5 +577,6 @@ export function trackMapMenuItems(venue: string, componentId: string, flags: { s
     { separator: true },
     { label: 'Add corner at cursor…', disabled: !canMark, shortcut: keyHint('add-corner'), onClick: () => markAtCursor('corner') },
     { label: 'Add split at cursor…', disabled: !canMark, shortcut: keyHint('add-split'), onClick: () => markAtCursor('split') },
+    { label: 'Edit corners & track…', shortcut: keyHint('track-profile'), onClick: openTrackEditor },
   ];
 }

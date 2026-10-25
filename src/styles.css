@@ -296,6 +296,33 @@ label.check {
 .topbar > .session-pill {
   flex-shrink: 1;
 }
+.session-pill.clickable {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.session-pill.clickable:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.session-pill > * {
+  flex-shrink: 0;
+}
+/* The car name gives way first, so "Edit track ›" always shows. */
+.session-pill > .muted {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.session-pill .pill-action {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--accent);
+  padding-left: 6px;
+  border-left: 1px solid var(--border);
+}
 /* macOS: the window has no title bar. The header is the drag area (double-click zooms the window)
    and leaves room on the left for the traffic-light buttons, except in full screen where they hide. */
 :root[data-platform='darwin'] .topbar {
@@ -1487,4 +1514,156 @@ table.grid td.bad {
 .datum-badge {
   color: var(--accent);
   font-weight: 600;
+}
+
+/* Corner speed buckets (L / M / H) — same colours in the Corner Report and the Time Breakdown. */
+.bucket-chip {
+  display: inline-block;
+  min-width: 16px;
+  margin-right: 6px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--text);
+  vertical-align: 1px;
+}
+.bucket-chip.low {
+  background: color-mix(in srgb, #d95926 55%, transparent);
+}
+.bucket-chip.medium {
+  background: color-mix(in srgb, #c98500 55%, transparent);
+}
+.bucket-chip.high {
+  background: color-mix(in srgb, #d55181 55%, transparent);
+}
+.bucket-chip.straight {
+  background: color-mix(in srgb, var(--text-3) 45%, transparent);
+}
+/* Corner range & speed bucket sliders. */
+.corner-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.corner-settings.compact {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+  gap: 8px 20px;
+}
+.corner-settings.compact > button {
+  justify-self: start;
+}
+.corner-settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.slider-field input[type='range'] {
+  width: 100%;
+}
+
+/* Diverging gain / loss bar (Time Breakdown): gains grow left in green, losses right in red. */
+.delta-bar {
+  position: relative;
+  display: block;
+  height: 10px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--text-3) 14%, transparent);
+}
+.delta-bar .mid {
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--text-3);
+}
+.delta-bar .gain,
+.delta-bar .loss {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+.delta-bar .gain {
+  right: 50%;
+  background: var(--gain);
+  border-radius: 2px 0 0 2px;
+}
+.delta-bar .loss {
+  left: 50%;
+  background: var(--loss);
+  border-radius: 0 2px 2px 0;
+}
+
+/* Track editor page: map + rotation on the left, corners / detection / splits on the right. */
+.modal.track-editor-modal {
+  width: min(1320px, 96vw);
+  height: min(900px, 92vh);
+  max-height: none;
+  display: flex;
+  flex-direction: column;
+}
+.track-editor {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(360px, 44%) 1fr;
+}
+.track-editor-left,
+.track-editor-right {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+}
+.track-editor-left {
+  border-right: 1px solid var(--border);
+}
+.track-editor-right {
+  overflow: auto;
+}
+.track-editor-map {
+  flex: 1;
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.track-editor-hint {
+  padding: 6px 10px;
+  font-size: 12px;
+  border-top: 1px solid var(--border);
+}
+.track-editor-table td {
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+.track-editor-table input.auto::placeholder {
+  color: var(--text-3);
+  font-style: italic;
+}
+.track-editor-table select.auto {
+  color: var(--text-2);
+}
+
+/* A toolbar whose help text shrinks (ellipsis) so its right-hand button stays on the same line. */
+.subtabs.nowrap {
+  flex-wrap: nowrap;
+}
+.subtabs.nowrap > * {
+  flex-shrink: 0;
+}
+.subtabs.nowrap > .shrink {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

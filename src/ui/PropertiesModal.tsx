@@ -9,11 +9,12 @@ import { TYRE_FIELDS, uid, type BarRow, type BarsConfig, type ComponentConfig, t
 import { BAR_OPS, barCondition } from '../charts/BarsView';
 import { compareLap } from '../charts/TrackMapView';
 import { lapLabel } from '../core/session';
+import { formatLapTime } from '../core/format';
 import { defaultTitle } from '../charts/registry';
 import { keyHint } from '../shortcuts';
 import { channelLabel, conv, findChannel } from '../charts/data';
 import { ChannelPickerButton, ColorField, openChannelPicker, openChannelProps, openColorPicker, openMenu, renameChannel } from './overlays';
-import { TrackProfileEditor } from './TrackProfileEditor';
+import { TrackEditorLink } from './TrackProfileEditor';
 
 function Num({ value, onChange, placeholder }: { value: number | undefined; onChange: (v: number | undefined) => void; placeholder?: string }) {
   const [s, setS] = useState(value == null ? '' : String(value));
@@ -311,14 +312,17 @@ function CompareLapField({ c }: { c: TrackMapConfig }) {
   const cur = compareLap(laps, c.compareKey);
   return (
     <F label="Compared with the reference">
-      <select className="input" value={cur.key} onChange={(e) => updateComponent(c.id, { compareKey: e.target.value }, 'Compare lap')}>
-        {laps.slice(1).map((l) => (
-          <option key={l.key} value={l.key}>
-            {lapLabel(l.lap)}
-            {l.session !== laps[0].session ? ` · ${l.session.meta.driver || l.session.fileName}` : ''}
-          </option>
-        ))}
-      </select>
+      <div className="row" style={{ gap: 6 }}>
+        <span className="swatch" style={{ background: cur.color, width: 14, height: 14, borderRadius: 3, flexShrink: 0 }} title="This lap's colour" />
+        <select className="input grow" value={cur.key} onChange={(e) => updateComponent(c.id, { compareKey: e.target.value }, 'Compare lap')}>
+          {laps.slice(1).map((l) => (
+            <option key={l.key} value={l.key}>
+              {lapLabel(l.lap)} — {formatLapTime(l.lap.time)}
+              {l.session !== laps[0].session ? ` · ${l.session.meta.driver || l.session.fileName}` : ''}
+            </option>
+          ))}
+        </select>
+      </div>
     </F>
   );
 }
@@ -504,7 +508,7 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
             </G>
           </div>
           <div>
-            <TrackProfileEditor />
+            <TrackEditorLink />
           </div>
         </div>
       );
@@ -529,7 +533,24 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
             </G>
           </div>
           <div>
-            <TrackProfileEditor />
+            <TrackEditorLink />
+          </div>
+        </div>
+      );
+    case 'breakdown':
+      return (
+        <div className="props-grid">
+          <div>
+            <G title="Time breakdown">
+              <Check label="Gain / loss bars" value={c.showBars !== false} onChange={(v) => up({ showBars: v })} />
+              <Check label="Reference lap's time in each section" value={c.showTimes !== false} onChange={(v) => up({ showTimes: v })} />
+              <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+                The lap is split at your corners into low, medium and high-speed corners and the straights between them. The four add up to the whole lap.
+              </div>
+            </G>
+          </div>
+          <div>
+            <TrackEditorLink />
           </div>
         </div>
       );
@@ -544,13 +565,13 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
               <Check label="Straights between corners" value={c.showStraights !== false} onChange={(v) => up({ showStraights: v })} />
               <Check label="Total time in corners vs on straights" value={c.showTotals !== false} onChange={(v) => up({ showTotals: v })} />
               <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
-                Each corner runs from halfway to the previous corner to halfway to the next (at most ±200 m from the apex), unless you set an exact range in
-                advanced mode. Anything not inside a corner counts as a straight.
+                Each corner runs from where you leave full throttle before it to where you're back at full throttle after it (with the padding above), never past
+                halfway to the neighbouring corners — unless you set an exact range in advanced mode. Anything not inside a corner counts as a straight.
               </div>
             </G>
           </div>
           <div>
-            <TrackProfileEditor />
+            <TrackEditorLink />
           </div>
         </div>
       );

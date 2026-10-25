@@ -13,6 +13,7 @@ export const COMPONENT_CATALOG: { type: ComponentType; label: string; icon: stri
   { type: 'lapreport', label: 'Lap Report', icon: '⏱', description: 'Lap and sector times of the selected laps only — the reference and its comparisons.' },
   { type: 'laps', label: 'Stint Report', icon: '☷', description: 'Every lap of every open session: lap and sector times, best sectors, ideal lap and validity.' },
   { type: 'channels', label: 'Channel Report', icon: '☰', description: 'Min / max / mean / std of chosen channels for every selected lap.' },
+  { type: 'breakdown', label: 'Time Breakdown', icon: '◧', description: 'Time gained / lost against the reference in low, medium and high-speed corners and on the straights.' },
   { type: 'corners', label: 'Corner Report', icon: '↺', description: 'Your corners and the straights between them: speeds, time and total gain/loss per lap.' },
   { type: 'trend', label: 'Lap Trend', icon: '📈', description: 'A per-lap statistic across the session (lap time, max temp, fuel…).' },
   { type: 'gauges', label: 'Gauges', icon: '◔', description: 'Dial, bar and digital gauges showing values at the cursor.' },
@@ -38,6 +39,9 @@ export function createComponent(type: ComponentType, patch: Partial<ComponentCon
         showCorners: false,
         yRange: 'full',
       };
+      break;
+    case 'breakdown':
+      c = { id, type, showBars: true, showTimes: true };
       break;
     case 'bars':
       c = {

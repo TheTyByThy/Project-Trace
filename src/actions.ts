@@ -288,7 +288,7 @@ export function buildCommands(): Command[] {
     { id: 'props', label: 'Properties pop-out for selected component', run: () => openProperties() },
     { id: 'insp', label: 'Toggle Properties side panel', hint: k('toggle-inspector'), run: () => setUi({ inspector: !useStore.getState().ui.inspector }) },
     { id: 'math', label: 'Math channels…', hint: k('math'), run: () => setUi({ math: true }) },
-    { id: 'track', label: 'Track profile (corners, sections, rotation)…', run: () => setUi({ trackProfile: true }) },
+    { id: 'track', label: 'Track editor (corners, ranges, speed buckets, splits, rotation)…', hint: k('track-profile'), run: () => setUi({ trackProfile: true }) },
     { id: 'settings', label: 'Settings…', hint: k('settings'), run: () => setUi({ settings: true }) },
     { id: 'undo', label: 'Undo', hint: 'Ctrl/⌘+Z', run: undo },
     { id: 'redo', label: 'Redo', hint: 'Ctrl/⌘+Y', run: redo },

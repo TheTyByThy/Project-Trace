@@ -131,11 +131,13 @@ export function TopBar() {
         Open
       </button>
       {s0 ? (
-        <div className="session-pill" title={s0.path}>
+        // The track is the way into the Track editor (corners, ranges, speed buckets, splits, rotation).
+        <button className="session-pill clickable" title={`Edit this track — corners, ranges, speed buckets, splits, map rotation${k('track-profile')}`} onClick={() => setUi({ trackProfile: true })}>
           <b>{prettyTrack(s0.meta.venue).track}</b>
           <span className="muted">{prettyCar(s0.meta.vehicle)}</span>
           {sessions.length > 1 && <span className="tag">+{sessions.length - 1} more</span>}
-        </div>
+          <span className="pill-action">Edit track ›</span>
+        </button>
       ) : (
         <span className="muted">No session open</span>
       )}

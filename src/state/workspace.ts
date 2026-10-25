@@ -21,7 +21,8 @@ export type ComponentType =
   | 'corners'
   | 'fft'
   | 'gpstrack'
-  | 'bars';
+  | 'bars'
+  | 'breakdown';
 
 export interface GraphPane {
   id: string;
@@ -88,6 +89,15 @@ export interface BarsConfig extends Base {
   showAxis: boolean;
   showSectors: boolean;
   showCorners: boolean;
+}
+
+/** Time breakdown: time gained / lost in low, medium and high-speed corners and on straights. */
+export interface BreakdownConfig extends Base {
+  type: 'breakdown';
+  /** Gain / loss bars next to each Δ (default on). */
+  showBars?: boolean;
+  /** The reference lap's time in each bucket (default on). */
+  showTimes?: boolean;
 }
 
 export interface ScatterConfig extends Base {
@@ -346,7 +356,8 @@ export type ComponentConfig =
   | CornersConfig
   | FftConfig
   | GpsTrackConfig
-  | BarsConfig;
+  | BarsConfig
+  | BreakdownConfig;
 
 export type LayoutNode =
   | { kind: 'split'; id: string; dir: 'row' | 'col'; children: LayoutNode[]; sizes: number[] }

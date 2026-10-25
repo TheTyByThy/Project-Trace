@@ -32,6 +32,7 @@ import type { GraphConfig } from '../state/workspace';
 import { markAtCursor } from '../actions';
 import { keyHint } from '../shortcuts';
 import { openMenu } from '../ui/overlays';
+import { openTrackEditor } from '../ui/TrackProfileEditor';
 import { chartTheme, drawTrace, fmtTick, lowerBound, prepCanvas, useElementSize, useStoreListener } from './canvas';
 import { channelDps, channelLabel, conv, displayData, lapRange } from './data';
 
@@ -721,6 +722,7 @@ export function GraphView({ config }: { config: GraphConfig }) {
       { separator: true },
       { label: 'Add corner at cursor…', disabled: !canMark, shortcut: keyHint('add-corner'), onClick: () => markAtCursor('corner') },
       { label: 'Add split at cursor…', disabled: !canMark, shortcut: keyHint('add-split'), onClick: () => markAtCursor('split') },
+      { label: 'Edit corners & track…', shortcut: keyHint('track-profile'), onClick: openTrackEditor },
     ]);
   };
 

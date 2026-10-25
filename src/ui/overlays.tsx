@@ -13,6 +13,10 @@ export interface MenuItem {
   checked?: boolean;
   disabled?: boolean;
   shortcut?: string;
+  /** Colour swatch shown before the label (e.g. a lap's colour). */
+  color?: string;
+  /** Right-aligned detail text (e.g. a lap time), like a shortcut. */
+  detail?: string;
   separator?: boolean;
   header?: string;
   swatches?: { color: string; onClick: () => void }[];
@@ -235,8 +239,9 @@ function MenuHost() {
             }}
           >
             <span style={{ width: 14, textAlign: 'center', color: 'var(--accent)' }}>{it.checked ? '✓' : ''}</span>
+            {it.color && <span className="swatch" style={{ background: it.color, width: 12, height: 12, borderRadius: 3, flexShrink: 0 }} />}
             {it.label}
-            {it.shortcut && <span className="k">{it.shortcut}</span>}
+            {(it.detail || it.shortcut) && <span className="k">{it.detail ?? it.shortcut}</span>}
           </div>
         );
       })}
