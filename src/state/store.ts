@@ -725,6 +725,10 @@ export function closeSession(id: string) {
   });
 }
 
+export function closeAllSessions() {
+  set((s) => ({ sessions: [], laps: [], refKey: null, dataVersion: s.dataVersion + 1 }));
+}
+
 // ---------------------------------------------------------------------------------------------
 // Lap selection
 // ---------------------------------------------------------------------------------------------

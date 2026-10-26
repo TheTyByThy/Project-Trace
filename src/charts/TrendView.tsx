@@ -9,7 +9,7 @@ import { fitCurve, fitEquation, fitRequirement, fitSettings } from '../core/fit'
 import { formatDelta, formatLapTime, formatValue, prettyTrack } from '../core/format';
 import { rangeStats } from '../core/stats';
 import { lapKey, type Lap, type Session } from '../core/types';
-import { selectLap, sessionsWithSelection, updateComponent, useStore } from '../state/store';
+import { selectedLaps, selectLap, sessionsWithSelection, updateComponent, useStore } from '../state/store';
 import type { TrendConfig } from '../state/workspace';
 import { drawAxes, drawMarker, makeAxes, padRange, type Axes } from './axes';
 import { BoxZoomLayer, type View } from './BoxZoom';
@@ -43,6 +43,21 @@ export function fuelCorrected(s: Session, lap: Lap, secPerLitre: number): number
   return st.count ? lap.time - secPerLitre * st.mean : NaN;
 }
 
+/** Ring around a selected lap's point in its lap colour; the reference gets a heavier double ring. */
+function drawSelRing(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, isRef: boolean) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = isRef ? 2.5 : 1.5;
+  ctx.beginPath();
+  ctx.arc(x, y, 8, 0, Math.PI * 2);
+  ctx.stroke();
+  if (isRef) {
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(x, y, 11.5, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
 const seriesName = (s: Session) => `${prettyTrack(s.meta.venue).track} ${new Date(s.meta.savedAt ?? 0).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 
 export function TrendView({ config }: { config: TrendConfig }) {
@@ -72,9 +87,14 @@ export function TrendView({ config }: { config: TrendConfig }) {
     const mode = config.channel ? 'raw' : config.lapTimes ?? 'raw';
     const k = config.fuelEffect ?? DEFAULT_FUEL_EFFECT;
     const keep = (p: { l: Lap; v: number }) => Number.isFinite(p.v) && (!config.validOnly || !p.l.invalid) && (config.channel ? true : p.l.complete);
+    // Each stint takes the colour of its first selected lap (the reference's stint gets the reference
+    // colour), so the trend matches the lap colours used by every other chart; selected points keep
+    // their own lap colour.
+    const sel = selectedLaps();
+    const lapColorOf = new Map(sel.map((l) => [l.key, l.color]));
     const series = sessions.map((s, si) => ({
       s,
-      color: CATEGORICAL[theme][si % 8],
+      color: sel.find((l) => l.session.id === s.id)?.color ?? CATEGORICAL[theme][si % 8],
       pts: mode === 'corrected' ? [] : s.laps.map((l) => ({ l, v: lapStat(s, l, config) })).filter(keep),
       corr: mode === 'raw' ? [] : s.laps.map((l) => ({ l, v: fuelCorrected(s, l, k) })).filter(keep),
     }));
@@ -124,10 +144,11 @@ export function TrendView({ config }: { config: TrendConfig }) {
           Y = A.py(p.v);
         const key = lapKey({ sessionId: sr.s.id, lapIndex: p.l.index });
         hitsRef.current.push({ x: X, y: Y, key });
-        const selected = lapSel.some((l) => l.key === key);
-        ctx.fillStyle = sr.color;
+        const selColor = lapColorOf.get(key);
+        const color = selColor ?? sr.color;
+        ctx.fillStyle = color;
         if (p.l.invalid) {
-          ctx.strokeStyle = sr.color;
+          ctx.strokeStyle = color;
           ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.arc(X, Y, 4.5, 0, Math.PI * 2);
@@ -135,13 +156,7 @@ export function TrendView({ config }: { config: TrendConfig }) {
           ctx.fill();
           ctx.stroke();
         } else drawMarker(ctx, 1, X, Y, 9);
-        if (selected) {
-          ctx.strokeStyle = key === refKey ? T.cursor : T.text3;
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.arc(X, Y, 8, 0, Math.PI * 2);
-          ctx.stroke();
-        }
+        if (selColor) drawSelRing(ctx, X, Y, selColor, key === refKey);
         if (rect.w / Math.max(1, x1 - x0) > 46) {
           ctx.fillStyle = T.text2;
           ctx.textAlign = 'center';
@@ -175,16 +190,13 @@ export function TrendView({ config }: { config: TrendConfig }) {
         ctx.lineTo(X, Y + 5);
         ctx.lineTo(X - 5, Y);
         ctx.closePath();
-        ctx.fillStyle = p.l.invalid ? T.surface : sr.color;
+        const selColor = lapColorOf.get(key);
+        const color = selColor ?? sr.color;
+        ctx.fillStyle = p.l.invalid ? T.surface : color;
         ctx.fill();
-        ctx.strokeStyle = sr.color;
+        ctx.strokeStyle = color;
         ctx.stroke();
-        if (lapSel.some((l) => l.key === key)) {
-          ctx.strokeStyle = key === refKey ? T.cursor : T.text3;
-          ctx.beginPath();
-          ctx.arc(X, Y, 8, 0, Math.PI * 2);
-          ctx.stroke();
-        }
+        if (selColor) drawSelRing(ctx, X, Y, selColor, key === refKey);
         if (rect.w / Math.max(1, x1 - x0) > 46) {
           ctx.fillStyle = T.text3;
           ctx.textAlign = 'center';

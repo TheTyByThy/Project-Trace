@@ -30,6 +30,29 @@ export const DEFAULT_MATH_CHANNELS: MathChannelDef[] = [
   def('Coasting', "choose('Throttle Pos' < 2 and 'Brake Pos' < 2 and 'Ground Speed' > 30, 1, 0)", '', '1 while neither pedal is used (lost time!).', 2),
   def('Full Throttle', "choose('Throttle Pos' > 98, 1, 0)", '', '1 at full throttle. Mean over a lap = full-throttle fraction.', 2),
   def('Braking Time Lap', "integrate_lap(choose('Brake Pos' > 5, 1, 0))", 's', 'Accumulated braking time within the lap.', 1),
+  // Brake + steering combining (trail braking). Each input is normalised to 0–1 with a deadband so
+  // straight-line braking and coasting through a corner read zero; steering is scaled to 90° of wheel.
+  def(
+    'Brake Steer Combination',
+    "100 * sqrt(clamp(('Brake Pos' - 2) / 98, 0, 1) * clamp((abs('Steering Angle') - 5) / 85, 0, 1))",
+    '%',
+    'How much braking and steering are combined at once (trail braking): the geometric mean of brake (2–100 %) and steering lock (5–90°). 0 = either input alone, 100 = full brake at 90° lock. Edit the 85/90° scale to suit the car.',
+    1,
+  ),
+  def(
+    'Brake Steer Combination Lap',
+    "integrate_lap('Brake Steer Combination' / 100)",
+    's',
+    "Accumulated brake–steer combining in the lap, in seconds of 'full brake at full lock'. Use the lap's last value (Trend: stat = last) to compare how much each lap trail-brakes.",
+    2,
+  ),
+  def(
+    'Trail Braking Time Lap',
+    "integrate_lap(choose('Brake Pos' > 5 and abs('Steering Angle') > 10, 1, 0))",
+    's',
+    'Time in the lap spent braking (> 5 %) with steering lock on (> 10°).',
+    1,
+  ),
   ...corners.map((c) =>
     def(`Damper Velocity ${c}`, `derivative('Damper Travel ${c}')`, 'mm/s', `Damper speed (${c}). Positive = bump, negative = rebound.`, 0),
   ),

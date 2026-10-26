@@ -12,6 +12,7 @@ import {
   activeSheet,
   activeWorkspace,
   clearOverlays,
+  closeAllSessions,
   closeSession,
   fastestAsReference,
   moveSession,
@@ -219,6 +220,13 @@ function LapsPanel() {
           </button>
           <button className="btn small" onClick={() => setUi({ browser: true })} title="Add another session to compare">
             + Compare session
+          </button>
+          <button
+            className="btn small"
+            title="Close every open session"
+            onClick={() => window.confirm(`Close all ${sessions.length} open session${sessions.length === 1 ? '' : 's'}?`) && closeAllSessions()}
+          >
+            Remove all
           </button>
         </div>
       )}
