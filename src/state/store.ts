@@ -10,7 +10,7 @@ import { applyMathChannels, type MathChannelDef, type MathConstant } from '../co
 import { fastestLap, getLap, theoreticalBest } from '../core/session';
 import { lapKey, parseLapKey, type Lap, type Session, type XMode } from '../core/types';
 import { DEFAULT_UNITS, type UnitPrefs } from '../core/units';
-import { createComponent } from './components';
+import { COMPONENT_CATALOG, createComponent } from './components';
 import { renameChannelsInWorkspace, type RenameMap } from './renameChannels';
 import { buildBlankWorkspace, buildDefaultWorkspace } from './defaultWorkspace';
 import { cloneLayout, insertComponent, moveComponent, removeComponent, setSizes, type DropZone } from './layout';
@@ -1102,6 +1102,56 @@ export function addComponent(type: ComponentType, targetId: string | null = null
   );
   set({ activeComponentId: c.id });
   return c.id;
+}
+
+// ---- copy / paste components ----
+
+const COMPONENT_LABEL = (type: ComponentType) => COMPONENT_CATALOG.find((m) => m.type === type)?.label ?? 'component';
+
+/** The last copied component (also put on the system clipboard as JSON, for pasting in another window). */
+let copiedComponent: ComponentConfig | null = null;
+const CLIP_KIND = 'project-trace-component';
+
+/** Copy a component (its type and every setting). */
+export function copyComponent(id: string | null = get().activeComponentId) {
+  const c = id ? activeSheet()?.components[id] : undefined;
+  if (!c) return toast('Click a component first, then copy it.', 'info', 2000);
+  copiedComponent = structuredClone(c);
+  navigator.clipboard?.writeText(JSON.stringify({ kind: CLIP_KIND, component: c })).catch(() => {});
+  toast(`Copied “${c.title || COMPONENT_LABEL(c.type)}” — paste with Ctrl/⌘+V`, 'success', 1800);
+}
+
+/** Paste the copied component beside `targetId` (or into an empty worksheet). */
+export async function pasteComponent(targetId: string | null = get().activeComponentId) {
+  let src = copiedComponent;
+  if (!src) {
+    // Copied in another Project-Trace window: read it back from the system clipboard.
+    try {
+      const data = JSON.parse(await navigator.clipboard.readText());
+      if (data?.kind === CLIP_KIND && data.component?.type) src = data.component as ComponentConfig;
+    } catch {
+      /* nothing usable on the clipboard */
+    }
+  }
+  if (!src) return toast('Nothing to paste — copy a component first (right-click → Copy, or Ctrl/⌘+C).', 'info', 2400);
+  const c = { ...structuredClone(src), id: uid('c') } as ComponentConfig;
+  const sheet = activeSheet();
+  const target = targetId && sheet?.components[targetId] ? targetId : null;
+  updateSheet(
+    (sh) => ({ ...sh, components: { ...sh.components, [c.id]: c }, layout: insertComponent(sh.layout, target, c.id, 'right') }),
+    { label: 'Paste component' },
+  );
+  set({ activeComponentId: c.id });
+}
+
+/** Copy and paste in one go: a duplicate beside the original. */
+export function duplicateComponent(id: string | null = get().activeComponentId) {
+  const c = id ? activeSheet()?.components[id] : undefined;
+  if (!c) return toast('Click a component first, then duplicate it.', 'info', 2000);
+  const prev = copiedComponent;
+  copiedComponent = structuredClone(c);
+  pasteComponent(id);
+  copiedComponent = prev;
 }
 
 export function removeComponentById(id: string) {

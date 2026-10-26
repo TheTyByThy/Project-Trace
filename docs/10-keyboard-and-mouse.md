@@ -28,6 +28,9 @@ Changes apply immediately, also to the hints everywhere a shortcut exists: right
 | Ctrl + M | Math channel editor |
 | Ctrl + , | Settings |
 | Ctrl + B | Toggle sidebar |
+| Ctrl + C | Copy the selected (last-clicked) component, with all its settings. With text selected or in a text box it copies text as usual |
+| Ctrl + V | Paste the copied component beside the selected one — on any worksheet or workspace, or into an empty worksheet |
+| Ctrl + D | Duplicate the selected component |
 | Ctrl + E | Export the visible data to CSV |
 | Ctrl + S | Save the workspace (defaults: Save as…) |
 | Ctrl + Shift + S | Save a screenshot (PNG) |

@@ -30,6 +30,9 @@ import {
   resetView,
   resetSheetToStarter,
   revertWorkspaceToStarter,
+  copyComponent,
+  duplicateComponent,
+  pasteComponent,
   saveCurrentWorkspace,
   saveSheetToLibrary,
   saveWorkspaceAs,
@@ -259,6 +262,9 @@ function stepSheet(dir: 1 | -1) {
 /** What each bindable shortcut (src/shortcuts.ts) does. */
 const SHORTCUT_ACTIONS: Record<string, () => void> = {
   'ws-save': () => saveCurrentWorkspace(),
+  'copy-component': () => copyComponent(),
+  'paste-component': () => pasteComponent(),
+  'duplicate-component': () => duplicateComponent(),
   'toggle-sectors': () => toggleMarkersAll('showSectors'),
   'toggle-splits': () => toggleMarkersAll('showSplits'),
   'toggle-corners': () => toggleMarkersAll('showCorners'),
@@ -401,6 +407,8 @@ export function handleGlobalKey(e: KeyboardEvent) {
     return;
   }
   if (!action) return;
+  // With text selected on the page, Ctrl/⌘+C copies the text as usual.
+  if (action === 'copy-component' && window.getSelection()?.toString()) return;
   // Always swallow the key: on macOS an unhandled key event is passed on to the native menu, which
   // would run the same action a second time.
   e.preventDefault();
@@ -465,6 +473,12 @@ export async function handleMenuAction(action: string) {
       return toggleDatum();
     case 'toggle-playback':
       return togglePlayback();
+    case 'copy-component':
+      return copyComponent();
+    case 'paste-component':
+      return pasteComponent();
+    case 'duplicate-component':
+      return duplicateComponent();
     case 'theme':
       return updateSettings({ theme: arg === 'light' ? 'light' : 'dark' });
     case 'toggle-theme':

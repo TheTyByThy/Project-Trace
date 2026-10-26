@@ -219,6 +219,10 @@ function buildMenu() {
         { role: 'copy' },
         { role: 'paste' },
         { role: 'selectAll' },
+        { type: 'separator' },
+        { label: 'Copy Component', click: () => sendMenu('copy-component') },
+        { label: 'Paste Component', click: () => sendMenu('paste-component') },
+        { label: 'Duplicate Component', ...acc('duplicate-component'), click: () => sendMenu('duplicate-component') },
       ],
     },
     {

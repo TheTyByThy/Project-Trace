@@ -140,7 +140,8 @@ There is no separate title bar: the red / yellow / green window buttons sit at t
 
 ### Adding, removing, arranging
 - **＋ Component** (right end of the tab bar) adds to the current worksheet; **＋** on a header adds beside that component.
-- **Right-click anywhere in a component** for a short menu: its main options (graphs and maps: marker lines, *Add corner* / *Add split* at the cursor), then **Properties…**, **Maximise** and **Remove component**. Everything else is in Properties.
+- **Right-click anywhere in a component** for a short menu: its main options (graphs and maps: marker lines, *Add corner* / *Add split* at the cursor), then **Copy**, **Paste beside**, **Duplicate**, **Properties…**, **Maximise** and **Remove component**. Everything else is in Properties.
+- **Copy & paste**: click a component, then **Ctrl/⌘ + C** copies it with all its settings (channels, panes, colours, options); **Ctrl/⌘ + V** pastes a copy beside whichever component is selected — on another worksheet, in another workspace, or into an empty worksheet. **Ctrl/⌘ + D** duplicates in one go. All three are also in the right-click menu (*Copy*, *Paste beside*, *Duplicate*) and in *Edit* on the menu bar. In text boxes, or with text selected, the keys copy and paste text as normal.
 - **Dock**: drag a component's **header** onto another component. Edges split; the centre swaps.
 - **Resize**: drag the gaps between components. **Maximise**: double-click the header.
 - **Snapping**: while you drag a divider it snaps (highlighted) to line up with other dividers running the same way — e.g. in a 2 × 2 grid the left and right columns' dividers, or the top and bottom rows' dividers, click into the same position. Hold **Alt/⌥** to move freely.
