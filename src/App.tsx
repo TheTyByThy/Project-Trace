@@ -48,6 +48,7 @@ import { Sidebar } from './ui/Sidebar';
 import { TrackProfileDialog } from './ui/TrackProfileEditor';
 import { CommandPalette, SettingsDialog, ShortcutsDialog } from './ui/Dialogs';
 import { SheetTabs, StatusBar, Toasts, TopBar } from './ui/Chrome';
+import { startLive } from './state/live';
 
 function usePanelResizer(key: 'sidebarWidth' | 'inspectorWidth', dir: 1 | -1) {
   return (e: React.PointerEvent) => {
@@ -144,6 +145,9 @@ function installAutomation() {
       'fuel-corrected',
       'gg-envelope',
       'trend-fit',
+      'tyre-wear',
+      'tyre-wear-detail',
+      'live-mode',
       'scatter-fit',
       'playback',
       'bars',
@@ -158,7 +162,7 @@ function installAutomation() {
       'light-theme',
     ],
     runExtra: (name: string) => {
-      setUi({ math: name === 'math-editor', palette: name === 'command-palette', settings: name === 'settings', shortcuts: name === 'shortcuts', properties: false, trackProfile: false });
+      setUi({ math: name === 'math-editor', palette: name === 'command-palette', settings: name === 'settings' || name === 'live-mode', shortcuts: name === 'shortcuts', properties: false, trackProfile: false });
       const ref = selectedLaps()[0];
       const venue = ref?.session.meta.venue ?? '';
       if (name === 'corners-and-gps') {
@@ -190,6 +194,12 @@ function installAutomation() {
       } else if (name === 'track-sections') {
         setUi({ trackProfile: true });
         setTimeout(() => document.querySelector('.track-editor-right')?.scrollTo(0, 99999), 50);
+      } else if (name === 'live-mode') {
+        // Screenshot profile only: show the Live mode settings switched on.
+        updateSettings({ live: { ...useStore.getState().settings.live, enabled: true, requireSim: true } });
+      } else if (name === 'tyre-wear' || name === 'tyre-wear-detail') {
+        setZoom(null);
+        setActiveSheet(sheetIndex(name === 'tyre-wear' ? 'Tyre Wear' : 'Tyre Wear Detail'));
       } else if (name === 'smoothing') {
         setActiveSheet(0);
         setSmoothing({ enabled: true, seconds: 0.2 });
@@ -354,6 +364,7 @@ export function App() {
     const offWs = pt().onWorkspacesChanged(() => useStore.getState().ready && syncWorkspacesFromFolder());
     const offFs = pt().onFullscreen((on) => document.documentElement.classList.toggle('fullscreen', on));
     const offOpen = pt().onOpenFiles((files) => openFiles(files, 'replace'));
+    const offLive = startLive();
     window.addEventListener('keydown', handleGlobalKey);
     window.addEventListener('error', (e) => useStore.setState((s) => ({ errors: [...s.errors, String(e.message)] })));
     return () => {
@@ -361,6 +372,7 @@ export function App() {
       offWs();
       offFs();
       offOpen();
+      offLive();
       window.removeEventListener('keydown', handleGlobalKey);
     };
   }, []);

@@ -114,6 +114,7 @@ No telemetry yet? Click **Bundled sample session** to explore a 6-lap Singapore 
   - duration, air/track temperature and size.
 - **Compare as many sessions as you like**: tick sessions across folders (your stints, another driver's), then **Add to open**. Selections survive browsing, double-click adds by default, and an *Open now* list shows what's loaded.
 - A details pane with every lap time, plus **live folder watching**.
+- **Live mode**: leave Project-Trace open while you drive and each new export opens by itself the moment Telemetrick writes it, optionally only while your sim is running.
 
 → [Session browser guide](docs/02-session-browser.md)
 
@@ -204,6 +205,9 @@ Edit any component in the docked **Properties side panel** (hidden at launch; to
 
 Four-corner tyre and brake panel, driver inputs (pedals, wheel, gear), dial/bar/digital gauges, and the full **car setup sheet** with side-by-side comparison and notes. → [Instruments guide](docs/09-instruments.md)
 
+### Tyre wear: where the rubber goes
+A wear model fitted to Assetto Corsa's own grip channel across 35 stints (median lap-by-lap R² 0.95). The **Tyre Wear** component shows each tyre's wear per lap against the reference, split into **lock-up / wheelspin / cornering slide**, and ranks the corners where a lap or a team-mate uses more rubber. The **Tyre Wear Rate** (0–100) and **Tyre Wear Lap** math channels put it on any graph, track map or lap trend. It compares fairly between drivers even when the game's wear settings differ. → [Tyre wear guide](docs/14-tyre-wear.md)
+
 ### Quality of life
 - Command palette (Ctrl/⌘+K) and full [keyboard shortcuts](docs/10-keyboard-and-mouse.md) (J, W, S, C, D, F3, F…), all **rebindable** in the shortcut editor (F1).
 - Units: km/h · mph · m/s, °C · °F, psi · bar · kPa. Dark and light themes.
@@ -253,6 +257,7 @@ Your workspaces are files in **Documents/Project-Trace/Workspaces** — see [03 
 | [11 · Supported file formats](docs/11-file-formats.md) | Telemetrick CSV, MoTeC .ld/.ldx, MoTeC CSV, generic CSV |
 | [12 · Settings & data](docs/12-settings-and-data.md) | Units, themes, smoothing, where everything is stored |
 | [13 · Architecture (developers)](docs/13-architecture.md) | Code structure, data flow, tests, adding components |
+| [14 · Tyre wear](docs/14-tyre-wear.md) | The wear model, how it was derived and validated, the Tyre Wear component and channels |
 
 ---
 

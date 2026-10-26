@@ -18,7 +18,7 @@ Project-Trace ships with two **read-only default workspaces**:
 
 | Default | What it is |
 |---|---|
-| **Starter** | The general layout: Overview, Driver, Racing Lines, Tyres, Brakes, Suspension, Aero, Engine & ERS, Lap Analysis, Session & Setup. |
+| **Starter** | The general layout: Overview, Driver, Racing Lines, Tyres, Tyre Wear, Tyre Wear Detail, Brakes, Suspension, Aero, Engine & ERS, Lap Analysis, Session & Setup. |
 | **Basic FA26** | A compact Formula Alpha 2026 layout: Overview (lap report, time breakdown, racing lines, corners, gain/loss map), Driver, Toggles, PU, Tyres, Stint Analysis, Session & Setup. |
 
 ![Basic FA26](images/basic-fa26.png)

@@ -23,7 +23,9 @@ function lapStat(s: Session, lap: Lap, cfg: TrendConfig): number {
   const ch = s.channels.get(cfg.channel);
   if (!ch) return NaN;
   const i0 = Math.max(0, Math.ceil((lap.start - ch.t0) * ch.rate));
-  const i1 = Math.min(ch.n - 1, Math.floor((lap.end - ch.t0) * ch.rate));
+  // Last sample strictly before the lap's end: a sample exactly on the line belongs to the next lap (where
+  // per-lap channels such as integrate_lap have already reset).
+  const i1 = Math.min(ch.n - 1, Math.ceil((lap.end - ch.t0) * ch.rate - 1e-6) - 1);
   const st = rangeStats(ch.data, i0, i1);
   const c = conv(ch);
   const raw = cfg.stat === 'mean' ? st.mean : cfg.stat === 'max' ? st.max : cfg.stat === 'min' ? st.min : cfg.stat === 'first' ? st.first : cfg.stat === 'last' ? st.last : st.last - st.first;
@@ -232,8 +234,9 @@ export function TrendView({ config }: { config: TrendConfig }) {
         }
     }
     ctx.restore();
-    drawFitNotes(ctx, fitNotes, rect.x + 4, rect.y + (series.length > 1 ? 18 : 4), T.surface, T.text);
-    if (series.length > 1) {
+    const showKey = series.length > 1 && !!config.showLegend;
+    drawFitNotes(ctx, fitNotes, rect.x + 4, rect.y + (showKey ? 18 : 4), T.surface, T.text);
+    if (showKey) {
       let x = rect.x + 8;
       for (const sr of series) {
         ctx.fillStyle = sr.color;

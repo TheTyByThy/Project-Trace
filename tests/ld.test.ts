@@ -12,7 +12,7 @@ const base = '24102026-152530-Lewis Hamilton-vrc_formula_alpha_2026_csp-singapor
 const ldDir = path.join(os.homedir(), 'Documents', 'Assetto Corsa', 'apps', 'telemetrick', 'exported', 'Lewis Hamilton', 'vrc_formula_alpha_2026_csp', 'singapore_2020-layout_f1_2026');
 const ldPath = path.join(ldDir, base + '.ld');
 const csvPath = path.join(__dirname, '..', 'sample-data', base + '.csv');
-const available = fs.existsSync(ldPath) && fs.existsSync(csvPath);
+const available = fs.existsSync(ldPath) && fs.existsSync(ldPath.replace(/\.ld$/, '.ldx')) && fs.existsSync(csvPath);
 
 const ab = (p: string) => {
   const b = fs.readFileSync(p);
@@ -20,9 +20,10 @@ const ab = (p: string) => {
 };
 
 describe.skipIf(!available)('MoTeC .ld reader matches the CSV export', () => {
-  const ldx = fs.readFileSync(ldPath.replace(/\.ld$/, '.ldx'), 'utf8');
-  const ld = parseLd(ab(ldPath), base + '.ld', ldx);
-  const csv = parseTelemetryCsv(ab(csvPath), base + '.csv');
+  // The suite body still runs when skipped, so only read the files when they exist.
+  const ldx = available ? fs.readFileSync(ldPath.replace(/\.ld$/, '.ldx'), 'utf8') : '';
+  const ld = available ? parseLd(ab(ldPath), base + '.ld', ldx) : (null as never);
+  const csv = available ? parseTelemetryCsv(ab(csvPath), base + '.csv') : (null as never);
 
   it('reads header metadata and .ldx laps', () => {
     expect(ld.meta.venue).toBe('singapore_2020-layout_f1_2026');

@@ -138,7 +138,7 @@ A notice lists the renames, and **Ctrl/⌘ + Z** undoes the whole thing. To chan
 | `lap_number()` | lap number (1 = out lap) |
 | `lap_distance()` | distance from the start/finish line (m) |
 
-## The default library (31 channels)
+## The default library (44 channels)
 
 | Channel | Expression (abridged) | Unit |
 |---|---|---|
@@ -149,6 +149,12 @@ A notice lists the renames, and **Ctrl/⌘ + Z** undoes the whole thing. To chan
 | Coasting | `choose('Throttle Pos' < 2 and 'Brake Pos' < 2 and 'Ground Speed' > 30, 1, 0)` | |
 | Full Throttle | `choose('Throttle Pos' > 98, 1, 0)` (lap mean = full-throttle %) | |
 | Braking Time Lap | `integrate_lap(choose('Brake Pos' > 5, 1, 0))` | s |
+| Brake Steer Combination | `100 × sqrt(brake share × steering share)`, with deadbands (2 % brake, 5° steering) and steering scaled to 90°. 0 = either input alone, 100 = full brake at 90° lock | % |
+| Brake Steer Combination Lap | `integrate_lap('Brake Steer Combination' / 100)`: seconds of "full brake at full lock" in the lap | s |
+| Trail Braking Time Lap | time braking (> 5 %) with more than 10° of lock | s |
+| Tyre Wear Rate FL/FR/RL/RR | `speed [m/s] × ndSlip × load / 5000`, capped at 100: where each tyre is wearing (see [14 · Tyre wear](14-tyre-wear.md)) | |
+| Tyre Wear Lap FL/FR/RL/RR | `integrate_lap(speed [m/s] × ndSlip × load / 5000)`: wear per lap in metres of full sliding at 5 kN | m |
+| Tyre Wear Rate Avg / Tyre Wear Lap Avg | the four tyres averaged | –, m |
 | Damper Velocity FL/FR/RL/RR | `derivative('Damper Travel FL')` | mm/s |
 | Tyre Temp Avg FL/FR/RL/RR | mean of inner/middle/outer | °C |
 | Tyre Temp Spread FL/FR/RL/RR | inner − outer (camber indicator) | °C |

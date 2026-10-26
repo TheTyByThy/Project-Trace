@@ -10,6 +10,7 @@ import { applyMathChannels, type MathChannelDef, type MathConstant } from '../co
 import { fastestLap, getLap, theoreticalBest } from '../core/session';
 import { lapKey, parseLapKey, type Lap, type Session, type XMode } from '../core/types';
 import { DEFAULT_UNITS, type UnitPrefs } from '../core/units';
+import { DEFAULT_LIVE, type LiveSettings } from '../core/sims';
 import { COMPONENT_CATALOG, createComponent } from './components';
 import { renameChannelsInWorkspace, type RenameMap } from './renameChannels';
 import { buildBlankWorkspace, buildDefaultWorkspace } from './defaultWorkspace';
@@ -77,6 +78,8 @@ export interface Settings {
   corners: CornerSettings;
   /** Keyboard shortcut overrides: action id → key combos (see src/shortcuts.ts). Missing = defaults. */
   shortcuts: Record<string, string[]>;
+  /** Live mode: open new telemetry exports as soon as they're written (see src/state/live.ts). */
+  live: LiveSettings;
   /** Bumped when a default changes in a way existing users should pick up (see initApp). */
   settingsVersion: number;
 }
@@ -103,6 +106,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showBrowserOnLaunch: true,
   corners: DEFAULT_CORNER_SETTINGS,
   shortcuts: {},
+  live: DEFAULT_LIVE,
   settingsVersion: 2,
 };
 
@@ -595,6 +599,7 @@ export async function initApp() {
     smoothing: { ...DEFAULT_SETTINGS.smoothing, ...(raw.smoothing ?? {}) },
     shortcuts: { ...(raw.shortcuts ?? {}) },
     corners: { ...DEFAULT_CORNER_SETTINGS, ...(raw.corners ?? {}) },
+    live: { ...DEFAULT_LIVE, ...(raw.live ?? {}) },
     settingsVersion: DEFAULT_SETTINGS.settingsVersion,
   };
   // v2: smoothing is on by default at 50 ms (older settings files saved it switched off).

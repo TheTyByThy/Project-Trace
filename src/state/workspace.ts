@@ -23,7 +23,8 @@ export type ComponentType =
   | 'fft'
   | 'gpstrack'
   | 'bars'
-  | 'breakdown';
+  | 'breakdown'
+  | 'tyrewear';
 
 export interface GraphPane {
   id: string;
@@ -106,6 +107,25 @@ export interface BreakdownConfig extends Base {
   showTimes?: boolean;
 }
 
+/** Tyre wear: how much rubber each tyre loses on each selected lap, why (lock-up / wheelspin / slide), and where. */
+export interface TyreWearConfig extends Base {
+  type: 'tyrewear';
+  /** Lap cards: one per tyre (default), or one card with the four tyres averaged. */
+  cards?: 'tyres' | 'average';
+  /** Tyre the "where" table looks at (default the four averaged). */
+  tyre?: 'all' | 'FL' | 'FR' | 'RL' | 'RR';
+  /** Rows: your corners and the straights between them, or fixed-length mini-sectors (default corners when defined). */
+  sections?: 'corners' | 'mini';
+  /** Comparison laps: also show each lap's own wear and lock-up / wheelspin / slide breakdown (default off: Δ only). */
+  showBreakdown?: boolean;
+  /** Rows for the straights between corners (default on; the whole-lap total still counts them). */
+  showStraights?: boolean;
+  /** Row order: around the lap, or biggest extra wear against the reference first. */
+  sort?: 'track' | 'delta';
+  /** Game's own grip loss (Tire Rubber Grip) next to each lap (default on). */
+  showGame?: boolean;
+}
+
 export interface ScatterConfig extends Base {
   type: 'scatter';
   x: string;
@@ -180,6 +200,8 @@ export interface TrackMapConfig extends Base {
   showStartFinish?: boolean;
   /** Car position dots at the cursor (default on). */
   showCars?: boolean;
+  /** Channel colouring: colour by the comparison lap minus the reference at the same lap distance (red = higher). */
+  channelDelta?: boolean;
   /** Gain/loss colouring: the comparison lap (lap key) compared with the reference; missing = the first one. */
   compareKey?: string;
   /** Gain/loss colouring: higher = smaller differences reach full colour (default 1). */
@@ -352,6 +374,8 @@ export interface TrendConfig extends Base {
   showFit?: boolean;
   fit?: FitKind;
   showEquation?: boolean;
+  /** Key of which colour is which stint, top left (default off — the colours follow the lap selection). */
+  showLegend?: boolean;
 }
 
 export interface CornersConfig extends Base {
@@ -389,7 +413,8 @@ export type ComponentConfig =
   | FftConfig
   | GpsTrackConfig
   | BarsConfig
-  | BreakdownConfig;
+  | BreakdownConfig
+  | TyreWearConfig;
 
 export type LayoutNode =
   | { kind: 'split'; id: string; dir: 'row' | 'col'; children: LayoutNode[]; sizes: number[] }

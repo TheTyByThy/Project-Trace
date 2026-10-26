@@ -134,7 +134,7 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
     }
 
     const custom = [config.customLow ?? '#1baf7a', config.customHigh ?? '#e66767'];
-    let legend: { kind: 'ramp'; label: string; min: string; max: string; ramp: RampName } | { kind: 'laps' } | { kind: 'delta'; cmp: SelectedLap } | null = null;
+    let legend: { kind: 'ramp'; label: string; min: string; max: string; ramp: RampName } | { kind: 'laps' } | { kind: 'delta'; cmp: SelectedLap; low: string; high: string; label?: string } | null = null;
     const colorSegments = (values: Float64Array, lo: number, hi: number, ramp: RampName, i0 = 0, i1 = n - 1) => {
       const lut = rampLUT(ramp, theme, custom);
       const span = hi - lo || 1;
@@ -179,7 +179,48 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
       lo = -lim;
       hi = lim;
       rampName = config.ramp === 'custom' ? 'custom' : 'gainloss';
-      legend = { kind: 'delta', cmp };
+      legend = { kind: 'delta', cmp, low: '◀ gaining', high: 'losing ▶' };
+    } else if (config.channelDelta && config.colorBy !== 'lap' && config.colorBy !== 'delta' && laps.length > 1 && ref.lap.index !== -1) {
+      // Channel difference: comparison lap minus reference at the same lap distance, on a 4 m grid,
+      // averaged over the smoothing distance; full colour at the 95th percentile of |Δ|.
+      const cmp = compareLap(laps, config.compareKey);
+      const chR = ref.session.channels.get(config.colorBy);
+      const chC = cmp.session.channels.get(config.colorBy);
+      if (chR && chC && cmp.lap.index !== -1) {
+        const c = conv(chR);
+        const L = ref.lap.distD[ref.lap.distD.length - 1] ?? 0;
+        const m = Math.max(2, Math.floor(L / 4));
+        const dist = new Float64Array(m);
+        const raw = new Float64Array(m);
+        for (let k = 0; k < m; k++) {
+          const d = (k * L) / (m - 1);
+          dist[k] = d;
+          const tr = crossingTime(ref.lap, d);
+          const tc = crossingTime(cmp.lap, d);
+          raw[k] = Number.isFinite(tr) && Number.isFinite(tc) ? (sampleAt(chC, tc) - sampleAt(chR, tr)) * c.k : NaN;
+        }
+        const half = Math.max(0, Math.round((config.deltaSmoothing ?? 32) / 8));
+        const sm = new Float64Array(m);
+        for (let k = 0; k < m; k++) {
+          let s = 0;
+          let cnt = 0;
+          for (let j = Math.max(0, k - half); j <= Math.min(m - 1, k + half); j++)
+            if (Number.isFinite(raw[j])) {
+              s += raw[j];
+              cnt++;
+            }
+          sm[k] = cnt ? s / cnt : NaN;
+        }
+        const abs = Array.from(sm).filter(Number.isFinite).map(Math.abs).sort((a, b) => a - b);
+        const lim = Math.max(1e-9, (abs[Math.floor(abs.length * 0.95)] || 1) / Math.max(0.05, config.deltaSensitivity ?? 1));
+        colorValues = new Float64Array(n);
+        for (let i = 0; i < n; i++) colorValues[i] = interp(dist, sm, lapDistAt(ref.lap, path.t[i]));
+        lo = -lim;
+        hi = lim;
+        rampName = config.ramp === 'custom' ? 'custom' : 'gainloss';
+        const unit = c.unit ? ` ${c.unit}` : '';
+        legend = { kind: 'delta', cmp, low: `◀ lower (−${formatValue(lim, channelDps(chR))}${unit})`, high: `higher ▶`, label: `Δ ${channelLabel(chR.name)}` };
+      }
     } else if (config.colorBy !== 'lap' && config.colorBy !== 'delta') {
       const ch = ref.session.channels.get(config.colorBy);
       if (ch) {
@@ -338,9 +379,9 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
       ctx.fillStyle = g;
       ctx.fillRect(10, ly - 4, bw, 8);
       ctx.fillStyle = T.text3;
-      ctx.fillText(legend.kind === 'ramp' ? legend.min : '◀ gaining', 10, ly + 13);
+      ctx.fillText(legend.kind === 'ramp' ? legend.min : legend.low, 10, ly + 13);
       ctx.textAlign = 'right';
-      ctx.fillText(legend.kind === 'ramp' ? legend.max : 'losing ▶', 10 + bw, ly + 13);
+      ctx.fillText(legend.kind === 'ramp' ? legend.max : legend.high, 10 + bw, ly + 13);
       ctx.textAlign = 'left';
       ctx.fillStyle = T.text2;
       if (legend.kind === 'ramp') ctx.fillText(legend.label, 18 + bw, ly);
@@ -362,8 +403,9 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
         x += ctx.measureText('vs').width + 6;
         block(ref.color);
         ctx.fillStyle = T.text2;
-        ctx.fillText('reference', x, ly);
-        x += ctx.measureText('reference').width;
+        const what = legend.label ? `reference · ${legend.label}` : 'reference';
+        ctx.fillText(what, x, ly);
+        x += ctx.measureText(what).width;
         // With several comparison laps the comparison block is a switch (click to pick another lap).
         if (laps.length > 2) {
           ctx.fillStyle = T.text3;
@@ -383,6 +425,7 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
         x += ctx.measureText(label).width + 32;
       }
       if (config.colorBy === 'delta') ctx.fillText('Select a second lap to see where time is gained or lost', 10, ly - 16);
+      else if (config.channelDelta) ctx.fillText('Select a comparison lap to see where it differs from the reference', 10, ly - 16);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [size, config, sessions, lapSel, refKey, xMode, zoom, dataVersion, theme, profiles, working, highlight]);
@@ -469,7 +512,7 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
   /** Items to pick which comparison lap the gain/loss colouring uses. */
   const compareItems = (): MenuItem[] => {
     const laps = selectedLaps();
-    if (config.colorBy !== 'delta' || laps.length < 3) return [];
+    if ((config.colorBy !== 'delta' && !(config.channelDelta && config.colorBy !== 'lap')) || laps.length < 3) return [];
     const cur = compareLap(laps, config.compareKey);
     return [
       { header: 'Compare with the reference' },

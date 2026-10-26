@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { computeVariance, varianceAt, xToTime } from '../core/axis';
 import { formatAxisTime, formatDelta, formatLapTime, prettyCar, prettyTrack } from '../core/format';
 import { lapAtTime, lapDistAt, lapLabel } from '../core/session';
+import { useLive } from '../state/live';
 import {
   activeSheet,
   activeWorkspace,
@@ -49,6 +50,25 @@ export function Logo({ size = 22 }: { size?: number }) {
   );
 }
 
+
+/** Live mode indicator (only while it's on): watching / waiting for the sim. Click for its settings. */
+function LiveIndicator() {
+  const live = useStore((s) => s.settings.live);
+  const { watching, simRunning } = useLive();
+  if (!live.enabled) return null;
+  const waiting = live.requireSim && simRunning === false;
+  const state = !watching ? 'off' : waiting ? 'wait' : 'on';
+  const title = !watching
+    ? 'Live mode is on, but no telemetry folder is being watched — set one in Settings.'
+    : `Live mode: new exports in your telemetry folders open automatically${live.action === 'add' ? ', added to the open sessions' : ', replacing the open sessions'}.` +
+      (live.requireSim ? (waiting ? ' Waiting for a chosen sim to start.' : ' A chosen sim is running.') : '') +
+      ' Click for settings.';
+  return (
+    <button className={'btn ghost live-ind ' + state} title={title} onClick={() => setUi({ settings: true })}>
+      <span className="dot" /> Live
+    </button>
+  );
+}
 
 /** Smoothing toggle + amount popover (display only; statistics use raw data). */
 function SmoothingControl() {
@@ -172,6 +192,7 @@ export function TopBar() {
       ) : (
         <span className="muted">No session open</span>
       )}
+      <LiveIndicator />
       <span className="grow" />
       <button className="btn ghost ws-label" title="Workspaces: switch, save, open the workspaces folder, import or export" onClick={(e) => openMenu(e, workspaceMenuItems())}>
         ▦ {ws?.name}

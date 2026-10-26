@@ -8,6 +8,7 @@ import { activeSheet, activeWorkspace, addComponent, removeComponentById, select
 import { TYRE_FIELDS, uid, type BarRow, type BarsConfig, type ComponentConfig, type GaugeDef, type GraphConfig, type GraphPane, type InputRole, type InputsConfig, type TrackMapConfig } from '../state/workspace';
 import { BAR_OPS, barCondition } from '../charts/BarsView';
 import { compareLap } from '../charts/TrackMapView';
+import { MINI_SECTOR } from '../charts/TyreWearView';
 import { lapLabel } from '../core/session';
 import { formatLapTime } from '../core/format';
 import { FIT_KINDS, fitSettings, type FitOptions } from '../core/fit';
@@ -543,7 +544,14 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
                   </div>
                 </>
               )}
-              {c.colorBy === 'delta' && (
+              {c.colorBy !== 'lap' && c.colorBy !== 'delta' && (
+                <Check
+                  label="Difference: comparison lap − reference"
+                  value={!!c.channelDelta}
+                  onChange={(v) => up({ channelDelta: v, ramp: v && c.ramp !== 'custom' ? 'gainloss' : !v && c.ramp === 'gainloss' ? 'blue' : c.ramp })}
+                />
+              )}
+              {(c.colorBy === 'delta' || (c.channelDelta && c.colorBy !== 'lap')) && (
                 <>
                   <CompareLapField c={c} />
                   <F label={`Gain / loss sensitivity (×${(c.deltaSensitivity ?? 1).toFixed(2)})`}>
@@ -617,6 +625,35 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
               <Check label="Reference lap's time in each section" value={c.showTimes !== false} onChange={(v) => up({ showTimes: v })} />
               <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
                 The lap is split at your corners into low, medium and high-speed corners and the straights between them. The four add up to the whole lap.
+              </div>
+            </G>
+          </div>
+          <div>
+            <TrackEditorLink />
+          </div>
+        </div>
+      );
+    case 'tyrewear':
+      return (
+        <div className="props-grid">
+          <div>
+            <G title="Tyre wear">
+              <F label="Lap cards">
+                <Select value={c.cards ?? 'tyres'} options={[['tyres', 'One per tyre'], ['average', 'Average of the four tyres']]} onChange={(v) => up({ cards: v })} />
+              </F>
+              <F label="Sections">
+                <Select value={c.sections ?? 'corners'} options={[['corners', 'Corners & straights'], ['mini', `${MINI_SECTOR} m mini-sectors`]]} onChange={(v) => up({ sections: v })} />
+              </F>
+              <F label="Order">
+                <Select value={c.sort ?? 'track'} options={[['track', 'Around the lap'], ['delta', 'Biggest extra wear first']]} onChange={(v) => up({ sort: v })} />
+              </F>
+              <Check label="Straights between corners" value={c.showStraights !== false} onChange={(v) => up({ showStraights: v })} />
+              <Check label="Comparison laps: show their own wear breakdown, not just Δ" value={!!c.showBreakdown} onChange={(v) => up({ showBreakdown: v })} />
+              <Check label="Game's grip loss (Tire Rubber Grip) next to each lap" value={c.showGame !== false} onChange={(v) => up({ showGame: v })} />
+              <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+                Wear is speed × normalised slip × tyre load, summed over the lap: metres of full sliding at 5 kN. It follows the game's rubber wear closely, and
+                because it only depends on the driving it compares fairly between drivers and stints even when the wear-rate setting differs. Without corners
+                defined, the lap is split into {MINI_SECTOR} m mini-sectors.
               </div>
             </G>
           </div>
@@ -716,6 +753,7 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
               </F>
             )}
             <Check label="Valid laps only" value={c.validOnly} onChange={(v) => up({ validOnly: v })} />
+            <Check label="Stint key (which colour is which session)" value={!!c.showLegend} onChange={(v) => up({ showLegend: v })} />
             {!c.channel && (
               <>
                 <F label="Lap times">

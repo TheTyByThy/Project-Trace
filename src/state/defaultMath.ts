@@ -68,6 +68,40 @@ export const DEFAULT_MATH_CHANNELS: MathChannelDef[] = [
   ...corners.map((c) =>
     def(`Tyre Temp Spread ${c}`, `'Tire Temp Inner ${c}' - 'Tire Temp Outer ${c}'`, 'C', `Inner minus outer temperature (${c}) — a camber indicator.`, 1),
   ),
+  // Tyre wear (src/core/tyreWear.ts, docs/14-tyre-wear.md): speed × normalised slip × load — the load-weighted
+  // sliding distance that drives Assetto Corsa's rubber wear. 100 = 100 m/s of it (peak slip at 240 km/h, 7.5 kN).
+  ...corners.map((c) =>
+    def(
+      `Tyre Wear Rate ${c}`,
+      `clamp(smooth('Ground Speed' [m/s] * 'ndSlip ${c}' * max('Tire Load ${c}', 0), 0.2) / 5000, 0, 100)`,
+      '',
+      `How fast the ${c} tyre is wearing right now, 0–100 (speed × normalised slip × load). Colour a track map by it to see where the rubber goes: lock-ups, wheelspin and slides light up.`,
+      0,
+    ),
+  ),
+  ...corners.map((c) =>
+    def(
+      `Tyre Wear Lap ${c}`,
+      `integrate_lap('Ground Speed' [m/s] * 'ndSlip ${c}' * max('Tire Load ${c}', 0) / 5000)`,
+      'm',
+      `${c} tyre wear accumulated in the lap: metres of full sliding at 5 kN. Proportional to the grip the game takes off (Tire Rubber Grip); use the lap's last value in a Lap Trend to compare laps, stints and drivers.`,
+      0,
+    ),
+  ),
+  def(
+    'Tyre Wear Rate Avg',
+    "('Tyre Wear Rate FL' + 'Tyre Wear Rate FR' + 'Tyre Wear Rate RL' + 'Tyre Wear Rate RR') / 4",
+    '',
+    'Wear rate averaged over the four tyres, 0–100. Colour a track map by its difference to the reference to see where a lap uses more rubber.',
+    0,
+  ),
+  def(
+    'Tyre Wear Lap Avg',
+    "('Tyre Wear Lap FL' + 'Tyre Wear Lap FR' + 'Tyre Wear Lap RL' + 'Tyre Wear Lap RR') / 4",
+    'm',
+    "Wear accumulated in the lap, averaged over the four tyres. Its end-of-lap value in a Lap Trend is the stint's tyre-wear figure per lap.",
+    0,
+  ),
   def('Rake', "'Ride Height Rear' - 'Ride Height Front'", 'mm', 'Rear minus front ride height.', 1),
   def('Total Downforce', "'Aero Downforce F' + 'Aero Downforce R'", 'N', 'Front + rear downforce.', 0),
   def(

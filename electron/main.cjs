@@ -8,6 +8,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const { pathToFileURL } = require('node:url');
+const { execFile } = require('node:child_process');
 
 const IS_DEV = !!process.env.PT_DEV_URL;
 const DIST_DIR = path.join(__dirname, '..', 'dist');
@@ -456,6 +457,9 @@ function registerIpc() {
   });
 
   ipcMain.handle('fs:watch', (_e, dir) => watchDir(dir));
+  ipcMain.handle('live:watch', (_e, dirs) => liveWatch(dirs));
+  ipcMain.handle('live:processes', () => runningProcesses());
+  ipcMain.handle('window:flash', () => mainWindow && !mainWindow.isFocused() && mainWindow.flashFrame(true));
   ipcMain.handle('shell:showItem', (_e, p) => shell.showItemInFolder(p));
   ipcMain.handle('app:capture', async () => toArrayBuffer((await mainWindow.webContents.capturePage()).toPNG()));
   ipcMain.handle('print:sheetPdf', (_e, opts) => printSheetPdf(opts));
@@ -690,6 +694,83 @@ function watchDir(dir) {
   } catch {
     return false;
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Live mode: watch the telemetry folders (and everything under them) for new exports, and tell the
+// renderer about each one once the exporter has finished writing it.
+// ---------------------------------------------------------------------------------------------
+
+let liveWatchers = [];
+let liveSince = 0;
+const liveSettling = new Map();
+const liveDone = new Set();
+
+/** Watch these folders recursively for new .csv / .ld files; returns how many folders are watched. */
+function liveWatch(dirs) {
+  for (const w of liveWatchers) w.close();
+  liveWatchers = [];
+  for (const t of liveSettling.values()) clearTimeout(t);
+  liveSettling.clear();
+  liveSince = Date.now();
+  for (const dir of Array.isArray(dirs) ? dirs : []) {
+    if (!dir || !fs.existsSync(dir)) continue;
+    try {
+      const w = fs.watch(dir, { persistent: false, recursive: true }, (_ev, rel) => {
+        if (!rel) return;
+        const file = path.join(dir, rel.toString());
+        if (/\.(csv|ld)$/i.test(file) && !liveDone.has(file) && !liveSettling.has(file)) liveSettle(file, -1, 0);
+      });
+      w.on('error', () => {});
+      liveWatchers.push(w);
+    } catch {
+      // Folder vanished or can't be watched; the others still are.
+    }
+  }
+  return liveWatchers.length;
+}
+
+/**
+ * Exporters write big files over several seconds: report a file once its size has held still for two
+ * checks (and, for MoTeC .ld, once its .ldx lap file exists). Files older than the watch are ignored, so
+ * touching an old export doesn't reopen it. Gives up after ~10 minutes.
+ */
+function liveSettle(file, lastSize, stable, tries = 0) {
+  const t = setTimeout(async () => {
+    liveSettling.delete(file);
+    let st;
+    try {
+      st = await fsp.stat(file);
+    } catch {
+      return; // deleted or renamed (temp file)
+    }
+    if (st.birthtimeMs && st.birthtimeMs < liveSince - 2000 && st.mtimeMs < liveSince) return;
+    const ready = st.size > 0 && st.size === lastSize && (!/\.ld$/i.test(file) || fs.existsSync(file + 'x'));
+    if (ready && stable >= 1) {
+      liveDone.add(file);
+      if (mainWindow) mainWindow.webContents.send('live:file', file);
+      return;
+    }
+    if (tries < 600) liveSettle(file, st.size, ready ? stable + 1 : 0, tries + 1);
+  }, 1000);
+  liveSettling.set(file, t);
+}
+
+/** Lower-cased executable names of every running process (for "only while a sim is running"). */
+function runningProcesses() {
+  return new Promise((resolve) => {
+    const win = process.platform === 'win32';
+    const [cmd, args] = win ? ['tasklist', ['/FO', 'CSV', '/NH']] : ['ps', ['-A', '-o', 'comm=']];
+    execFile(cmd, args, { windowsHide: true, maxBuffer: 16 * 1024 * 1024 }, (err, stdout) => {
+      if (err) return resolve(null);
+      const names = String(stdout)
+        .split(/\r?\n/)
+        .map((l) => (win ? (l.match(/^"([^"]+)"/) || [])[1] : path.basename(l.trim())))
+        .filter(Boolean)
+        .map((n) => n.toLowerCase());
+      resolve([...new Set(names)]);
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------------------------

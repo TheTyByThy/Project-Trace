@@ -73,6 +73,12 @@ export interface PtBridge {
   readFile(file: string): Promise<ArrayBuffer>;
   readRange(file: string, offset: number, length: number): Promise<ArrayBuffer>;
   watchDir(dir: string): Promise<boolean>;
+  /** Live mode: watch these folders recursively for new exports (replaces the previous set); resolves to how many are watched. */
+  liveWatch(dirs: string[]): Promise<number>;
+  /** Lower-cased names of running executables, or null if they can't be listed. */
+  runningProcesses(): Promise<string[] | null>;
+  /** Flash the taskbar / Dock icon if the window isn't focused (never steals focus). */
+  flashWindow(): Promise<void>;
   showItemInFolder(p: string): Promise<void>;
   capture(): Promise<ArrayBuffer>;
   getLibrary(): Promise<any[]>;
@@ -82,6 +88,8 @@ export interface PtBridge {
   onMenu(cb: (action: string) => void): () => void;
   onOpenFiles(cb: (files: string[]) => void): () => void;
   onDirChanged(cb: (dir: string) => void): () => void;
+  /** Live mode: a new export finished writing. */
+  onLiveFile(cb: (file: string) => void): () => void;
   /** Files changed in the workspaces folder (e.g. a shared workspace was dropped in). */
   onWorkspacesChanged(cb: () => void): () => void;
   /** Capture a rectangle of the window (CSS px) and save it as a titled one-page PDF; resolves to the path or null. */

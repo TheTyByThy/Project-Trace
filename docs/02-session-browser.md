@@ -79,6 +79,18 @@ Telemetrick records CSP's sim clock as a **UTC timestamp** (`UTC Time` channel).
 
 While a track folder is open, Project-Trace **watches it**. Save a new export from Telemetrick and it appears in the list a second or two later ("● watching for new exports").
 
+## Live mode: open new runs automatically
+
+With **Settings → Live mode → Open new exports automatically** on, you don't need the browser at all between runs. Leave Project-Trace open, drive, and when Telemetrick writes the export it opens by itself.
+
+- **What's watched:** every telemetry folder in the browser's list, and everything inside them, so a new track or car folder is picked up too. A file is opened once it has stopped growing for a couple of seconds; a MoTeC `.ld` waits for its `.ldx` lap file. If Telemetrick writes a `.csv` and an `.ld` of the same run, it's opened once. Files that were already there when Live mode started are never opened.
+- **New session:**
+  - **Add to the open sessions** (default): the new run joins what's open, and its fastest lap becomes an overlay on your current reference. This is the way to compare stint after stint.
+  - **Replace them:** you always look at just the latest run.
+- **Only while a sim is running** (off by default): exports are only opened while a chosen sim is running, or was within the last 15 minutes, since the export is often written as you quit. Tick **Assetto Corsa** (`acs.exe`), **Assetto Corsa Competizione**, or type other program names. Use this if a team-mate's files get synced into your folders and you don't want them popping open. Leave it off if your telemetry syncs from the sim PC to a different analysis computer, because the sim never runs there.
+- **It never takes focus from the sim.** The taskbar or Dock icon flashes, and a toast says which run was opened.
+- A **● Live** pill in the top bar shows it's on: green when watching, amber while it waits for a sim, grey when no folder is set. Click it to open Settings.
+
 ## MoTeC `.ld` files
 
 Telemetrick also writes a MoTeC `.ld` log (plus `.ldx` lap/setup sidecar) for every export, and older sessions may only exist in that format. Project-Trace lists and opens them too:

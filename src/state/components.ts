@@ -18,6 +18,7 @@ export const COMPONENT_CATALOG: { type: ComponentType; label: string; icon: stri
   { type: 'trend', label: 'Lap Trend', icon: '📈', description: 'A per-lap statistic across the session (lap time, max temp, fuel…).' },
   { type: 'gauges', label: 'Gauges', icon: '◔', description: 'Dial, bar and digital gauges showing values at the cursor.' },
   { type: 'inputs', label: 'Driver Inputs', icon: '🎮', description: 'Pedals, steering wheel, gear and speed at the cursor.' },
+  { type: 'tyrewear', label: 'Tyre Wear', icon: '◍', description: 'How much rubber each tyre loses per lap, why (lock-ups, wheelspin, slides) and in which corners — against the reference.' },
   { type: 'tyres', label: 'Tyres & Brakes', icon: '◫', description: 'Four-corner tyre temperatures, pressures, loads and brake temps.' },
   { type: 'fft', label: 'Frequency (FFT)', icon: '∿', description: 'Frequency spectrum of a channel — ride and damper analysis.' },
   { type: 'details', label: 'Session & Setup', icon: 'ℹ', description: 'Session details, full car setup (with comparison) and notes.' },
@@ -118,6 +119,9 @@ export function createComponent(type: ComponentType, patch: Partial<ComponentCon
       break;
     case 'tyres':
       c = { id, type, mode: 'cursor' };
+      break;
+    case 'tyrewear':
+      c = { id, type, tyre: 'all', sort: 'track', showGame: true };
       break;
     case 'details':
       c = { id, type, tab: 'setup', diffOnly: false };

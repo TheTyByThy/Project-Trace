@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { pt } from '../core/bridge';
 import { buildCommands } from '../actions';
 import { bindings, comboFromEvent, formatCombo, keyHint, SHORTCUTS } from '../shortcuts';
-import { DEFAULT_SETTINGS, setDefaultTelemetryFolder, setSmoothing, setUi, toast, updateSettings, useStore } from '../state/store';
+import { DEFAULT_SETTINGS, setDefaultTelemetryFolder, setSmoothing, setUi, telemetryFolders, toast, updateSettings, useStore } from '../state/store';
+import { SIMS, type LiveSettings } from '../core/sims';
+import { useLive } from '../state/live';
 
 export function SettingsDialog() {
   const s = useStore((st) => st.settings);
@@ -14,6 +16,10 @@ export function SettingsDialog() {
     pt().workspacesDir().then(setWsDir);
   }, []);
   const close = () => setUi({ settings: false });
+  const live = s.live;
+  const liveStatus = useLive();
+  const setLive = (patch: Partial<LiveSettings>) => updateSettings({ live: { ...live, ...patch } });
+  const folders = telemetryFolders(s);
   const seg = <T extends string>(value: T, options: [T, string][], onChange: (v: T) => void) => (
     <div className="seg">
       {options.map(([v, l]) => (
@@ -59,6 +65,58 @@ export function SettingsDialog() {
               </button>
             </div>,
             'Default Telemetrick export folder (exported, a driver folder or a car folder). Add more folder shortcuts in the session browser.',
+          )}
+          {row(
+            'Live mode',
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label className="check">
+                <input type="checkbox" checked={live.enabled} onChange={(e) => setLive({ enabled: e.target.checked })} />
+                Open new exports automatically
+              </label>
+              {live.enabled && (
+                <>
+                  <div className="row">
+                    <span className="muted" style={{ fontSize: 12 }}>
+                      New session:
+                    </span>
+                    {seg(live.action, [['add', 'Add to the open sessions'], ['replace', 'Replace them']], (v) => setLive({ action: v }))}
+                  </div>
+                  <label className="check">
+                    <input type="checkbox" checked={live.requireSim} onChange={(e) => setLive({ requireSim: e.target.checked })} />
+                    Only while a sim is running (or was in the last 15 minutes)
+                  </label>
+                  {live.requireSim && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingLeft: 22 }}>
+                      {SIMS.map((sim) => (
+                        <label key={sim.id} className="check" title={sim.processes.join(', ')}>
+                          <input
+                            type="checkbox"
+                            checked={live.sims.includes(sim.id)}
+                            onChange={(e) => setLive({ sims: e.target.checked ? [...live.sims, sim.id] : live.sims.filter((x) => x !== sim.id) })}
+                          />
+                          {sim.name}
+                        </label>
+                      ))}
+                      <input
+                        className="input"
+                        placeholder="Other programs, e.g. MySim.exe, OtherSim.exe"
+                        value={live.extraProcesses}
+                        onChange={(e) => setLive({ extraProcesses: e.target.value })}
+                      />
+                      <div className="muted" style={{ fontSize: 11.5 }}>
+                        {liveStatus.simRunning === null ? 'Checking…' : liveStatus.simRunning ? '● A chosen sim is running now.' : '○ No chosen sim running.'}
+                      </div>
+                    </div>
+                  )}
+                  <div className="muted" style={{ fontSize: 11.5 }}>
+                    {folders.length
+                      ? `Watching ${liveStatus.watching} of ${folders.length} telemetry folder${folders.length === 1 ? '' : 's'} (and everything inside): ${folders.map((f) => f.name).join(', ')}.`
+                      : 'Set a telemetry folder above first — Live mode watches your telemetry folders.'}
+                  </div>
+                </>
+              )}
+            </div>,
+            "Finish a run in the sim and the new export opens here by itself, as long as Project-Trace is running. It never takes focus from the sim — the taskbar / Dock icon flashes instead. Leave 'only while a sim is running' off if your telemetry syncs to another computer.",
           )}
           {row('Speed', seg(s.units.speed, [['kph', 'km/h'], ['mph', 'mph'], ['m/s', 'm/s']], (v) => updateSettings({ units: { ...s.units, speed: v } })))}
           {row('Temperature', seg(s.units.temperature, [['C', '°C'], ['F', '°F']], (v) => updateSettings({ units: { ...s.units, temperature: v } })))}

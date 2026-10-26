@@ -17,6 +17,7 @@ import { ScatterView } from './ScatterView';
 import { TrackMapView } from './TrackMapView';
 import { TimeBreakdownView } from './TimeBreakdownView';
 import { TrendView } from './TrendView';
+import { TyreWearView } from './TyreWearView';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const VIEWS: Record<ComponentType, FC<{ config: any }>> = {
@@ -38,6 +39,7 @@ export const VIEWS: Record<ComponentType, FC<{ config: any }>> = {
   tyres: TyresView,
   fft: FftView,
   details: DetailsView,
+  tyrewear: TyreWearView,
 };
 
 export function defaultTitle(c: ComponentConfig): string {
@@ -51,7 +53,7 @@ export function defaultTitle(c: ComponentConfig): string {
     case 'mixture':
       return `${channelLabel(c.y)} × ${channelLabel(c.x)}`;
     case 'trackmap':
-      return c.colorBy === 'lap' ? 'Track map' : c.colorBy === 'delta' ? 'Track map — gain/loss' : `Track map — ${channelLabel(c.colorBy)}`;
+      return c.colorBy === 'lap' ? 'Track map' : c.colorBy === 'delta' ? 'Track map — gain/loss' : `Track map — ${c.channelDelta ? 'Δ ' : ''}${channelLabel(c.colorBy)}`;
     case 'laps':
       return 'Stint report';
     case 'lapreport':
@@ -76,6 +78,8 @@ export function defaultTitle(c: ComponentConfig): string {
       return 'GPS track — racing lines';
     case 'breakdown':
       return 'Time breakdown';
+    case 'tyrewear':
+      return 'Tyre wear';
     case 'bars':
       return c.rows.map((r) => r.label || channelLabel(r.channel)).slice(0, 3).join(', ') || 'Bars';
   }

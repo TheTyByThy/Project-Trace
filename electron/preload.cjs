@@ -32,6 +32,9 @@ contextBridge.exposeInMainWorld('pt', {
   readFile: (file) => ipcRenderer.invoke('fs:readFile', file),
   readRange: (file, offset, length) => ipcRenderer.invoke('fs:readRange', file, offset, length),
   watchDir: (dir) => ipcRenderer.invoke('fs:watch', dir),
+  liveWatch: (dirs) => ipcRenderer.invoke('live:watch', dirs),
+  runningProcesses: () => ipcRenderer.invoke('live:processes'),
+  flashWindow: () => ipcRenderer.invoke('window:flash'),
   showItemInFolder: (p) => ipcRenderer.invoke('shell:showItem', p),
   capture: () => ipcRenderer.invoke('app:capture'),
   printSheetPdf: (opts) => ipcRenderer.invoke('print:sheetPdf', opts),
@@ -42,6 +45,7 @@ contextBridge.exposeInMainWorld('pt', {
   onMenu: on('menu:action'),
   onOpenFiles: on('app:open-files'),
   onDirChanged: on('fs:changed'),
+  onLiveFile: on('live:file'),
   onWorkspacesChanged: on('workspaces:changed'),
   onFullscreen: on('window:fullscreen'),
 });

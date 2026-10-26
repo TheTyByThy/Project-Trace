@@ -296,6 +296,24 @@ label.check {
 .topbar > .session-pill {
   flex-shrink: 1;
 }
+/* Live mode indicator in the top bar. */
+.live-ind {
+  gap: 6px;
+  font-size: 12px;
+}
+.live-ind .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+.live-ind.on .dot {
+  background: var(--gain);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gain) 25%, transparent);
+}
+.live-ind.wait .dot {
+  background: #c98500;
+}
 .session-pill.clickable {
   font: inherit;
   color: inherit;
@@ -1596,6 +1614,51 @@ table.grid td.bad {
   left: 50%;
   background: var(--loss);
   border-radius: 0 2px 2px 0;
+}
+
+/* Tyre wear: four-corner cards (one row per selected lap) and the lock-up / wheelspin / slide bars. */
+.wear-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 8px 12px 4px;
+}
+.wear-grid.single {
+  grid-template-columns: minmax(0, 1fr);
+}
+.wear-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 6px 6px;
+  background: var(--surface-2);
+}
+.wear-card-head {
+  font-weight: 700;
+  font-size: 12px;
+  padding: 0 2px 4px;
+}
+.wear-row {
+  display: grid;
+  grid-template-columns: 30px minmax(40px, 1fr) 62px 52px 52px;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.wear-bar {
+  display: block;
+  height: 8px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--text-3) 14%, transparent);
+}
+.legend-swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  vertical-align: -1px;
 }
 
 /* Track editor page: map + rotation on the left, corners / detection / splits on the right. */

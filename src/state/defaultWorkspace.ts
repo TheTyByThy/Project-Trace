@@ -1,4 +1,4 @@
-// The Starter workspace (also the template for new workspaces): ten worksheets covering every
+// The Starter workspace (also the template for new workspaces): twelve worksheets covering every
 // component type. Corners are user-defined per track, so corner markers stay empty until you add some.
 
 import { DEFAULT_MATH_CHANNELS } from './defaultMath';
@@ -128,6 +128,75 @@ export function buildDefaultWorkspace(name = 'Starter'): Workspace {
             ),
           ],
           [0.6, 0.4],
+        ),
+      ),
+    );
+  }
+  {
+    // Tyre wear overview: everything averaged over the four tyres, and the track map coloured by how much
+    // more (red) or less (green) rubber the comparison lap uses than the reference.
+    const b = new SheetBuilder();
+    sheets.push(
+      b.sheet(
+        'Tyre Wear',
+        split(
+          'row',
+          [
+            split(
+              'col',
+              [
+                b.add('graph', { title: 'Tyre wear rate (average of 4)', panes: [pane(['Ground Speed'], 0.8), pane(['Tyre Wear Rate Avg'])] } as Partial<ComponentConfig>),
+                b.add('trend', { title: 'Tyre wear per lap (average of 4)', channel: 'Tyre Wear Lap Avg', stat: 'last' } as Partial<ComponentConfig>),
+              ],
+              [0.55, 0.45],
+            ),
+            split(
+              'col',
+              [
+                b.add('tyrewear', { cards: 'average', tyre: 'all' } as Partial<ComponentConfig>),
+                b.add('trackmap', { title: 'Track map — Δ wear rate vs reference', colorBy: 'Tyre Wear Rate Avg', channelDelta: true, ramp: 'gainloss', deltaSmoothing: 48 } as Partial<ComponentConfig>),
+              ],
+              [0.58, 0.42],
+            ),
+          ],
+          [0.5, 0.5],
+        ),
+      ),
+    );
+  }
+  {
+    // Tyre wear detail: the same, split per tyre (FL / FR / RL / RR).
+    const b = new SheetBuilder();
+    const trend = (t: string) => b.add('trend', { title: `${t} wear per lap`, channel: `Tyre Wear Lap ${t}`, stat: 'last' } as Partial<ComponentConfig>);
+    const map = (t: string) =>
+      b.add('trackmap', { title: `${t} — Δ wear rate`, colorBy: `Tyre Wear Rate ${t}`, channelDelta: true, ramp: 'gainloss', deltaSmoothing: 48, showCorners: false, showLegend: false } as Partial<ComponentConfig>);
+    sheets.push(
+      b.sheet(
+        'Tyre Wear Detail',
+        split(
+          'row',
+          [
+            split(
+              'col',
+              [
+                b.add('graph', {
+                  title: 'Tyre wear rate per tyre',
+                  panes: [pane(['Tyre Wear Rate FL']), pane(['Tyre Wear Rate FR']), pane(['Tyre Wear Rate RL']), pane(['Tyre Wear Rate RR'])],
+                } as Partial<ComponentConfig>),
+                split('row', [split('col', [map('FL'), map('RL')], [0.5, 0.5]), split('col', [map('FR'), map('RR')], [0.5, 0.5])], [0.5, 0.5]),
+              ],
+              [0.5, 0.5],
+            ),
+            split(
+              'col',
+              [
+                b.add('tyrewear', { cards: 'tyres', tyre: 'FL' } as Partial<ComponentConfig>),
+                split('row', [split('col', [trend('FL'), trend('RL')], [0.5, 0.5]), split('col', [trend('FR'), trend('RR')], [0.5, 0.5])], [0.5, 0.5]),
+              ],
+              [0.55, 0.45],
+            ),
+          ],
+          [0.5, 0.5],
         ),
       ),
     );
