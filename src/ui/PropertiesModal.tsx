@@ -10,6 +10,7 @@ import { BAR_OPS, barCondition } from '../charts/BarsView';
 import { compareLap } from '../charts/TrackMapView';
 import { lapLabel } from '../core/session';
 import { formatLapTime } from '../core/format';
+import { FIT_KINDS, fitSettings, type FitOptions } from '../core/fit';
 import { defaultTitle } from '../charts/registry';
 import { keyHint } from '../shortcuts';
 import { channelLabel, conv, findChannel } from '../charts/data';
@@ -44,6 +45,28 @@ function Select<T extends string>({ value, options, onChange }: { value: T; opti
         </option>
       ))}
     </select>
+  );
+}
+
+/** Best-fit line on/off, its kind, and the equation toggle (Lap Trend, Scatter). */
+function FitFields({ c, up, note }: { c: FitOptions; up: (p: FitOptions) => void; note: string }) {
+  const f = fitSettings(c);
+  return (
+    <>
+      <Check label="Best fit line" value={f.on} onChange={(v) => up({ showFit: v, fit: f.kind })} />
+      {f.on && (
+        <>
+          <F label="Fit type">
+            <Select value={f.kind} options={FIT_KINDS} onChange={(v) => up({ fit: v, showFit: true })} />
+          </F>
+          <Check label="Show the equation and R²" value={f.equation} onChange={(v) => up({ showEquation: v })} />
+        </>
+      )}
+      <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+        {note} Exponential and power fits need positive values, logarithmic and power fits a positive x. R² is how well the line fits (1 = perfectly). Also on
+        the chart's right-click menu.
+      </div>
+    </>
   );
 }
 
@@ -660,9 +683,7 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
               <button className="btn small" onClick={() => up({ x: c.y, y: c.x, xMin: c.yMin, xMax: c.yMax, yMin: c.xMin, yMax: c.xMax })}>
                 ⇄ Swap X and Y
               </button>
-              <F label="Curve fit">
-                <Select value={c.fit} options={[['none', 'None'], ['linear', 'Linear'], ['poly2', 'Quadratic'], ['poly3', 'Cubic']]} onChange={(v) => up({ fit: v })} />
-              </F>
+              <FitFields c={c} up={up} note="One line per selected lap, through its points." />
               <Check label="X-interval averages" value={c.intervalAvg} onChange={(v) => up({ intervalAvg: v })} />
               {c.intervalAvg && (
                 <F label="Intervals">
@@ -709,6 +730,9 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
                 </div>
               </>
             )}
+          </G>
+          <G title="Best fit">
+            <FitFields c={c} up={up} note="One line per session (and for raw and fuel-corrected times separately), with lap number as x. A linear fit also shows the change per lap." />
           </G>
           <G title="Y axis">
             <AxisRange label="Y axis" min={c.yMin} max={c.yMax} onChange={(a, b) => up({ yMin: a, yMax: b })} />

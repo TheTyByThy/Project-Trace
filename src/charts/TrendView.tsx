@@ -1,10 +1,12 @@
 // Lap trend: one statistic per lap across the session (lap time by default). Each loaded session
 // is a series; invalid laps are drawn hollow. Click a point to make that lap the reference; drag a
-// rectangle to zoom; the y-axis range can be fixed in the Properties.
+// rectangle to zoom; the y-axis range can be fixed in the Properties. An optional best-fit line (linear,
+// polynomial, exponential…) runs through each series, with its equation.
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { CATEGORICAL } from '../core/colors';
-import { formatLapTime, formatValue, prettyTrack } from '../core/format';
+import { CATEGORICAL, withAlpha } from '../core/colors';
+import { fitCurve, fitEquation, fitRequirement, fitSettings } from '../core/fit';
+import { formatDelta, formatLapTime, formatValue, prettyTrack } from '../core/format';
 import { rangeStats } from '../core/stats';
 import { lapKey, type Lap, type Session } from '../core/types';
 import { selectLap, sessionsWithSelection, updateComponent, useStore } from '../state/store';
@@ -13,6 +15,8 @@ import { drawAxes, drawMarker, makeAxes, padRange, type Axes } from './axes';
 import { BoxZoomLayer, type View } from './BoxZoom';
 import { chartTheme, prepCanvas, useElementSize } from './canvas';
 import { channelDps, channelLabel, conv } from './data';
+import { drawFitLine, drawFitNotes, fitMenuItems } from './fitLines';
+import { openMenu } from '../ui/overlays';
 
 function lapStat(s: Session, lap: Lap, cfg: TrendConfig): number {
   if (!cfg.channel) return lap.complete ? lap.time : NaN;
@@ -38,6 +42,8 @@ export function fuelCorrected(s: Session, lap: Lap, secPerLitre: number): number
   const st = rangeStats(ch.data, Math.max(0, Math.ceil((lap.start - ch.t0) * ch.rate)), Math.min(ch.n - 1, Math.floor((lap.end - ch.t0) * ch.rate)));
   return st.count ? lap.time - secPerLitre * st.mean : NaN;
 }
+
+const seriesName = (s: Session) => `${prettyTrack(s.meta.venue).track} ${new Date(s.meta.savedAt ?? 0).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 
 export function TrendView({ config }: { config: TrendConfig }) {
   const [wrapRef, size] = useElementSize<HTMLDivElement>();
@@ -186,7 +192,35 @@ export function TrendView({ config }: { config: TrendConfig }) {
         }
       }
     }
+    // Best-fit line through each series (raw and fuel-corrected fitted separately), x = lap number.
+    const fit = fitSettings(config);
+    const fitNotes: { color: string; text: string }[] = [];
+    if (fit.on) {
+      for (const sr of series)
+        for (const [pts, what] of [
+          [sr.pts, 'raw'],
+          [sr.corr, 'fuel-corrected'],
+        ] as const) {
+          if (!pts.length) continue;
+          const xs = pts.map((p) => p.l.number);
+          const prefix = [series.length > 1 ? seriesName(sr.s) : '', mode === 'both' ? what : ''].filter(Boolean).join(' · ');
+          const f = fitCurve(
+            xs,
+            pts.map((p) => p.v),
+            fit.kind,
+          );
+          if (!f) {
+            fitNotes.push({ color: sr.color, text: `${prefix ? prefix + ': ' : ''}no fit (${fitRequirement(fit.kind)})` });
+            continue;
+          }
+          drawFitLine(ctx, A, f, Math.min(...xs), Math.max(...xs), withAlpha(sr.color, 0.8));
+          if (!fit.equation) continue;
+          const slope = f.kind === 'linear' ? `   (${formatDelta(f.coef[1], config.channel ? Math.max(2, dps) : 3)} ${unit}/lap)` : '';
+          fitNotes.push({ color: sr.color, text: `${prefix ? prefix + ':  ' : ''}${fitEquation(f)}   R² = ${f.r2.toFixed(3)}${slope}` });
+        }
+    }
     ctx.restore();
+    drawFitNotes(ctx, fitNotes, rect.x + 4, rect.y + (series.length > 1 ? 18 : 4), T.surface, T.text);
     if (series.length > 1) {
       let x = rect.x + 8;
       for (const sr of series) {
@@ -194,14 +228,16 @@ export function TrendView({ config }: { config: TrendConfig }) {
         ctx.fillRect(x, rect.y + 6, 10, 4);
         ctx.fillStyle = T.text2;
         ctx.textAlign = 'left';
-        const name = `${prettyTrack(sr.s.meta.venue).track} ${new Date(sr.s.meta.savedAt ?? 0).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        const name = seriesName(sr.s);
         ctx.fillText(name, x + 14, rect.y + 8);
         x += ctx.measureText(name).width + 30;
       }
     }
     ctx.fillStyle = T.text3;
     ctx.textAlign = 'left';
-    const fuelNote = mode === 'raw' ? '' : `${mode === 'both' ? 'dashed ◆ = ' : ''}fuel-corrected (−${k} s per litre on board) · `;
+    const fuelNote =
+      (mode === 'raw' ? '' : `${mode === 'both' ? 'dashed ◆ = ' : ''}fuel-corrected (−${k} s per litre on board) · `) +
+      (fit.on && fit.equation ? `fit: x = lap number, y in ${config.channel ? unit || 'channel units' : 'seconds'} · ` : '');
     ctx.fillText(viewRef.current ? 'zoomed — double-click to reset' : `${fuelNote}hollow = invalid lap · click a point to make it the reference · drag to zoom`, rect.x, h - 8);
   }, [size, config, sessions, lapSel, refKey, dataVersion, theme]);
 
@@ -228,6 +264,10 @@ export function TrendView({ config }: { config: TrendConfig }) {
       )}
       <BoxZoomLayer
         axesRef={axesRef}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          openMenu(e, fitMenuItems(config));
+        }}
         onView={(v) => {
           viewRef.current = v;
           draw();

@@ -24,7 +24,7 @@ Plots one channel against another, sample by sample. Channels at different rates
 | **X / Y** | any channels (Properties → *Swap X and Y*) |
 | **Colour** | *Lap colours* (with different marker shapes per lap) or **a third channel** on a colour ramp, with a legend |
 | **Gate** | only plot samples where a channel is non-zero, e.g. gate on `Throttle Brake Overlap` or a math channel like `'Brake Pos' > 10` |
-| **Curve fit** | linear, quadratic or cubic least-squares fit per lap, with the equation and **R²** |
+| **Best fit line** | on/off, per lap: **linear**, **polynomial** (2nd, 3rd or 4th order), **exponential**, **logarithmic** or **power**, with an optional **equation and R²** box. Toggle the line and the equation from the chart's right-click menu; choose the type in Properties. Exponential and power need positive y, logarithmic and power positive x — otherwise the box says *no fit*. |
 | **X-interval averages** | MoTeC's "interval average": the mean Y in N equal bands of X, drawn as a line; sparse bands are ignored |
 | **Axes & scales** | **fixed X and Y min/max** in Properties (blank = automatic; *Auto* clears them). Right-click → *Axis ranges & scales…* jumps there. |
 | **Equal aspect** | same scale on both axes; with two G channels it draws **friction circles** at 1 G, 2 G… (a G-G diagram). Ignored while fixed ranges are set. |
@@ -86,8 +86,11 @@ One statistic per lap across the session, with each loaded session as a series:
 - invalid laps drawn hollow; option to show valid laps only;
 - **click a point** to make that lap the reference (Ctrl/⌘ + click to overlay);
 - **Y-axis range**: set a fixed min/max in Properties. Lap times are in seconds, e.g. 100–104 for 1:40–1:44. Or drag a rectangle to zoom.
+- **Best fit line** (off by default): right-click the chart → *Best fit line* and *Show fit equation*, or Properties → *Best fit* to pick **linear, polynomial (2nd–4th order), exponential, logarithmic or power**. One dashed line per session (raw and fuel-corrected fitted separately), with x = lap number; the equation box shows each fit with **R²**, and a linear fit also shows the change per lap (e.g. `−0.120 s/lap` — your pace or degradation trend).
 - **Raw / Fuel-corrected / Both** (top right of the chart, lap time only): fuel-corrected = lap time − *fuel effect* × the average fuel on board during the lap — each lap as if run on an empty tank, so stint pace and tyre degradation aren't hidden by the car getting lighter. *Both* draws the corrected times as a dashed line with ◆ markers. The fuel effect (default **0.03 s per litre**) is a slider in Properties. It needs a fuel level channel.
 
 ![Raw and fuel-corrected lap times](images/fuel-corrected.png)
+
+![Lap trend with a 2nd-order polynomial fit and its equation](images/trend-fit.png)
 
 Ideas: tyre temperature build-up (`Tyre Temp Avg RR`, mean), fuel burn (`Fuel Level`, end), degradation (`Tire Rubber Grip RR`, mean), consistency (lap time).

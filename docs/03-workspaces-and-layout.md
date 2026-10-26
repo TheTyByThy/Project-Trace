@@ -165,8 +165,8 @@ What's inside depends on the component:
 | Component | Highlights |
 |---|---|
 | Graph | Display options (variance, legends, grid lines, line widths, marker lines for all graphs) plus a **panes & channels** section: each pane lists its channels with a **show / hide** toggle, **colour swatch**, unit, sample rate and range, a **Properties…** button and a right-click menu (colour, move to another pane, remove). Pane scale, height, order (drag a pane by its **⋮⋮** title, or ↑ / ↓) and shared y-range are here too. |
-| Scatter | **Axes & scales**: fixed X and Y min/max (blank = automatic) and equal aspect, plus channels, colour, gate, fit, interval averages. |
-| Lap Trend | Statistic and **Y-axis min/max**. |
+| Scatter | **Axes & scales**: fixed X and Y min/max (blank = automatic) and equal aspect, plus channels, colour, gate, **best fit line** (type and equation), interval averages. |
+| Lap Trend | Statistic, lap-time mode and fuel effect, **best fit line** (type and equation), and **Y-axis min/max**. |
 | Track Map | Colouring, including **custom low/high colours** and gain/loss **sensitivity** and **smoothing**, display options (zoom to the graphs' selection, outline, start/finish, car dots, legend), and a link to the **Track editor** (rotation, corners, splits). |
 | GPS Track | Line width, framing, follow-cursor, scale bar, legend, offset readout, plus a link to the Track editor. |
 | Corner Report / Time Breakdown | Metric, straights and totals, or bars; plus a link to the Track editor (corners, ranges, speed buckets). |

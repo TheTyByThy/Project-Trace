@@ -152,10 +152,10 @@ No telemetry yet? Click **Bundled sample session** to explore a 6-lap Singapore 
 
 - **Scatter / XY**:
   - colour by lap or a third channel;
-  - linear, quadratic or cubic **fits with R²**;
+  - **best fit lines** — linear, polynomial (2nd–4th order), exponential, logarithmic or power — with the equation and **R²**;
   - X-interval averages and a gate channel;
   - **fixed X/Y axis ranges** in the Properties, and a G-G diagram mode.
-- **Histograms** with zone breakdowns (damper velocities), **mixture maps**, **FFT** and **lap trend** (with a settable y-axis).
+- **Histograms** with zone breakdowns (damper velocities), **mixture maps**, **FFT** and **lap trend** (with a settable y-axis and the same best fit lines, incl. the change per lap).
 - **Drag a rectangle to zoom** on scatter, lap trend, histogram and FFT charts; double-click to reset.
 
 → [XY charts guide](docs/06-xy-charts.md)

@@ -143,6 +143,8 @@ function installAutomation() {
       'zoom-measure',
       'fuel-corrected',
       'gg-envelope',
+      'trend-fit',
+      'scatter-fit',
       'playback',
       'bars',
       'bars-combined',
@@ -206,6 +208,14 @@ function installAutomation() {
         setActiveSheet(sheetIndex('Lap Analysis'));
         const t = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'trend' && !c.channel);
         if (t) updateComponent(t.id, { lapTimes: 'both' });
+      } else if (name === 'trend-fit') {
+        setActiveSheet(sheetIndex('Lap Analysis'));
+        const t = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'trend' && !c.channel);
+        if (t) updateComponent(t.id, { lapTimes: 'raw', showFit: true, fit: 'poly2', showEquation: true });
+      } else if (name === 'scatter-fit') {
+        setActiveSheet(sheetIndex('Driver'));
+        const sc = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'scatter');
+        if (sc) updateComponent(sc.id, { showFit: true, fit: 'linear', showEquation: true });
       } else if (name === 'gg-envelope') {
         setActiveSheet(sheetIndex('Driver'));
       } else if (name === 'playback') {

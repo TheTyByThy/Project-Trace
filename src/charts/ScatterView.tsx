@@ -9,10 +9,12 @@ import { sampleAt } from '../core/channel';
 import { CATEGORICAL, rampColor, withAlpha } from '../core/colors';
 import { formatValue } from '../core/format';
 import { lapLabel } from '../core/session';
-import { evalPoly, polyFit } from '../core/stats';
+import { fitCurve, fitEquation, fitRequirement, fitSettings } from '../core/fit';
 import { selectedLaps, useStore } from '../state/store';
 import type { ScatterConfig } from '../state/workspace';
 import { drawAxes, drawMarker, makeAxes, padRange, type Axes } from './axes';
+import { drawFitLine, drawFitNotes, fitMenuItems } from './fitLines';
+import { openMenu } from '../ui/overlays';
 import { BoxZoomLayer, type View } from './BoxZoom';
 import { chartTheme, prepCanvas, useElementSize, useStoreListener } from './canvas';
 import { channelLabel, conv, findChannel, lapWindow, sampleGrid } from './data';
@@ -198,8 +200,8 @@ export function ScatterView({ config }: { config: ScatterConfig }) {
         drawMarker(ctx, sets.length > 1 ? s.l.slot : 0, A.px(x), A.py(y), ps);
       }
     }
-    const fitDeg = config.fit === 'linear' ? 1 : config.fit === 'poly2' ? 2 : config.fit === 'poly3' ? 3 : 0;
-    const notes: string[] = [];
+    const fit = fitSettings(config);
+    const notes: { color: string; text: string }[] = [];
     for (const s of sets) {
       const xs: number[] = [];
       const ys: number[] = [];
@@ -244,26 +246,12 @@ export function ScatterView({ config }: { config: ScatterConfig }) {
           ctx.fill();
         }
       }
-      if (fitDeg) {
-        const f = polyFit(xs, ys, fitDeg);
-        if (f) {
-          ctx.strokeStyle = lineColor;
-          ctx.lineWidth = 2;
-          ctx.setLineDash([6, 3]);
-          ctx.beginPath();
-          for (let k = 0; k <= 100; k++) {
-            const x = xmn + ((xmx - xmn) * k) / 100;
-            const X = A.px(x),
-              Y = A.py(evalPoly(f.coef, x));
-            if (k === 0) ctx.moveTo(X, Y);
-            else ctx.lineTo(X, Y);
-          }
-          ctx.stroke();
-          ctx.setLineDash([]);
-          const terms = f.coef
-            .map((c, i) => (i === 0 ? c.toPrecision(4) : `${c >= 0 ? '+' : '−'} ${Math.abs(c).toPrecision(3)}x${i > 1 ? '^' + i : ''}`))
-            .join(' ');
-          notes.push(`${lapLabel(s.l.lap)}: y = ${terms}   R² = ${f.r2.toFixed(3)}`);
+      if (fit.on && xs.length) {
+        const f = fitCurve(xs, ys, fit.kind);
+        if (!f) notes.push({ color: lineColor, text: `${lapLabel(s.l.lap)}: no fit (${fitRequirement(fit.kind)})` });
+        else {
+          drawFitLine(ctx, A, f, xmn, xmx, lineColor);
+          if (fit.equation) notes.push({ color: lineColor, text: `${lapLabel(s.l.lap)}:  ${fitEquation(f)}   R² = ${f.r2.toFixed(3)}` });
         }
       }
     }
@@ -295,11 +283,11 @@ export function ScatterView({ config }: { config: ScatterConfig }) {
       }
     }
     ctx.restore();
-    ctx.fillStyle = T.text2;
     ctx.textAlign = 'left';
-    notes.slice(0, 4).forEach((n, i) => ctx.fillText(n, rect.x + 8, rect.y + 12 + i * 14));
+    const shown = notes.slice(0, 4);
+    drawFitNotes(ctx, shown, rect.x + 4, rect.y + 4, T.surface, T.text);
     envNotes.slice(0, 4).forEach((n, i) => {
-      const y = rect.y + 12 + (notes.length + i) * 16;
+      const y = rect.y + 12 + (shown.length + (shown.length ? 0.5 : 0) + i) * 16;
       const tw = ctx.measureText(n.text).width + 10;
       ctx.fillStyle = withAlpha(n.color, 0.3);
       ctx.fillRect(rect.x + 6, y - 7, tw, 14);
@@ -373,6 +361,10 @@ export function ScatterView({ config }: { config: ScatterConfig }) {
       <canvas ref={overRef} />
       <BoxZoomLayer
         axesRef={axesRef}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          openMenu(e, fitMenuItems(config));
+        }}
         onView={(v) => {
           viewRef.current = v;
           drawBase();

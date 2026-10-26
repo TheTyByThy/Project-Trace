@@ -3,6 +3,7 @@
 
 import type { MathChannelDef, MathConstant } from '../core/math/evaluate';
 import type { RampName } from '../core/colors';
+import type { FitKind } from '../core/fit';
 
 export type ComponentType =
   | 'graph'
@@ -111,7 +112,10 @@ export interface ScatterConfig extends Base {
   y: string;
   color: string; // 'lap' or channel name
   pointSize: number;
-  fit: 'none' | 'linear' | 'poly2' | 'poly3';
+  /** Best-fit curve kind ('none' = off, from older configs) — see FitOptions. */
+  fit: FitKind | 'none';
+  showFit?: boolean;
+  showEquation?: boolean;
   equalAspect: boolean;
   useZoom: boolean;
   intervalAvg: boolean;
@@ -344,6 +348,10 @@ export interface TrendConfig extends Base {
   lapTimes?: 'raw' | 'corrected' | 'both';
   /** Fuel correction: seconds of lap time per litre of fuel on board (default 0.03). */
   fuelEffect?: number;
+  /** Best-fit line through each series (off by default), its kind, and whether to show its equation. */
+  showFit?: boolean;
+  fit?: FitKind;
+  showEquation?: boolean;
 }
 
 export interface CornersConfig extends Base {
