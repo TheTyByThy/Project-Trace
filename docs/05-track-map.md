@@ -33,7 +33,7 @@ Both share the **rotation dial**, the per-track **corners, sections and rotation
 
 **Corner Report hover**: hovering a corner or straight in the Corner Report highlights that stretch on the track map — a white outline, with the rest of the track dimmed.
 
-**Zoom to the graphs' selection**: select a range on a time/distance graph and the track map frames that part of the lap (the rest is dimmed, without a border). Scroll/drag to adjust; double-click to reset. Both can be switched off in Properties, together with the outline, start/finish line, car dots and legend.
+**Zoom to the graphs' selection**: select a range on a time/distance graph and the track map frames that part of the lap (the rest is dimmed, without a border). Scroll/drag to adjust; double-click to reset. Both can be switched off in Properties, together with the outline, start/finish line, car dots and legend. **Sector lines** (S2, S3…) and **split lines** (your splits) switch on and off separately — right-click the map or use Properties.
 
 ## GPS Track: comparing racing lines
 
@@ -51,7 +51,7 @@ Interactions are the same as the Track Map: scroll to zoom (much deeper on the G
 - line width;
 - frame the zoomed range;
 - follow cursor;
-- sector/corner labels, scale bar, lap legend and the offset readout (the readout's lap values are tinted in each lap's colour).
+- sector, split and corner labels (each switched separately), scale bar, lap legend and the offset readout (the readout's lap values are tinted in each lap's colour).
 
 ## The rotation dial
 
@@ -87,6 +87,6 @@ Every "edit corners" link in the app leads here. On the **left** is the referenc
 
 **Corner detection & speed buckets** (sliders, for every track): padding before the lift / braking point and after full throttle, the full-throttle level, and the low / high speed thresholds.
 
-**Splits** work like corners (**+ Add at cursor**, or right-click → **Add split at cursor…**). They divide the lap into named parts for the Lap and Stint Reports' *Custom sections* columns.
+**Splits** work like corners (**+ Add at cursor**, or right-click → **Add split at cursor…**): they're named lines across the track. The parts of the lap between them are **sections** — with two splits there are three: S/F → first split, first → second, second → S/F. Name each one in the **Sections** table under the splits (e.g. *Sector 1, Sector 2, Sector 3*); the names are the Lap and Stint Reports' *Custom sections* column headers. Empty = "Section n".
 
 Everything outside a corner counts as a straight. Corners appear on graphs (*Corner markers*), both maps (*Corner labels*) and in the **Corner Report**. Everything in the Track editor is saved per venue, shared by all workspaces, and undoable.

@@ -10,7 +10,7 @@ import { fastestLap, segmentTimes, theoreticalBest } from '../core/session';
 import { rangeStats } from '../core/stats';
 import { lapKey, type Lap, type Session } from '../core/types';
 import { convertUnit } from '../core/units';
-import { selectLap, selectedLaps, trackProfile, updateComponent, useStore } from '../state/store';
+import { sectionNames, selectLap, selectedLaps, trackProfile, updateComponent, useStore } from '../state/store';
 import type { LapReportConfig, SelectedLapReportConfig } from '../state/workspace';
 
 function lapExtras(s: Session, lap: Lap) {
@@ -68,7 +68,7 @@ export function LapReportView({ config }: { config: LapReportConfig | SelectedLa
               ? [...s.sectorSplits.map((_, i) => `S${i + 1}`), `S${s.sectorSplits.length + 1}`]
               : []
             : config.split === 'sections' && sections.length
-              ? ['Start', ...sections.map((x) => x.name)]
+              ? sectionNames(trackProfile(s.meta.venue))
               : [];
         const rows = s.laps.map((lap) => {
           const splits =
@@ -177,7 +177,7 @@ export function LapReportView({ config }: { config: LapReportConfig | SelectedLa
             <th className="l">Lap</th>
             <th>Time</th>
             {show.delta && <th>{onlySelected ? 'Δ ref' : 'Δ best'}</th>}
-            {show.splits && headSplits.map((n) => <th key={n}>{n}</th>)}
+            {show.splits && headSplits.map((n, i) => <th key={i}>{n}</th>)}
             {config.showStats && <th>V max</th>}
             {config.showStats && hasFuel && <th>Fuel</th>}
           </tr>

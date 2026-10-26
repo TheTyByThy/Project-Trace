@@ -9,7 +9,7 @@ import { formatValue } from '../core/format';
 import { rangeStats } from '../core/stats';
 import type { ChannelInfo, Session } from '../core/types';
 import { selectedLaps, updateComponent, useStore, type SelectedLap } from '../state/store';
-import { TYRE_FIELDS, type GaugeDef, type GaugesConfig, type InputsConfig, type TyreField, type TyresConfig } from '../state/workspace';
+import { TYRE_FIELDS, type GaugeDef, type GaugesConfig, type InputRole, type InputsConfig, type TyreField, type TyresConfig } from '../state/workspace';
 import { openChannelPicker } from '../ui/overlays';
 import { chartTheme, prepCanvas, roundRect, useElementSize, useStoreListener } from './canvas';
 import { channelDps, channelLabel, conv } from './data';
@@ -226,22 +226,28 @@ export function InputsView({ config }: { config: InputsConfig }) {
       const cmp = config.showCompare ? laps[1] : undefined;
       const t = cursorTime(sel);
       const tc = cmp ? cursorTime(cmp) : null;
-      const k = sel.session.key;
+      // The channel behind each part: chosen in Properties, else the automatically detected one.
+      const chan = (s: Session, role: InputRole) => config.channels?.[role] || s.key[role];
       const pedalH = h - 44;
-      // AC logs clutch as engagement (100 = pedal released); show pedal travel instead.
-      const clutchInverted = /^clutch pos$/i.test(k.clutch ?? '');
+      // AC logs clutch as engagement (100 = pedal released); show pedal travel instead, unless overridden.
+      const clutchInverted = config.invert?.clutch ?? /^clutch pos$/i.test(chan(sel.session, 'clutch') ?? '');
       const bars = [
         ...(config.showPedals !== false
           ? [
-              { label: 'THR', role: 'throttle' as const, color: pal[2], invert: false },
-              { label: 'BRK', role: 'brake' as const, color: pal[7], invert: false },
+              { label: 'THR', role: 'throttle' as const, color: pal[2], invert: !!config.invert?.throttle },
+              { label: 'BRK', role: 'brake' as const, color: pal[7], invert: !!config.invert?.brake },
             ]
           : []),
         ...(config.showClutch !== false ? [{ label: 'CLU', role: 'clutch' as const, color: pal[4], invert: clutchInverted }] : []),
       ];
+      // Pedals as 0–100 %: channels logged 0–1 are scaled up, ones beyond 100 are scaled to their maximum.
       const pedal = (s: Session, role: 'throttle' | 'brake' | 'clutch', tt: number | null, invert: boolean) => {
-        const raw = val(s, s.key[role], tt);
-        return Math.max(0, Math.min(100, invert ? 100 - raw : raw));
+        const name = chan(s, role);
+        const ch = name ? s.channels.get(name) : undefined;
+        let pct = val(s, name, tt);
+        if (ch && ch.max <= 1.01) pct *= 100;
+        else if (ch && ch.max > 100.5) pct = (pct / ch.max) * 100;
+        return Math.max(0, Math.min(100, invert ? 100 - pct : pct));
       };
       const bw = Math.max(14, Math.min(26, w * 0.06));
       bars.forEach((b, i) => {
@@ -278,7 +284,7 @@ export function InputsView({ config }: { config: InputsConfig }) {
       const r = showWheel ? Math.max(16, Math.min(rem * 0.3, h * 0.36)) : 0;
       const cx = left + r + 6;
       const cy = h / 2 - 6;
-      const steer = val(sel.session, k.steering, t);
+      const steer = val(sel.session, chan(sel.session, 'steering'), t);
       const drawWheel = (angleDeg: number, color: string, ghost: boolean) => {
         ctx.save();
         ctx.translate(cx, cy);
@@ -309,7 +315,7 @@ export function InputsView({ config }: { config: InputsConfig }) {
       if (showWheel) {
         // Rotate with the same sign as the Steering Angle trace, so the wheel turns the way the trace goes.
         drawWheel(steer, T.text2, false);
-        if (cmp) drawWheel(val(cmp.session, cmp.session.key.steering, tc), cmp.color, true);
+        if (cmp) drawWheel(val(cmp.session, chan(cmp.session, 'steering'), tc), cmp.color, true);
         ctx.fillStyle = T.text;
         ctx.textAlign = 'center';
         ctx.font = T.mono;
@@ -319,12 +325,14 @@ export function InputsView({ config }: { config: InputsConfig }) {
       const gx = showWheel ? cx + r + 24 : left;
       const gw = w - gx - 10;
       if (gw > 40) {
-        const gear = val(sel.session, k.gear, t);
-        const sp = k.speed ? sel.session.channels.get(k.speed) : undefined;
+        const gear = val(sel.session, chan(sel.session, 'gear'), t);
+        const speedName = chan(sel.session, 'speed');
+        const sp = speedName ? sel.session.channels.get(speedName) : undefined;
         const spc = sp ? conv(sp) : { k: 1, b: 0, unit: '' };
-        const speed = val(sel.session, k.speed, t) * spc.k + spc.b;
-        const rpmCh: ChannelInfo | undefined = k.rpm ? sel.session.channels.get(k.rpm) : undefined;
-        const rpm = val(sel.session, k.rpm, t);
+        const speed = val(sel.session, speedName, t) * spc.k + spc.b;
+        const rpmName = chan(sel.session, 'rpm');
+        const rpmCh: ChannelInfo | undefined = rpmName ? sel.session.channels.get(rpmName) : undefined;
+        const rpm = val(sel.session, rpmName, t);
         ctx.textAlign = 'center';
         ctx.fillStyle = T.text;
         ctx.font = `700 ${Math.min(h * 0.38, gw * 0.5)}px "SF Mono", Consolas, monospace`;
@@ -349,7 +357,7 @@ export function InputsView({ config }: { config: InputsConfig }) {
         }
       }
     },
-    [config.showCompare, config.showPedals, config.showClutch, config.showSteering, config.showGear, config.showSpeed, config.showRpm],
+    [config.showCompare, config.showPedals, config.showClutch, config.showSteering, config.showGear, config.showSpeed, config.showRpm, config.channels, config.invert],
   );
   return (
     <div ref={wrapRef} className="chart">

@@ -69,7 +69,7 @@ Two components show lap and sector times:
 
 **Absolute / Δ to ref** (Lap Report, next to the split buttons): show the comparison laps' sectors as times (default) or as the difference to the reference's sectors, e.g. **+0.321** (red = slower, green = faster).
 
-The Stint Report's last row is the **Ideal** lap. Switch the split columns between **Game sectors**, **Custom sections** (from your splits, see [05](05-track-map.md)) and **None**. Columns (Δ, splits, ideal row, tags, max speed & fuel) can be switched off in Properties.
+The Stint Report's last row is the **Ideal** lap. Switch the split columns between **Game sectors**, **Custom sections** (the sections between your splits, named in the Track editor — see [05](05-track-map.md)) and **None**. Columns (Δ, splits, ideal row, tags, max speed & fuel) can be switched off in Properties.
 
 ## Lap colours in side-by-side data
 

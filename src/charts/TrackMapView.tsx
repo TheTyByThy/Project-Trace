@@ -304,10 +304,8 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
     };
     if (ref.lap.index !== -1) {
       if (config.showStartFinish !== false) tickAt(0, 'S/F', true);
-      if (config.showSectors) {
-        ref.session.sectorSplits.forEach((d, i) => tickAt(d, `S${i + 2}`, true));
-        prof.sections.forEach((s) => tickAt(s.dist, s.name, false));
-      }
+      if (config.showSectors) ref.session.sectorSplits.forEach((d, i) => tickAt(d, `S${i + 2}`, true));
+      if (config.showSplits ?? config.showSectors) prof.sections.forEach((s) => tickAt(s.dist, s.name, false));
       if (config.showCorners) {
         for (const c of prof.corners) {
           const t = crossingTime(ref.lap, c.dist);
@@ -488,7 +486,7 @@ export function TrackMapView({ config }: { config: TrackMapConfig }) {
 
   const onContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    openMenu(e, [...compareItems(), ...trackMapMenuItems(venue, config.id, { showSectors: config.showSectors, showCorners: config.showCorners })]);
+    openMenu(e, [...compareItems(), ...trackMapMenuItems(venue, config.id, { showSectors: config.showSectors, showSplits: config.showSplits ?? config.showSectors, showCorners: config.showCorners })]);
   };
 
   return (
@@ -564,13 +562,15 @@ export function compareLap(laps: SelectedLap[], key: string | undefined): Select
 }
 
 /** Context-menu items shared by the Track Map and GPS Track (kept short; the rest is in Properties). */
-export function trackMapMenuItems(venue: string, componentId: string, flags: { showSectors: boolean; showCorners: boolean }): MenuItem[] {
+export function trackMapMenuItems(venue: string, componentId: string, flags: { showSectors: boolean; showSplits: boolean; showCorners: boolean }): MenuItem[] {
   const st = useStore.getState();
   const ref = selectedLaps(st)[0];
   const canMark = !!ref && st.cursor != null && ref.lap.index !== -1;
   return [
     // The shortcuts switch these on every graph and map at once; the menu items switch this map only.
-    { label: 'Sector & section lines', checked: flags.showSectors, shortcut: keyHint('toggle-sectors'), onClick: () => updateComponent(componentId, { showSectors: !flags.showSectors }) },
+    // Splits are pinned to their current state when sectors change (older maps had one switch for both).
+    { label: 'Sector lines (S2, S3…)', checked: flags.showSectors, shortcut: keyHint('toggle-sectors'), onClick: () => updateComponent(componentId, { showSectors: !flags.showSectors, showSplits: flags.showSplits }) },
+    { label: 'Split lines (your splits)', checked: flags.showSplits, shortcut: keyHint('toggle-splits'), onClick: () => updateComponent(componentId, { showSplits: !flags.showSplits }) },
     { label: 'Corner lines', checked: flags.showCorners, shortcut: keyHint('toggle-corners'), onClick: () => updateComponent(componentId, { showCorners: !flags.showCorners }) },
     { separator: true },
     { label: st.datum ? 'Release datum' : 'Set datum at cursor', checked: st.datum, disabled: !st.datum && st.cursor == null, shortcut: keyHint('toggle-datum'), onClick: toggleDatum },

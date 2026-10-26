@@ -14,6 +14,7 @@ import {
   clearOverlays,
   closeSession,
   fastestAsReference,
+  moveSession,
   refLap,
   selectLap,
   selectWholeSession,
@@ -41,9 +42,53 @@ function SessionCard({ s }: { s: Session }) {
   const overallBest = Math.min(...sessions.filter((o) => o.meta.venue === s.meta.venue).map((o) => fastestLap(o, false)?.time ?? Infinity));
   const tr = prettyTrack(s.meta.venue);
   const wholeKey = lapKey({ sessionId: s.id, lapIndex: -1 });
+  const index = sessions.findIndex((o) => o.id === s.id);
+  // Reorder: drag a card by its header onto another card (above / below its middle), or right-click.
+  const [drop, setDrop] = useState<'above' | 'below' | null>(null);
+  const headMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    openMenu(e, [
+      { header: `${s.meta.driver || tr.track} · ${tr.track}` },
+      { label: 'Move up', disabled: index <= 0, onClick: () => moveSession(s.id, index - 1) },
+      { label: 'Move down', disabled: index >= sessions.length - 1, onClick: () => moveSession(s.id, index + 1) },
+      { label: 'Move to top', disabled: index <= 0, onClick: () => moveSession(s.id, 0) },
+      { label: 'Move to bottom', disabled: index >= sessions.length - 1, onClick: () => moveSession(s.id, sessions.length - 1) },
+      { separator: true },
+      { label: 'Close session', onClick: () => closeSession(s.id) },
+    ]);
+  };
   return (
-    <div className="session-card">
-      <div className="head">
+    <div
+      className={'session-card' + (drop ? ` drop-${drop}` : '')}
+      onDragOver={(e) => {
+        if (!e.dataTransfer.types.includes('application/x-pt-session')) return;
+        e.preventDefault();
+        const r = e.currentTarget.getBoundingClientRect();
+        setDrop(e.clientY < r.top + r.height / 2 ? 'above' : 'below');
+      }}
+      onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDrop(null)}
+      onDrop={(e) => {
+        const id = e.dataTransfer.getData('application/x-pt-session');
+        const where = drop;
+        setDrop(null);
+        if (!id || id === s.id) return;
+        e.preventDefault();
+        const from = sessions.findIndex((o) => o.id === id);
+        let to = where === 'above' ? index : index + 1;
+        if (from < to) to--;
+        moveSession(id, to);
+      }}
+    >
+      <div
+        className="head"
+        draggable={sessions.length > 1}
+        title={sessions.length > 1 ? 'Drag to reorder sessions · right-click for more' : undefined}
+        onDragStart={(e) => {
+          e.dataTransfer.setData('application/x-pt-session', s.id);
+          e.dataTransfer.effectAllowed = 'move';
+        }}
+        onContextMenu={headMenu}
+      >
         <div className="row">
           <div className="grow" style={{ minWidth: 0 }}>
             <div className="t" title={s.meta.venue}>

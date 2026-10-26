@@ -31,6 +31,8 @@ function renameInComponent(c: ComponentConfig, map: RenameMap): ComponentConfig 
       return { ...c, gauges: c.gauges.map((g) => ({ ...g, channel: to(map, g.channel) })) };
     case 'bars':
       return { ...c, rows: c.rows.map((r) => ({ ...r, channel: to(map, r.channel) })) };
+    case 'inputs':
+      return c.channels ? { ...c, channels: Object.fromEntries(Object.entries(c.channels).map(([k, v]) => [k, v && to(map, v)])) } : c;
     default:
       return c;
   }

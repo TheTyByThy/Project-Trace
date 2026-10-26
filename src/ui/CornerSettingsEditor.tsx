@@ -33,7 +33,7 @@ export function CornerSettingsEditor({ compact = false }: { compact?: boolean })
       <div className="corner-settings-group">
         <div className="muted" style={{ fontSize: 11, lineHeight: 1.5 }}>
           <b>Corner range</b> — from where you leave full throttle (lift or brake) before the apex to where you're back at full throttle after it, measured on the
-          reference lap. Corners with an exact range (advanced mode) keep it.
+          reference lap. Corners given an exact Start / End in the table keep it.
         </div>
         <Slider label="Before the lift / braking point" value={c.before} min={0} max={150} step={5} unit="m" onChange={(v) => setCornerSettings({ before: v })} />
         <Slider label="After full throttle again" value={c.after} min={0} max={150} step={5} unit="m" onChange={(v) => setCornerSettings({ after: v })} />

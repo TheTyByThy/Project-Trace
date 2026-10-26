@@ -132,7 +132,9 @@ function installAutomation() {
       'corners-and-gps',
       'properties-graph',
       'properties-scatter',
+      'properties-inputs',
       'track-profile',
+      'track-sections',
       'smoothing',
       'ref-lap-colour',
       'math-editor',
@@ -174,9 +176,18 @@ function installAutomation() {
         setActiveSheet(sheetIndex('Aero'));
         const sc = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'scatter');
         openProperties(sc?.id ?? null);
+      } else if (name === 'properties-inputs') {
+        setActiveSheet(sheetIndex('Driver'));
+        const inp = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'inputs');
+        openProperties(inp?.id ?? null);
       } else if (name === 'track-profile') {
         setActiveSheet(0);
+        // Two splits with named sections, to show the Sections table (screenshot profile only).
+        if (venue) setTrackProfile(venue, { sections: [{ name: 'Split A', dist: 1500 }, { name: 'Split B', dist: 3200 }], sectionNames: ['Sector 1', 'Sector 2', 'Sector 3'] });
         setUi({ trackProfile: true });
+      } else if (name === 'track-sections') {
+        setUi({ trackProfile: true });
+        setTimeout(() => document.querySelector('.track-editor-right')?.scrollTo(0, 99999), 50);
       } else if (name === 'smoothing') {
         setActiveSheet(0);
         setSmoothing({ enabled: true, seconds: 0.2 });

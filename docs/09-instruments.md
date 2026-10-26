@@ -20,6 +20,7 @@ Live pedal and steering view:
 - A **steering wheel** rotated by the steering angle, with the value in degrees.
 - **Gear**, **speed** (your units) and an **RPM bar** that turns red near the limit.
 - With *Show compare lap* on, the second selected lap appears as coloured markers on the pedal bars and a ghost wheel.
+- **Choose the channels** (Properties → *Channels*): each bar and readout — throttle, brake, clutch, steering wheel, gear, speed, RPM — can use any channel, including math channels. *Automatic* uses the detected one (shown in brackets, e.g. *Automatic (Throttle Pos)*). Pedal bars read 0–100 %: channels logged 0–1 are scaled up and ones above 100 are scaled to their maximum; tick **Invert** to show 100 − value. Each part can also be hidden.
 
 ## Tyres & brakes
 

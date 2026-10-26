@@ -1,6 +1,6 @@
 // App-level actions shared by menus, keyboard shortcuts and the command palette.
 
-import { xToTime } from './core/axis';
+import { lapXRange, xToTime } from './core/axis';
 import { pt } from './core/bridge';
 import { sampleAt } from './core/channel';
 import { lapDistAt, lapLabel } from './core/session';
@@ -67,7 +67,7 @@ import {
   updateSettings,
 } from './state/store';
 import { actionForCombo, comboFromEvent, shortcutHint, SHORTCUTS } from './shortcuts';
-import type { GraphConfig, TrackMapConfig } from './state/workspace';
+import type { ComponentConfig, GraphConfig, TrackMapConfig } from './state/workspace';
 import { promptText } from './ui/overlays';
 
 export function toggleVarianceAll() {
@@ -88,13 +88,15 @@ export function toggleVarianceAll() {
 }
 
 /** Sector/section or corner lines on every graph, track map and GPS track in the workspace. */
-export function toggleMarkersAll(key: 'showSectors' | 'showCorners') {
+export function toggleMarkersAll(key: 'showSectors' | 'showSplits' | 'showCorners') {
   const ws = activeWorkspace();
-  const all = ws.worksheets.flatMap((sh) => Object.values(sh.components)).filter((c) => c.type === 'graph' || c.type === 'trackmap' || c.type === 'gpstrack' || c.type === 'bars');
+  const types = ['graph', 'trackmap', 'gpstrack', 'bars'];
+  const all = ws.worksheets.flatMap((sh) => Object.values(sh.components)).filter((c) => types.includes(c.type));
   if (!all.length) return;
-  const on = !all.every((c) => (c as GraphConfig)[key]);
+  const isOn = (c: ComponentConfig) => (key === 'showSplits' ? ((c as GraphConfig).showSplits ?? (c as GraphConfig).showSectors) : (c as GraphConfig)[key]);
+  const on = !all.every(isOn);
   setMarkersEverywhere({ [key]: on });
-  toast(`${key === 'showSectors' ? 'Sector & split lines' : 'Corner lines'} ${on ? 'on' : 'off'}`, 'info', 1400);
+  toast(`${key === 'showSectors' ? 'Sector lines' : key === 'showSplits' ? 'Split lines' : 'Corner lines'} ${on ? 'on' : 'off'}`, 'info', 1400);
 }
 
 export function toggleSmoothing() {
@@ -233,6 +235,21 @@ function cycleCompareLap() {
   toast(`Gain / loss: ${lapLabel(next.lap)} vs reference`, 'info', 1400);
 }
 
+/** Put the cursor at the very start (or end) of the reference lap, sliding a zoomed view to show it. */
+function cursorToLapEdge(edge: 'start' | 'end') {
+  const st = useStore.getState();
+  const ref = selectedLaps(st)[0];
+  if (!ref) return;
+  const [a, b] = lapXRange(ref.lap, st.xMode);
+  const x = edge === 'start' ? a : b;
+  setCursor(x);
+  if (useStore.getState().cursor !== x) return; // locked (playback / datum)
+  if (st.zoom && (x < st.zoom[0] || x > st.zoom[1])) {
+    const span = st.zoom[1] - st.zoom[0];
+    setZoom(edge === 'start' ? [x, x + span] : [x - span, x]);
+  }
+}
+
 function stepSheet(dir: 1 | -1) {
   const ws = activeWorkspace();
   const n = ws.worksheets.length;
@@ -243,6 +260,7 @@ function stepSheet(dir: 1 | -1) {
 const SHORTCUT_ACTIONS: Record<string, () => void> = {
   'ws-save': () => saveCurrentWorkspace(),
   'toggle-sectors': () => toggleMarkersAll('showSectors'),
+  'toggle-splits': () => toggleMarkersAll('showSplits'),
   'toggle-corners': () => toggleMarkersAll('showCorners'),
   'open-browser': () => setUi({ browser: true }),
   'open-files': () => handleMenuAction('open-files'),
@@ -304,8 +322,8 @@ const SHORTCUT_ACTIONS: Record<string, () => void> = {
     if (ref) selectWholeSession(ref.session.id);
   },
   'clear-measure': () => setMeasure(null),
-  'cursor-start': () => setCursor(xExtent()[0]),
-  'cursor-end': () => setCursor(xExtent()[1]),
+  'cursor-start': () => cursorToLapEdge('start'),
+  'cursor-end': () => cursorToLapEdge('end'),
   'add-corner': () => markAtCursor('corner'),
   'add-split': () => markAtCursor('split'),
   'track-profile': () => setUi({ trackProfile: true }),

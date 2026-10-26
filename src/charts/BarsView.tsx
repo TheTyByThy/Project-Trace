@@ -151,14 +151,12 @@ export function BarsView({ config }: { config: BarsConfig }) {
     });
 
     // Sector / split / corner lines, as on the graph above.
-    if (ref.lap.index !== -1 && (config.showSectors || config.showCorners)) {
+    if (ref.lap.index !== -1 && (config.showSectors || (config.showSplits ?? config.showSectors) || config.showCorners)) {
       const prof = trackProfile(ref.session.meta.venue);
       const toX = (d: number) => (xMode === 'distance' ? d : crossingTime(ref.lap, d) - ref.lap.start);
       const marks: { x: number; color: string }[] = [];
-      if (config.showSectors) {
-        ref.session.sectorSplits.forEach((d) => marks.push({ x: toX(d), color: pal[6] }));
-        prof.sections.forEach((s) => marks.push({ x: toX(s.dist), color: pal[2] }));
-      }
+      if (config.showSectors) ref.session.sectorSplits.forEach((d) => marks.push({ x: toX(d), color: pal[6] }));
+      if (config.showSplits ?? config.showSectors) prof.sections.forEach((s) => marks.push({ x: toX(s.dist), color: pal[2] }));
       if (config.showCorners) prof.corners.forEach((c) => marks.push({ x: toX(c.dist), color: pal[3] }));
       ctx.lineWidth = 1;
       for (const m of marks) {
@@ -511,7 +509,13 @@ export function BarsView({ config }: { config: BarsConfig }) {
           openMenu(e, [
             { label: 'Combine rows into one (top row wins)', checked: !!config.combined, onClick: () => updateComponent(config.id, { combined: !config.combined } as Partial<BarsConfig>, 'Combine bars') },
             { separator: true },
-            { label: 'Sector & section lines', checked: config.showSectors, shortcut: keyHint('toggle-sectors'), onClick: () => setGraphMarkers({ showSectors: !config.showSectors }) },
+            { label: 'Sector lines (S2, S3…)', checked: config.showSectors, shortcut: keyHint('toggle-sectors'), onClick: () => setGraphMarkers({ showSectors: !config.showSectors }) },
+            {
+              label: 'Split lines (your splits)',
+              checked: config.showSplits ?? config.showSectors,
+              shortcut: keyHint('toggle-splits'),
+              onClick: () => setGraphMarkers({ showSplits: !(config.showSplits ?? config.showSectors) }),
+            },
             { label: 'Corner lines', checked: config.showCorners, shortcut: keyHint('toggle-corners'), onClick: () => setGraphMarkers({ showCorners: !config.showCorners }) },
           ]);
         }}

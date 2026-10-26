@@ -49,7 +49,10 @@ export interface GraphConfig extends Base {
   /** Relative height of the variance pane (same units as pane weights). */
   varianceWeight?: number;
   /** Marker visibility is shared by every graph in the workspace (toggling one updates all). */
+  /** The game's sector lines (S2, S3…). */
   showSectors: boolean;
+  /** Your custom split lines (Track editor); undefined = follow showSectors (older workspaces). */
+  showSplits?: boolean;
   showCorners: boolean;
   yRange: 'full' | 'visible';
   /** Channel legends with live values (default on). */
@@ -88,6 +91,8 @@ export interface BarsConfig extends Base {
   /** X-axis labels along the bottom (off by default, so it sits seamlessly under a graph). */
   showAxis: boolean;
   showSectors: boolean;
+  /** Custom split lines; undefined = follow showSectors. */
+  showSplits?: boolean;
   showCorners: boolean;
 }
 
@@ -154,7 +159,10 @@ export interface TrackMapConfig extends Base {
   /** Colours for the 'custom' ramp (low → high). */
   customLow?: string;
   customHigh?: string;
+  /** The game's sector markers (S2, S3…). */
   showSectors: boolean;
+  /** Custom split markers; undefined = follow showSectors (older workspaces). */
+  showSplits?: boolean;
   showCorners: boolean;
   showZoom: boolean;
   /** Frame the graphs' zoomed range like the GPS track does (default on). */
@@ -188,7 +196,10 @@ export interface GpsTrackConfig extends Base {
   followCursor: boolean;
   /** @deprecated the approximate track band was removed; only raw car positions are drawn. */
   showRoad?: boolean;
+  /** The game's sector markers (S2, S3…). */
   showSectors: boolean;
+  /** Custom split markers; undefined = follow showSectors (older workspaces). */
+  showSplits?: boolean;
   showCorners: boolean;
   /** Metric scale bar (default on). */
   showScale?: boolean;
@@ -242,9 +253,16 @@ export interface GaugesConfig extends Base {
   columns: number;
 }
 
+/** The parts of the Driver Inputs panel that read a channel. */
+export type InputRole = 'throttle' | 'brake' | 'clutch' | 'steering' | 'gear' | 'speed' | 'rpm';
+
 export interface InputsConfig extends Base {
   type: 'inputs';
   showCompare: boolean;
+  /** Channel for each part; missing = the automatically detected one (Throttle Pos, Brake Pos…). */
+  channels?: Partial<Record<InputRole, string>>;
+  /** Show a pedal bar upside down (100 − value). Clutch defaults to inverted for AC's Clutch Pos. */
+  invert?: Partial<Record<'throttle' | 'brake' | 'clutch', boolean>>;
   /** Each part defaults to shown. */
   showPedals?: boolean;
   showClutch?: boolean;

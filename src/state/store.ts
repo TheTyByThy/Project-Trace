@@ -26,8 +26,19 @@ export interface TrackSection {
 export interface TrackProfile {
   rotation: number;
   mirror: boolean;
+  /** Split points (named lines on the track). */
   sections: TrackSection[];
   corners: TrackCorner[];
+  /**
+   * Names of the parts of the lap the splits create — S/F → first split, …, last split → S/F — used as
+   * the lap reports' Custom sections columns. Missing / blank = "Section n".
+   */
+  sectionNames?: string[];
+}
+
+/** The name of each part of the lap between splits (one more than there are splits). */
+export function sectionNames(p: TrackProfile): string[] {
+  return Array.from({ length: p.sections.length + 1 }, (_, i) => p.sectionNames?.[i]?.trim() || `Section ${i + 1}`);
 }
 
 /** A named shortcut to a telemetry folder in the session browser. */
@@ -352,16 +363,18 @@ export function updateSettings(patch: Partial<Settings>) {
 }
 
 /** Show/hide sector & corner markers on every time/distance graph in the workspace at once. */
-export function setGraphMarkers(patch: { showSectors?: boolean; showCorners?: boolean }) {
+type MarkerPatch = { showSectors?: boolean; showSplits?: boolean; showCorners?: boolean };
+
+export function setGraphMarkers(patch: MarkerPatch) {
   setMarkersOn(['graph', 'bars'], patch);
 }
 
 /** Same for graphs, track maps and GPS tracks (the marker shortcuts). */
-export function setMarkersEverywhere(patch: { showSectors?: boolean; showCorners?: boolean }) {
+export function setMarkersEverywhere(patch: MarkerPatch) {
   setMarkersOn(['graph', 'trackmap', 'gpstrack', 'bars'], patch);
 }
 
-function setMarkersOn(types: ComponentType[], patch: { showSectors?: boolean; showCorners?: boolean }) {
+function setMarkersOn(types: ComponentType[], patch: MarkerPatch) {
   updateWorkspace(
     (ws) => ({
       ...ws,
@@ -370,7 +383,12 @@ function setMarkersOn(types: ComponentType[], patch: { showSectors?: boolean; sh
         const components = { ...sh.components };
         for (const [id, c] of Object.entries(components))
           if (types.includes(c.type)) {
-            components[id] = { ...c, ...patch } as ComponentConfig;
+            // Sectors and splits are separate everywhere. Older components follow the sector setting for
+            // splits: pin that before sectors change.
+            const own: MarkerPatch = { ...patch };
+            const m = c as ComponentConfig & MarkerPatch;
+            if (own.showSectors !== undefined && own.showSplits === undefined && m.showSplits === undefined) own.showSplits = m.showSectors;
+            components[id] = { ...c, ...own } as ComponentConfig;
             changed = true;
           }
         return changed ? { ...sh, components } : sh;
@@ -584,7 +602,7 @@ export async function initApp() {
   // Migrate track profiles from older versions (auto-corner renames → manual corners).
   const profiles: Record<string, TrackProfile> = {};
   for (const [venue, p] of Object.entries((raw.trackProfiles ?? {}) as Record<string, Partial<TrackProfile>>)) {
-    profiles[venue] = { rotation: p.rotation ?? 0, mirror: !!p.mirror, sections: p.sections ?? [], corners: p.corners ?? [] };
+    profiles[venue] = { rotation: p.rotation ?? 0, mirror: !!p.mirror, sections: p.sections ?? [], corners: p.corners ?? [], sectionNames: p.sectionNames };
   }
   settings.trackProfiles = profiles;
   if (!settings.telemetryRoot && info.defaultTelemetryRoot) settings.telemetryRoot = info.defaultTelemetryRoot;
@@ -685,6 +703,18 @@ function cacheSessionInfo(s: Session) {
     },
   }));
   saveCache();
+}
+
+/** Move a loaded session to another position (the order of the Sessions & laps list, stint reports…). */
+export function moveSession(id: string, toIndex: number) {
+  set((s) => {
+    const from = s.sessions.findIndex((x) => x.id === id);
+    if (from < 0) return {};
+    const sessions = s.sessions.slice();
+    const [m] = sessions.splice(from, 1);
+    sessions.splice(Math.max(0, Math.min(sessions.length, toIndex)), 0, m);
+    return { sessions, dataVersion: s.dataVersion + 1 };
+  });
 }
 
 export function closeSession(id: string) {

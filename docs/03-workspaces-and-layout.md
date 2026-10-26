@@ -201,5 +201,5 @@ It's a **display name**: underneath, the channel keeps its logged name, so graph
 
 The left sidebar (toggle with **Ctrl/⌘ + B**; drag its edge to resize) has two tabs:
 
-- **Sessions & laps**: each session's laps. **Click a selected lap's colour square to change its colour.** See [08](08-laps-sectors-reports.md).
+- **Sessions & laps**: each session's laps. Click a selected lap's colour square to remove it; right-click it to change its colour. **Reorder sessions** by dragging a session's header onto another session (a blue line shows where it will go), or right-click the header → *Move up / Move down / Move to top / Move to bottom*. The order is also used by the Stint Report and Lap Trend. See [08](08-laps-sectors-reports.md).
 - **Channels**: every channel by category with its live value at the cursor. Drag onto components, double-click to add to a graph, right-click for properties.

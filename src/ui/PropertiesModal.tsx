@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { CATEGORICAL, channelColors, RAMP_LABELS, type RampName } from '../core/colors';
 import { COMPONENT_CATALOG, pane } from '../state/components';
 import { activeSheet, activeWorkspace, addComponent, removeComponentById, selectedLaps, setChannelProps, setGraphMarkers, setUi, updateComponent, useStore } from '../state/store';
-import { TYRE_FIELDS, uid, type BarRow, type BarsConfig, type ComponentConfig, type GaugeDef, type GraphConfig, type GraphPane, type TrackMapConfig } from '../state/workspace';
+import { TYRE_FIELDS, uid, type BarRow, type BarsConfig, type ComponentConfig, type GaugeDef, type GraphConfig, type GraphPane, type InputRole, type InputsConfig, type TrackMapConfig } from '../state/workspace';
 import { BAR_OPS, barCondition } from '../charts/BarsView';
 import { compareLap } from '../charts/TrackMapView';
 import { lapLabel } from '../core/session';
@@ -276,7 +276,8 @@ function GraphForm({ c }: { c: GraphConfig }) {
           </F>
         </G>
         <G title="Markers (all time / distance graphs)">
-          <Check label={`Sector & section lines${keyHint('toggle-sectors') ? ` (${keyHint('toggle-sectors')})` : ''}`} value={c.showSectors} onChange={(v) => setGraphMarkers({ showSectors: v })} />
+          <Check label={`Sector lines (S2, S3…)${keyHint('toggle-sectors') ? ` (${keyHint('toggle-sectors')})` : ''}`} value={c.showSectors} onChange={(v) => setGraphMarkers({ showSectors: v })} />
+          <Check label={`Split lines (your splits)${keyHint('toggle-splits') ? ` (${keyHint('toggle-splits')})` : ''}`} value={c.showSplits ?? c.showSectors} onChange={(v) => setGraphMarkers({ showSplits: v })} />
           <Check label={`Corner lines — your saved corners${keyHint('toggle-corners') ? ` (${keyHint('toggle-corners')})` : ''}`} value={c.showCorners} onChange={(v) => setGraphMarkers({ showCorners: v })} />
         </G>
         <G title="Tips">
@@ -300,6 +301,50 @@ function GraphForm({ c }: { c: GraphConfig }) {
         ))}
       </div>
     </div>
+  );
+}
+
+/** Driver Inputs: which channel drives each bar / readout (Automatic = the detected one). */
+function InputChannelsForm({ c }: { c: InputsConfig }) {
+  useStore((s) => s.laps);
+  useStore((s) => s.refKey);
+  const ref = selectedLaps()[0];
+  const set = (role: InputRole, v: string) => updateComponent(c.id, { channels: { ...c.channels, [role]: v === '__auto' ? undefined : v } } as Partial<InputsConfig>, 'Input channel');
+  const inv = (role: 'throttle' | 'brake' | 'clutch', v: boolean) => updateComponent(c.id, { invert: { ...c.invert, [role]: v } } as Partial<InputsConfig>, 'Invert pedal');
+  const rows: [InputRole, string][] = [
+    ['throttle', 'Throttle bar'],
+    ['brake', 'Brake bar'],
+    ['clutch', 'Clutch bar'],
+    ['steering', 'Steering wheel (degrees)'],
+    ['gear', 'Gear'],
+    ['speed', 'Speed'],
+    ['rpm', 'RPM bar'],
+  ];
+  return (
+    <G title="Channels">
+      {rows.map(([role, label]) => {
+        const detected = ref?.session.key[role];
+        const auto = `Automatic${detected ? ` (${channelLabel(detected)})` : ' (none found)'}`;
+        return (
+          <div key={role}>
+            <F label={label}>
+              <ChannelPickerButton value={c.channels?.[role] ?? '__auto'} onChange={(v) => set(role, v)} extras={[{ value: '__auto', label: auto }]} />
+            </F>
+            {(role === 'throttle' || role === 'brake' || role === 'clutch') && (
+              <Check
+                label="Invert (show 100 − value)"
+                value={role === 'clutch' ? c.invert?.clutch ?? /^clutch pos$/i.test(c.channels?.clutch ?? detected ?? '') : !!c.invert?.[role]}
+                onChange={(v) => inv(role, v)}
+              />
+            )}
+          </div>
+        );
+      })}
+      <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+        Pedal bars read 0–100 %: channels logged 0–1 are scaled up, and ones that go above 100 are scaled to their maximum. AC's clutch is logged as
+        engagement, so it's inverted automatically to show pedal travel.
+      </div>
+    </G>
   );
 }
 
@@ -354,7 +399,8 @@ function BarsForm({ c }: { c: BarsConfig }) {
           <Check label="X-axis labels (off = sits seamlessly under a graph)" value={c.showAxis} onChange={(v) => up({ showAxis: v })} />
         </G>
         <G title="Markers (all graphs and bars)">
-          <Check label={`Sector & section lines${keyHint('toggle-sectors') ? ` (${keyHint('toggle-sectors')})` : ''}`} value={c.showSectors} onChange={(v) => setGraphMarkers({ showSectors: v })} />
+          <Check label={`Sector lines (S2, S3…)${keyHint('toggle-sectors') ? ` (${keyHint('toggle-sectors')})` : ''}`} value={c.showSectors} onChange={(v) => setGraphMarkers({ showSectors: v })} />
+          <Check label={`Split lines (your splits)${keyHint('toggle-splits') ? ` (${keyHint('toggle-splits')})` : ''}`} value={c.showSplits ?? c.showSectors} onChange={(v) => setGraphMarkers({ showSplits: v })} />
           <Check label={`Corner lines${keyHint('toggle-corners') ? ` (${keyHint('toggle-corners')})` : ''}`} value={c.showCorners} onChange={(v) => setGraphMarkers({ showCorners: v })} />
         </G>
         <G title="Tips">
@@ -494,7 +540,8 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
               <F label={`Line width (${c.lineWidth}px)`}>
                 <input type="range" min={1.5} max={10} step={0.5} value={c.lineWidth} onChange={(e) => up({ lineWidth: Number(e.target.value) })} />
               </F>
-              <Check label="Sector & section lines" value={c.showSectors} onChange={(v) => up({ showSectors: v })} />
+              <Check label="Sector lines (S2, S3…)" value={c.showSectors} onChange={(v) => up({ showSectors: v, showSplits: c.showSplits ?? c.showSectors })} />
+              <Check label="Split lines (your splits)" value={c.showSplits ?? c.showSectors} onChange={(v) => up({ showSplits: v })} />
               <Check label="Corner labels" value={c.showCorners} onChange={(v) => up({ showCorners: v })} />
               <Check label="Start / finish line" value={c.showStartFinish !== false} onChange={(v) => up({ showStartFinish: v })} />
               <Check label="Zoom in on the graphs’ selected range" value={c.fitToZoom !== false} onChange={(v) => up({ fitToZoom: v })} />
@@ -522,7 +569,8 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
               </F>
               <Check label="Frame the graphs’ zoomed range" value={c.fitToZoom} onChange={(v) => up({ fitToZoom: v })} />
               <Check label="Follow the cursor when zoomed in" value={c.followCursor} onChange={(v) => up({ followCursor: v })} />
-              <Check label="Sector & section markers" value={c.showSectors} onChange={(v) => up({ showSectors: v })} />
+              <Check label="Sector markers (S/F, S2, S3…)" value={c.showSectors} onChange={(v) => up({ showSectors: v, showSplits: c.showSplits ?? c.showSectors })} />
+              <Check label="Split markers (your splits)" value={c.showSplits ?? c.showSectors} onChange={(v) => up({ showSplits: v })} />
               <Check label="Corner labels" value={c.showCorners} onChange={(v) => up({ showCorners: v })} />
               <Check label="Scale bar" value={c.showScale !== false} onChange={(v) => up({ showScale: v })} />
               <Check label="Lap legend" value={c.showLegend !== false} onChange={(v) => up({ showLegend: v })} />
@@ -833,6 +881,7 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
             <Check label="Speed" value={c.showSpeed !== false} onChange={(v) => up({ showSpeed: v })} />
             <Check label="RPM bar" value={c.showRpm !== false} onChange={(v) => up({ showRpm: v })} />
           </G>
+          <InputChannelsForm c={c} />
         </div>
       );
     case 'tyres':

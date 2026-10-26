@@ -101,10 +101,10 @@ The variance pane shows **overlay lap time − reference lap time** along the la
 
 ## Markers, corners and sections
 
-- **Sector lines** (S2, S3…, purple) and your **splits** (green): *Sector & section lines*.
+- **Sector lines** — the game's sectors (S2, S3…, purple) — and **Split lines** — your custom splits from the Track editor (green) — switch on and off **separately**: right-click the graph → *Sector lines* / *Split lines*, or the two checkboxes in Properties.
 - **Corner lines** (orange) show the corners you've defined for the track: *Corner lines*.
 - Lines are coloured at low opacity; their labels sit along the **top** of the graph (in the variance pane when it's shown). There are no other vertical grid lines.
-- Turning lines on or off — right-click, Properties, or the shortcuts **C** (corners) and **Shift + S** (sectors & splits) — applies to **every graph** in the workspace (the shortcuts also switch the track maps and GPS tracks).
+- Turning lines on or off — right-click, Properties, or the shortcuts **C** (corners), **Shift + S** (sectors) and *Toggle split lines* (no key by default) — applies to **every graph and Bars** in the workspace. The shortcuts also switch the track maps and GPS tracks.
 - **Right-click the graph → Add corner at cursor… / Add split at cursor…** to define them right where the cursor is. They're saved to the track profile (see [05](05-track-map.md#the-track-editor-corners-ranges-speed-buckets-splits)).
 
 The graph's right-click menu is deliberately short: the two line toggles, *Add corner* / *Add split*, then **Properties…**, **Maximise** and **Remove component**. Everything else (variance, y-range, pane scales, legends, grid, line widths) is in Properties.

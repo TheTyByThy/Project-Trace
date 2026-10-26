@@ -147,8 +147,8 @@ export function GpsTrackView({ config }: { config: GpsTrackConfig }) {
       if (config.showSectors) {
         marks.push({ d: 0.01, label: 'S/F' });
         ref.session.sectorSplits.forEach((d, i) => marks.push({ d, label: `S${i + 2}` }));
-        prof.sections.forEach((s) => marks.push({ d: s.dist, label: s.name }));
       }
+      if (config.showSplits ?? config.showSectors) prof.sections.forEach((s) => marks.push({ d: s.dist, label: s.name }));
       if (config.showCorners) prof.corners.forEach((c) => marks.push({ d: c.dist, label: c.name }));
       ctx.font = T.font;
       for (const m of marks) {
@@ -350,7 +350,7 @@ export function GpsTrackView({ config }: { config: GpsTrackConfig }) {
         onDoubleClick={resetView}
         onContextMenu={(e) => {
           e.preventDefault();
-          openMenu(e, trackMapMenuItems(venue, config.id, { showSectors: config.showSectors, showCorners: config.showCorners }));
+          openMenu(e, trackMapMenuItems(venue, config.id, { showSectors: config.showSectors, showSplits: config.showSplits ?? config.showSectors, showCorners: config.showCorners }));
         }}
       />
       {venue && <RotationDial venue={venue} />}

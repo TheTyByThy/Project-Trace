@@ -191,10 +191,8 @@ export function GraphView({ config }: { config: GraphConfig }) {
       const pal = CATEGORICAL[theme];
       const markers: { x: number; label: string; color: string }[] = [];
       const toX = (d: number) => (xMode === 'distance' ? d : crossingTime(ref.lap, d) - ref.lap.start);
-      if (config.showSectors) {
-        ref.session.sectorSplits.forEach((d, i) => markers.push({ x: toX(d), label: `S${i + 2}`, color: pal[6] }));
-        prof.sections.forEach((s) => markers.push({ x: toX(s.dist), label: s.name, color: pal[2] }));
-      }
+      if (config.showSectors) ref.session.sectorSplits.forEach((d, i) => markers.push({ x: toX(d), label: `S${i + 2}`, color: pal[6] }));
+      if (config.showSplits ?? config.showSectors) prof.sections.forEach((s) => markers.push({ x: toX(s.dist), label: s.name, color: pal[2] }));
       // Corners are always a single line at the apex (whatever their range).
       if (config.showCorners) prof.corners.forEach((c) => markers.push({ x: toX(c.dist), label: c.name, color: pal[3] }));
       ctx.lineWidth = 1;
@@ -514,10 +512,10 @@ export function GraphView({ config }: { config: GraphConfig }) {
         }
       }
       // Leave room for the marker labels along the top of the first pane.
-      const labelRoom = P === L.panes[0] && (config.showSectors || config.showCorners) ? 16 : 0;
+      const labelRoom = P === L.panes[0] && (config.showSectors || (config.showSplits ?? config.showSectors) || config.showCorners) ? 16 : 0;
       drawLegend(ctx, T, P, rows, labelRoom);
     }
-  }, [size, config.showLegend, config.showSectors, config.showCorners]);
+  }, [size, config.showLegend, config.showSectors, config.showSplits, config.showCorners]);
 
   useEffect(() => {
     drawBase();
@@ -704,7 +702,13 @@ export function GraphView({ config }: { config: GraphConfig }) {
     // Kept deliberately short (channels are added by dragging them from the sidebar); everything else
     // lives in Properties (appended by the frame).
     openMenu(e, [
-      { label: 'Sector & section lines', checked: config.showSectors, shortcut: keyHint('toggle-sectors'), onClick: () => setGraphMarkers({ showSectors: !config.showSectors }) },
+      { label: 'Sector lines (S2, S3…)', checked: config.showSectors, shortcut: keyHint('toggle-sectors'), onClick: () => setGraphMarkers({ showSectors: !config.showSectors }) },
+      {
+        label: 'Split lines (your splits)',
+        checked: config.showSplits ?? config.showSectors,
+        shortcut: keyHint('toggle-splits'),
+        onClick: () => setGraphMarkers({ showSplits: !(config.showSplits ?? config.showSectors) }),
+      },
       { label: 'Corner lines', checked: config.showCorners, shortcut: keyHint('toggle-corners'), onClick: () => setGraphMarkers({ showCorners: !config.showCorners }) },
       { separator: true },
       { label: st.datum ? 'Release datum' : 'Set datum at cursor', checked: st.datum, disabled: !st.datum && st.cursor == null, shortcut: keyHint('toggle-datum'), onClick: toggleDatum },

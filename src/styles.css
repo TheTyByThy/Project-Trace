@@ -1705,3 +1705,14 @@ table.grid tr.group-title td {
   font-size: 12px;
   cursor: pointer;
 }
+
+/* Reordering session cards in the sidebar. */
+.session-card > .head[draggable='true'] {
+  cursor: grab;
+}
+.session-card.drop-above {
+  box-shadow: 0 -3px 0 var(--accent);
+}
+.session-card.drop-below {
+  box-shadow: 0 3px 0 var(--accent);
+}

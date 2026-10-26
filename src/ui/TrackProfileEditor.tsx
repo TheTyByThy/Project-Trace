@@ -17,6 +17,7 @@ import {
   resetRotation,
   rotationDirty,
   saveRotation,
+  sectionNames,
   setTrackProfile,
   setUi,
   setWorkingRotation,
@@ -352,6 +353,7 @@ function TrackEditorBody() {
   const patch = (c: TrackCorner, p: Partial<TrackCorner>, label: string) => setCorners(corners.map((x) => (x === c ? { ...x, ...p } : x)), label);
   const setSections = (next: { name: string; dist: number }[], label: string) => setTrackProfile(venue, { sections: next.slice().sort((a, b) => a.dist - b.dist) }, label);
   const rot = trackRotation(venue);
+  const secNames = sectionNames(prof);
   const dirty = rotationDirty(venue);
 
   return (
@@ -547,7 +549,8 @@ function TrackEditorBody() {
             </button>
           </div>
           <div className="muted" style={{ fontSize: 11.5 }}>
-            Splits divide the lap into named parts for the Lap and Stint Reports' <i>Custom sections</i> columns.
+            Splits are lines across the track; the parts of the lap between them are the <b>sections</b> below — the Lap and Stint Reports'{' '}
+            <i>Custom sections</i> columns.
           </div>
           {prof.sections.length > 0 && (
             <table className="grid track-editor-table">
@@ -585,6 +588,51 @@ function TrackEditorBody() {
                 ))}
               </tbody>
             </table>
+          )}
+          {prof.sections.length > 0 && (
+            <>
+              <h4 style={{ marginTop: 8 }}>Sections ({prof.sections.length + 1})</h4>
+              <table className="grid track-editor-table">
+                <thead>
+                  <tr>
+                    <th className="l">Section name</th>
+                    <th className="l">From</th>
+                    <th className="l">To</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {secNames.map((name, i) => {
+                    const from = i === 0 ? 'S/F · 0 m' : `${prof.sections[i - 1].name} · ${Math.round(prof.sections[i - 1].dist)} m`;
+                    const to = i === prof.sections.length ? `S/F${ref.session.trackLength ? ` · ${Math.round(ref.session.trackLength)} m` : ''}` : `${prof.sections[i].name} · ${Math.round(prof.sections[i].dist)} m`;
+                    return (
+                      <tr key={i}>
+                        <td className="l">
+                          <input
+                            className="input"
+                            style={{ width: 150 }}
+                            defaultValue={prof.sectionNames?.[i] ?? ''}
+                            placeholder={`Section ${i + 1}`}
+                            key={`${i}-${name}`}
+                            onBlur={(e) => {
+                              const v = e.target.value.trim();
+                              if (v === (prof.sectionNames?.[i] ?? '').trim()) return;
+                              const next = Array.from({ length: prof.sections.length + 1 }, (_, k) => (k === i ? v : prof.sectionNames?.[k] ?? ''));
+                              setTrackProfile(venue, { sectionNames: next }, 'Rename section');
+                            }}
+                            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                          />
+                        </td>
+                        <td className="l muted">{from}</td>
+                        <td className="l muted">{to}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div className="muted" style={{ fontSize: 11 }}>
+                Leave a name empty for “Section n”. Names belong to the position in the lap, so adding or removing a split shifts the ones after it.
+              </div>
+            </>
           )}
         </div>
         <div className="muted" style={{ fontSize: 11, padding: '0 2px 8px' }}>
