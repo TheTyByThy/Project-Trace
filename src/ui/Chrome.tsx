@@ -10,7 +10,9 @@ import {
   activeWorkspace,
   addWorksheet,
   deleteWorksheet,
+  copyWorksheet,
   duplicateWorksheet,
+  pasteWorksheet,
   exportWorksheet,
   exportWorkspace,
   importWorkspace,
@@ -254,6 +256,8 @@ export function sheetMenuItems(i: number, startRename: () => void) {
     { header: sh.name },
     { label: 'Rename', onClick: startRename },
     { label: 'Duplicate', onClick: () => duplicateWorksheet(i) },
+    { label: 'Copy worksheet', onClick: () => copyWorksheet(i) },
+    { label: 'Paste worksheet after this', onClick: () => pasteWorksheet(i) },
     { label: 'Reset to Starter version', onClick: () => resetSheetToStarter(i) },
     { separator: true },
     {

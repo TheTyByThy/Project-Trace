@@ -258,6 +258,8 @@ function buildMenu() {
       submenu: [
         { label: 'New Worksheet', click: () => sendMenu('sheet-new') },
         { label: 'Duplicate Worksheet', click: () => sendMenu('sheet-duplicate') },
+        { label: 'Copy Worksheet', click: () => sendMenu('sheet-copy') },
+        { label: 'Paste Worksheet', click: () => sendMenu('sheet-paste') },
         { label: 'Rename Worksheet…', click: () => sendMenu('sheet-rename') },
         { label: 'Reset Worksheet to Starter Version', click: () => sendMenu('sheet-reset') },
         { type: 'separator' },

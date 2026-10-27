@@ -1046,6 +1046,65 @@ export function duplicateWorksheet(index: number) {
   );
 }
 
+// ---- copy / paste worksheets (between workspaces, or between windows via the system clipboard) ----
+
+const SHEET_CLIP_KIND = 'project-trace-worksheet';
+let copiedSheet: { sheet: Worksheet; math: MathChannelDef[] } | null = null;
+
+/** Math channels a worksheet uses (by name anywhere in its settings), plus the math channels those depend on. */
+function mathUsedBy(sheet: Worksheet, math: MathChannelDef[]): MathChannelDef[] {
+  const text = JSON.stringify(sheet.components);
+  const used = new Map<string, MathChannelDef>();
+  const visit = (hay: string) => {
+    for (const m of math) if (!used.has(m.name) && hay.includes(m.name)) (used.set(m.name, m), visit(m.expr));
+  };
+  visit(text);
+  return [...used.values()];
+}
+
+/** Copy a worksheet (its layout, every component, and the math channels it uses). */
+export function copyWorksheet(index: number = activeWorkspace().activeSheet) {
+  const ws = activeWorkspace();
+  const sheet = ws.worksheets[index];
+  if (!sheet) return;
+  copiedSheet = { sheet: structuredClone(sheet), math: structuredClone(mathUsedBy(sheet, ws.math)) };
+  navigator.clipboard?.writeText(JSON.stringify({ kind: SHEET_CLIP_KIND, ...copiedSheet })).catch(() => {});
+  toast(`Copied worksheet “${sheet.name}” — switch workspace and paste it (right-click a tab → Paste worksheet)`, 'success', 3000);
+}
+
+/**
+ * Paste the copied worksheet after `afterIndex` in the current workspace. Math channels it uses that this
+ * workspace doesn't have (by name) are added; existing ones with the same name are left as they are.
+ */
+export async function pasteWorksheet(afterIndex: number = activeWorkspace().activeSheet) {
+  let src = copiedSheet;
+  if (!src) {
+    try {
+      const data = JSON.parse(await navigator.clipboard.readText());
+      if (data?.kind === SHEET_CLIP_KIND && data.sheet?.layout) src = { sheet: data.sheet, math: Array.isArray(data.math) ? data.math : [] };
+    } catch {
+      /* nothing usable on the clipboard */
+    }
+  }
+  if (!src) return toast('Nothing to paste — right-click a worksheet tab → Copy worksheet first.', 'info', 2400);
+  const { sheet, math } = src;
+  const have = new Set(activeWorkspace().math.map((m) => m.name));
+  const addMath = math.filter((m) => !have.has(m.name)).map((m) => ({ ...structuredClone(m), id: uid('m') }));
+  const taken = new Set(activeWorkspace().worksheets.map((w) => w.name));
+  let name = sheet.name;
+  for (let k = 2; taken.has(name); k++) name = `${sheet.name} (${k})`;
+  updateWorkspace(
+    (ws) => {
+      const sheets = ws.worksheets.slice();
+      const at = Math.min(afterIndex + 1, sheets.length);
+      sheets.splice(at, 0, cloneSheet(sheet, name));
+      return { ...ws, worksheets: sheets, activeSheet: at, math: addMath.length ? [...ws.math, ...addMath] : ws.math };
+    },
+    { label: 'Paste worksheet' },
+  );
+  toast(`Pasted “${name}”${addMath.length ? ` and ${addMath.length} math channel${addMath.length === 1 ? '' : 's'} it uses` : ''}`, 'success', 2600);
+}
+
 export function renameWorksheet(index: number, name: string) {
   updateWorkspace((ws) => ({ ...ws, worksheets: ws.worksheets.map((w, i) => (i === index ? { ...w, name } : w)) }), { label: 'Rename worksheet' });
 }

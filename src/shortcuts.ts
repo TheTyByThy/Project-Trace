@@ -84,6 +84,8 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'prev-sheet', label: 'Previous worksheet', group: 'Worksheets', keys: [] },
   { id: 'new-sheet', label: 'New worksheet', group: 'Worksheets', keys: [] },
   { id: 'duplicate-sheet', label: 'Duplicate this worksheet', group: 'Worksheets', keys: [] },
+  { id: 'copy-sheet', label: 'Copy this worksheet (to paste into another workspace)', group: 'Worksheets', keys: [] },
+  { id: 'paste-sheet', label: 'Paste the copied worksheet', group: 'Worksheets', keys: [] },
   { id: 'rename-sheet', label: 'Rename this worksheet', group: 'Worksheets', keys: [] },
 ];
 

@@ -8,7 +8,9 @@ import type { LayoutNode } from './state/workspace';
 import {
   activeSheet,
   activeWorkspace,
+  copyWorksheet,
   deleteWorksheet,
+  pasteWorksheet,
   redo,
   removeComponentById,
   setActiveWorkspace,
@@ -341,6 +343,23 @@ function installAutomation() {
       undo();
       ok(useStore.getState().workspaces.every((w) => w.locked || w.id === mine), 'undo removes the copy again');
       setActiveWorkspace(mine);
+      // Copy a worksheet into another workspace that lacks its math channels.
+      const other = useStore.getState().workspaces.find((w) => w.id !== mine && w.id !== STARTER_ID);
+      const wearIdx = activeWorkspace().worksheets.findIndex((w) => w.name === 'Tyre Wear');
+      if (other && wearIdx >= 0) {
+        copyWorksheet(wearIdx);
+        setActiveWorkspace(other.id);
+        const hadMath = activeWorkspace().math.some((m) => m.name === 'Tyre Wear Rate Avg');
+        void pasteWorksheet(0);
+        const target = activeWorkspace();
+        ok(
+          target.id !== mine && target.worksheets[1]?.name.startsWith('Tyre Wear') && Object.values(target.worksheets[1].components).some((c) => c.type === 'tyrewear'),
+          `paste a copied worksheet into another workspace (${other.name})`,
+        );
+        ok(hadMath || ['Tyre Wear Rate Avg', 'Tyre Wear Rate FL', 'Tyre Wear Lap RR'].every((n) => target.math.some((m) => m.name === n)), 'pasting brings the math channels it uses');
+        undo();
+        setActiveWorkspace(mine);
+      }
       return out;
     },
   };

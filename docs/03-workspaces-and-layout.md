@@ -94,6 +94,7 @@ The workspace name in the top bar (**▦ name ▾**) opens a menu with the defau
 | Item | What it does |
 |---|---|
 | **New / Duplicate / Rename / Delete Worksheet** | |
+| **Copy Worksheet** / **Paste Worksheet** | Copy a tab and paste it into another workspace (or the same one), right after the current tab. Any math channels the worksheet uses that the target workspace lacks are added with it, so it works straight away. Works between windows too, through the system clipboard. |
 | **Reset Worksheet to Starter Version** | Restores the Starter layout of the tab with the same name. |
 | **Save Worksheet to Library…** | Keeps a named copy in your personal worksheet library (shared by all workspaces). |
 | **Insert Saved Worksheet ▸** | Adds a library worksheet as a new tab in the current workspace. |
@@ -106,7 +107,7 @@ Tabs themselves:
 - **click** a tab or press **1–9** to switch;
 - **double-click** to rename;
 - **drag** to reorder;
-- **right-click** for Rename, Duplicate, Reset to Starter, Save to library, Export, Move, Delete;
+- **right-click** for Rename, Duplicate, **Copy worksheet**, **Paste worksheet after this**, Reset to Starter, Save to library, Export, Move, Delete;
 - **＋** adds a tab.
 
 ## Components

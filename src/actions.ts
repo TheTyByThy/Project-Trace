@@ -15,7 +15,9 @@ import {
   deleteLibrarySheet,
   deleteWorksheet,
   deleteWorkspace,
+  copyWorksheet,
   duplicateWorksheet,
+  pasteWorksheet,
   exportWorksheet,
   exportWorkspace,
   fastestAsReference,
@@ -340,6 +342,8 @@ const SHORTCUT_ACTIONS: Record<string, () => void> = {
   'prev-sheet': () => stepSheet(-1),
   'new-sheet': () => addWorksheet(),
   'duplicate-sheet': () => duplicateWorksheet(activeWorkspace().activeSheet),
+  'copy-sheet': () => copyWorksheet(),
+  'paste-sheet': () => pasteWorksheet(),
   'rename-sheet': () => window.dispatchEvent(new Event('pt-rename-sheet')),
 };
 
@@ -537,6 +541,10 @@ export async function handleMenuAction(action: string) {
       return addWorksheet();
     case 'sheet-duplicate':
       return duplicateWorksheet(sheetIdx);
+    case 'sheet-copy':
+      return copyWorksheet(sheetIdx);
+    case 'sheet-paste':
+      return pasteWorksheet(sheetIdx);
     case 'sheet-rename':
       window.dispatchEvent(new Event('pt-rename-sheet'));
       return;
