@@ -138,7 +138,7 @@ A notice lists the renames, and **Ctrl/⌘ + Z** undoes the whole thing. To chan
 | `lap_number()` | lap number (1 = out lap) |
 | `lap_distance()` | distance from the start/finish line (m) |
 
-## The default library (44 channels)
+## The default library (71 channels)
 
 | Channel | Expression (abridged) | Unit |
 |---|---|---|
@@ -155,6 +155,9 @@ A notice lists the renames, and **Ctrl/⌘ + Z** undoes the whole thing. To chan
 | Tyre Wear Rate FL/FR/RL/RR | `speed [m/s] × ndSlip × load / 5000`, capped at 100: where each tyre is wearing (see [14 · Tyre wear](14-tyre-wear.md)) | |
 | Tyre Wear Lap FL/FR/RL/RR | `integrate_lap(speed [m/s] × ndSlip × load / 5000)`: wear per lap in metres of full sliding at 5 kN | m |
 | Tyre Wear Rate Avg / Tyre Wear Lap Avg | the four tyres averaged | –, m |
+| Tyre Wear Front-Rear / Left-Right, Tyre Wear Front Share / Left Share | front vs rear and left vs right: the wear-rate difference along the lap, and each side's share of the lap's wear | –, % |
+| Tyre Wear Lock-up / Wheelspin / Slide Front / Rear, Tyre Wear Left-Right Front / Rear | each cause per axle (left and right averaged), and the axle's left − right wear-rate balance | |
+| Tyre Wear Lock-up / Wheelspin / Slide FL/FR/RL/RR (and Avg) | the wear rate split by cause: lock-up (negative slip ratio), wheelspin (positive), cornering slide (slip angle); they add up to Tyre Wear Rate | |
 | Damper Velocity FL/FR/RL/RR | `derivative('Damper Travel FL')` | mm/s |
 | Tyre Temp Avg FL/FR/RL/RR | mean of inner/middle/outer | °C |
 | Tyre Temp Spread FL/FR/RL/RR | inner − outer (camber indicator) | °C |

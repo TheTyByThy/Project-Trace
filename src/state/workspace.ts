@@ -24,7 +24,9 @@ export type ComponentType =
   | 'gpstrack'
   | 'bars'
   | 'breakdown'
-  | 'tyrewear';
+  | 'tyrewear'
+  | 'wearwheels'
+  | 'wearbalance';
 
 export interface GraphPane {
   id: string;
@@ -107,6 +109,32 @@ export interface BreakdownConfig extends Base {
   showTimes?: boolean;
 }
 
+/** Tyre wear balance: front vs rear and left vs right — shares, metres and what each gap is made of; lap by lap below. */
+export interface WearBalanceConfig extends Base {
+  type: 'wearbalance';
+  /** Comparison laps shown under the reference (default 1). */
+  maxCompare?: number;
+  /** Lap-by-lap table through each open stint, with one-off laps flagged (default on). */
+  showLaps?: boolean;
+  /** Show the corner clicked in a Tyre Wear table or Corner Report instead of the whole lap (default on). */
+  followFocus?: boolean;
+}
+
+/** Tyre wear wheels: each tyre's rubber as a ring split into lock-up / wheelspin / slide (ref outside, comparisons inside). */
+export interface WearWheelsConfig extends Base {
+  type: 'wearwheels';
+  /** 'share' (default): every ring goes all the way round, showing the mix; 'amount': ring length = wear. */
+  mode?: 'share' | 'amount';
+  /** Four tyres (default), one axle, one tyre, or the average of the four. */
+  tyre?: 'all' | 'avg' | 'front' | 'rear' | 'FL' | 'FR' | 'RL' | 'RR';
+  /** Comparison laps drawn as inner rings (default 1, up to 2). */
+  maxCompare?: number;
+  /** Show the section clicked in a Tyre Wear table instead of the whole lap (default on). */
+  followFocus?: boolean;
+  /** 'm' (default): causes and differences in metres; 'pct': as % (cause share of the lap's wear, difference vs the reference). Totals stay in metres. */
+  units?: 'm' | 'pct';
+}
+
 /** Tyre wear: how much rubber each tyre loses on each selected lap, why (lock-up / wheelspin / slide), and where. */
 export interface TyreWearConfig extends Base {
   type: 'tyrewear';
@@ -118,11 +146,13 @@ export interface TyreWearConfig extends Base {
   sections?: 'corners' | 'mini';
   /** Comparison laps: also show each lap's own wear and lock-up / wheelspin / slide breakdown (default off: Δ only). */
   showBreakdown?: boolean;
-  /** Rows for the straights between corners (default on; the whole-lap total still counts them). */
+  /** Rows for the straights between corners (default off; the whole-lap total still counts them). */
   showStraights?: boolean;
   /** Row order: around the lap, or biggest extra wear against the reference first. */
   sort?: 'track' | 'delta';
-  /** Game's own grip loss (Tire Rubber Grip) next to each lap (default on). */
+  /** Clicking a row opens a pop-out with that section's wear per tyre and by cause (default on). */
+  popout?: boolean;
+  /** Game's own grip loss (Tire Rubber Grip) next to each lap, and the game wear factor (default off). */
   showGame?: boolean;
 }
 
@@ -319,7 +349,9 @@ export type TyreField =
   | 'wheelSpeed'
   | 'latForce'
   | 'longForce'
-  | 'loadedRadius';
+  | 'loadedRadius'
+  | 'ndSlip'
+  | 'wearRate';
 
 export const TYRE_FIELDS: { key: TyreField; label: string; default: boolean }[] = [
   { key: 'surface', label: 'Surface temperature strips (inner / middle / outer)', default: true },
@@ -342,6 +374,8 @@ export const TYRE_FIELDS: { key: TyreField; label: string; default: boolean }[] 
   { key: 'latForce', label: 'Lateral force (Fy)', default: false },
   { key: 'longForce', label: 'Longitudinal force (Fx)', default: false },
   { key: 'loadedRadius', label: 'Loaded radius', default: false },
+  { key: 'ndSlip', label: 'Normalised slip (ndSlip: 1 = at the grip peak)', default: false },
+  { key: 'wearRate', label: 'Tyre wear rate (0–100)', default: false },
 ];
 
 export interface TyresConfig extends Base {
@@ -374,6 +408,14 @@ export interface TrendConfig extends Base {
   showFit?: boolean;
   fit?: FitKind;
   showEquation?: boolean;
+  /** Channel trends: leave out laps that aren't complete (out / in / partial laps; default off). */
+  completeOnly?: boolean;
+  /** Lap times: hide laps slower than `cutoff` % of the fastest shown (the 107% rule; default off, 107). */
+  cutoffOn?: boolean;
+  cutoff?: number;
+  /** A one-line explanation shown at the top of the chart, with more on hover (e.g. what blistering means). */
+  note?: string;
+  noteDetail?: string;
   /** Key of which colour is which stint, top left (default off — the colours follow the lap selection). */
   showLegend?: boolean;
 }
@@ -381,7 +423,7 @@ export interface TrendConfig extends Base {
 export interface CornersConfig extends Base {
   type: 'corners';
   metric: 'minSpeed' | 'time' | 'entrySpeed' | 'exitSpeed';
-  /** Rows for the straights between corners (default on). */
+  /** Rows for the straights between corners (default off; totals still count them). */
   showStraights?: boolean;
   /** Corner vs straight time totals (default on). */
   showTotals?: boolean;
@@ -414,7 +456,9 @@ export type ComponentConfig =
   | GpsTrackConfig
   | BarsConfig
   | BreakdownConfig
-  | TyreWearConfig;
+  | TyreWearConfig
+  | WearWheelsConfig
+  | WearBalanceConfig;
 
 export type LayoutNode =
   | { kind: 'split'; id: string; dir: 'row' | 'col'; children: LayoutNode[]; sizes: number[] }

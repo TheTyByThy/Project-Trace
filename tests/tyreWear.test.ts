@@ -8,6 +8,8 @@ import { buildSession } from '../src/core/session';
 import { applyMathChannels } from '../src/core/math/evaluate';
 import { lapWear, TYRES } from '../src/core/tyreWear';
 import { DEFAULT_MATH_CHANNELS } from '../src/state/defaultMath';
+import { allTyreWearSheets } from '../src/state/tyreWearSheets';
+import { gameFactor } from '../src/charts/wearShared';
 
 const dir = path.join(__dirname, '..', 'sample-data');
 const file = fs.readdirSync(dir).find((f) => f.endsWith('.csv'))!;
@@ -71,5 +73,45 @@ describe('tyre wear model', () => {
       expect(rate.min).toBeGreaterThanOrEqual(0);
       expect(rate.max).toBeLessThanOrEqual(100);
     }
+  });
+
+  it('the cause channels add up to the wear rate and split it like the model', () => {
+    applyMathChannels(s, DEFAULT_MATH_CHANNELS, []);
+    const mean = (n: string, lap: (typeof laps)[number]) => {
+      const ch = s.channels.get(n)!;
+      let sum = 0;
+      let k = 0;
+      for (let i = Math.ceil((lap.start - ch.t0) * ch.rate); i < (lap.end - ch.t0) * ch.rate; i++) (sum += ch.data[i]), k++;
+      return sum / k;
+    };
+    const lap = laps[1];
+    for (const t of TYRES) {
+      const total = mean(`Tyre Wear Rate ${t}`, lap);
+      const parts = ['Lock-up', 'Wheelspin', 'Slide'].map((c) => mean(`Tyre Wear ${c} ${t}`, lap));
+      expect(parts.reduce((a, b) => a + b, 0) / total).toBeGreaterThan(0.97);
+      expect(parts.reduce((a, b) => a + b, 0) / total).toBeLessThan(1.01);
+      const w = lapWear(s, lap, t)!.total;
+      expect(Math.abs(parts[2] / total - w.slide / w.total)).toBeLessThan(0.03);
+    }
+  });
+
+  it('every channel the tyre-wear worksheets use exists (logged or default math)', () => {
+    const known = new Set([...s.channels.keys(), ...DEFAULT_MATH_CHANNELS.map((m) => m.name)]);
+    const used = new Set<string>();
+    for (const sh of allTyreWearSheets())
+      for (const c of Object.values(sh.components) as any[]) {
+        for (const p of c.panes ?? []) for (const n of p.channels) used.add(n);
+        if (c.type === 'trackmap' && c.colorBy !== 'lap' && c.colorBy !== 'delta') used.add(c.colorBy);
+        if (c.type === 'trend' && c.channel) used.add(c.channel);
+      }
+    expect([...used].filter((n) => !known.has(n))).toEqual([]);
+  });
+
+  it("measures the game's wear factor for the session", () => {
+    const f = gameFactor(s)!;
+    expect(f).not.toBeNull();
+    expect(f.compound).toBe(2);
+    expect(f.multiplier!).toBeGreaterThan(1.7); // the bundled Singapore session ran a 2x wear rate
+    expect(f.multiplier!).toBeLessThan(2.3);
   });
 });

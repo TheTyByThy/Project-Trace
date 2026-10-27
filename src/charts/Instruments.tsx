@@ -398,6 +398,8 @@ const TYRE_LINES: Partial<Record<TyreField, { label: string; bases: string[]; dp
   latForce: { label: 'Fy', bases: ['Tire Lat Fy'], dps: 0 },
   longForce: { label: 'Fx', bases: ['Tire Long Fx'], dps: 0 },
   loadedRadius: { label: 'Rad', bases: ['Tire Loaded Radius'], dps: 3 },
+  ndSlip: { label: 'nd', bases: ['ndSlip'], dps: 2 },
+  wearRate: { label: 'Rate', bases: ['Tyre Wear Rate'], dps: 0 },
 };
 
 function findAny(s: Session, bases: string[], corner: string): ChannelInfo | undefined {

@@ -18,6 +18,8 @@ export const COMPONENT_CATALOG: { type: ComponentType; label: string; icon: stri
   { type: 'trend', label: 'Lap Trend', icon: '📈', description: 'A per-lap statistic across the session (lap time, max temp, fuel…).' },
   { type: 'gauges', label: 'Gauges', icon: '◔', description: 'Dial, bar and digital gauges showing values at the cursor.' },
   { type: 'inputs', label: 'Driver Inputs', icon: '🎮', description: 'Pedals, steering wheel, gear and speed at the cursor.' },
+  { type: 'wearbalance', label: 'Tyre Wear Balance', icon: '⇋', description: 'Front axle vs rear and left side vs right: each side\'s share of the wear, the gap in metres and what it is made of (lock-up / wheelspin / slide), lap by lap with one-offs flagged.' },
+  { type: 'wearwheels', label: 'Tyre Wear Wheels', icon: '◉', description: 'The four tyres as rings split into lock-up / wheelspin / cornering slide — what is wearing each tyre at a glance, reference vs comparison.' },
   { type: 'tyrewear', label: 'Tyre Wear', icon: '◍', description: 'How much rubber each tyre loses per lap, why (lock-ups, wheelspin, slides) and in which corners — against the reference.' },
   { type: 'tyres', label: 'Tyres & Brakes', icon: '◫', description: 'Four-corner tyre temperatures, pressures, loads and brake temps.' },
   { type: 'fft', label: 'Frequency (FFT)', icon: '∿', description: 'Frequency spectrum of a channel — ride and damper analysis.' },
@@ -121,7 +123,13 @@ export function createComponent(type: ComponentType, patch: Partial<ComponentCon
       c = { id, type, mode: 'cursor' };
       break;
     case 'tyrewear':
-      c = { id, type, tyre: 'all', sort: 'track', showGame: true };
+      c = { id, type, tyre: 'all', sort: 'track', showGame: false };
+      break;
+    case 'wearwheels':
+      c = { id, type, mode: 'share', tyre: 'all', maxCompare: 1, followFocus: true };
+      break;
+    case 'wearbalance':
+      c = { id, type, maxCompare: 1, showLaps: false, followFocus: true };
       break;
     case 'details':
       c = { id, type, tab: 'setup', diffOnly: false };
@@ -130,7 +138,7 @@ export function createComponent(type: ComponentType, patch: Partial<ComponentCon
       c = { id, type, channel: '', stat: 'mean', validOnly: false };
       break;
     case 'corners':
-      c = { id, type, metric: 'time', showStraights: true, showTotals: true };
+      c = { id, type, metric: 'time', showStraights: false, showTotals: true };
       break;
     case 'fft':
       c = { id, type, channel: 'Damper Travel FL', maxHz: 25, useZoom: true, logScale: false };

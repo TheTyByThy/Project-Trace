@@ -15,64 +15,142 @@ Project-Trace estimates **how much rubber each tyre loses, where on the lap it h
 
 ## Using it
 
-### The two worksheets
+### The worksheets
 
-The Starter workspace has two tyre wear worksheets.
+There are seven tyre-wear worksheets, going from a quick look to scrubbing through one corner. The **FA26 V1.3** workspace has all seven; the Starter has the first two. To put any of them in another workspace, right-click the tab → **Copy worksheet**, then paste it there. Any math channels it needs come along with it.
 
-**Tyre Wear (overview):** everything averaged over the four tyres.
+| Worksheet | What it's for | What's on it |
+|---|---|---|
+| **Tyre Wear** | The quick look: which tyre works hardest, why, and where the comparison lap differs. Everything is the average of the four tyres. | Tyre Wear Wheels · Tyre Wear component (one averaged card + corner table) · Δ wear-rate track map · wear rate by cause along the lap · wear per lap through the stint |
+| **Tyre Wear Detail** | The same, tyre by tyre. | Wear rate per tyre · four Δ maps laid out like the car · Tyre Wear component with four cards · four per-lap trends |
+| **Wear Balance** | Front axle vs rear, left side vs right: how much, as a %, and what makes up each gap. | Just the reference and comparison laps: Tyre Wear Balance cards · both balances along the lap · the four wheels · two maps coloured front-vs-rear and left-vs-right |
+| **Wear by Corner** | Which corners cost rubber, and why. | Corner table in lap order (switch to *Most extra wear* to rank them; click one) · the clicked corner's wheels, with ring length = wear · Corner Report (time in corner) · Δ map · racing lines · driver inputs at the cursor |
+| **Wear Deep Dive – Fronts** | Scrub through a corner and see what builds front wear. | One graph: speed · steering angle · brake and throttle · **brake-steer combination** · front **lock-up** · front **wheelspin** · front **cornering slide** · front **left − right**. Beside it: the FL and FR wheels for the clicked corner, tyres at the cursor, racing lines. |
+| **Wear Deep Dive – Rears** | The same for the rears, where traction matters. | Speed and **gear** · throttle and brake · steering angle (counter-steer) · rear lock-up · rear wheelspin · rear cornering slide · rear left − right. Beside it: the RL and RR wheels, tyres at the cursor, racing lines. |
+| **Wear Stint** | How the stint went, and a check against the game. | Stint report · lap times with the **107%** filter (on) · wear per lap with a fit line · the game's rubber grip (RL) · **blistering** and **graining** (RL) side by side, i.e. grip lost on top of the wear |
 
-| Panel | Shows |
+**How the deep dives are laid out.**
+- **One trace per lap in every wear pane.** Each cause has its own pane (lock-up, wheelspin, cornering slide) and shows the axle: left and right averaged. When you compare two laps, the reference is drawn in the cause colour and the comparison in its lap colour, one line each, so they never get mixed up. Six panes (three causes × two tyres) would have been twelve overlapping lines once a comparison lap is on.
+- **Left versus right** has its own pane: **left − right** wear rate. Above 0, the left tyre is wearing faster there; below 0, the right. For each tyre's own split, look at the axle's two **wheels** on the right; they follow the corner you click.
+- **Above the wear panes are the inputs that cause it**, so you can see what happened just before the wear rises.
+
+| Pane | Why it's there |
 |---|---|
-| Tyre wear rate (average of 4) | Speed, plus `Tyre Wear Rate Avg` against distance, for every selected lap. |
-| Tyre wear per lap (average of 4) | A Lap Trend of `Tyre Wear Lap Avg` (end-of-lap value): wear per lap across each open stint. |
-| Tyre Wear component | One card (average of the four tyres) and the per-section table. |
-| Track map — Δ wear rate vs reference | The track coloured by the comparison lap's wear rate minus the reference's. Red = the comparison lap wears the tyres more there, green = less. |
+| Speed (and **gear** on the rears) | Where in the corner you are; wheelspin comes from throttle in a low gear. |
+| Steering angle | Turn-in, mid-corner corrections and counter-steer. |
+| Brake and throttle | When the tyres are asked to brake or drive. |
+| **Brake-steer combination** (fronts) | Trail braking loads the fronts in two directions at once: a lock-up or slide risk. |
+| Lock-up / wheelspin / cornering slide | What is wearing the tyres at each moment. The three add up to the axle's wear rate. |
+| Left − right | Which side of the axle is doing more of the wearing. |
+| Tyres at the cursor | Wear rate (**Rate**), ndSlip (**nd**, 1 = at the grip peak), load, slip angle, slip ratio and surface temperatures for all four tyres at the cursor. Surface temperatures flash up when a tyre slides. |
 
-**Tyre Wear Detail:** the same, split per tyre (FL / FR / RL / RR).
+### Tyre Wear Wheels
 
-| Panel | Shows |
+A component that shows each tyre as a wheel. Its **rubber is a ring split into lock-up (red), wheelspin (amber) and cornering slide (blue)**, so one glance says which tyre works hardest and why.
+
+- **Reference and comparison laps.** The **reference is the outer ring** and **comparison laps are the inner rings**, each outlined in its lap colour. A key at the top shows a mini wheel with each ring named: *outer **REF** Lap 6 · inner **CMP** Lap 5*. The centre shows the reference's wear (*96 m · REF*) and the comparison's difference (*CMP −23 m*; red = more wear, green = less).
+- **Under each wheel**, one labelled row per lap: **REF** / **CMP**, then lock-up · wheelspin · cornering slide **in metres**, e.g. *REF 89 m · 0 m · 7 m*, and the comparison's total difference. These are raw metres rather than percentages, because a percentage is a share of a different total on each lap, so it can't be compared between laps.
+- **m / % switch** (top right of the component, no need for Properties):
+  - **m** (default): the causes and the comparison's difference in metres.
+  - **%**: each cause as a share of that lap's wear on the tyre, and the difference as % of the reference, e.g. *REF 12% · 0% · 88% = 30 m*, *CMP 34% · 0% · 66% = 40 m (Δ +30%)*. The centre shows *CMP +30%*. Totals always stay in metres.
+- **Rings** (Properties):
+  - **The mix** (default): every ring goes all the way round, so you compare *what causes* the wear.
+  - **The amount**: ring length is the wear itself (the longest goes all the way round), so a tyre or lap that wears less has a shorter ring. The Wear by Corner sheet uses this.
+- **Tyres:** all four (default), **the front or rear axle** (the deep dives show just their axle), one tyre, or the average of the four. Up to two comparison laps can be shown as inner rings.
+- **It follows the corner you click** in any Tyre Wear table or Corner Report, on any worksheet. The heading shows the corner; **✕** goes back to the whole lap. Turn this off in Properties if you want a wheel that always shows the whole lap.
+- There is no help text underneath, so the wheels fill the panel. The metres under each wheel stay.
+
+### Tyre Wear Balance
+
+Compares **the front axle with the rear** and **the left side with the right**. Each side is its two tyres averaged (front = FL, FR; rear = RL, RR; left = FL, RL; right = FR, RR), so the numbers are per tyre and the axles compare fairly.
+
+**Cards (selected laps).** One card for front vs rear and one for left vs right. Each has a **REF** row, and a **CMP** row for the comparison lap:
+- **The gap and what it's made of**, e.g. *"Rear +422 m (38% more per tyre): wheelspin +629 · cornering slide −115 · lock-up −91"*. The heavier side, by how much, then the gap split by cause, biggest first. A negative part means the lighter side has more of that cause.
+- **The split bar:** each side's share of the wear, e.g. *Front 42% | Rear 58%*. The middle line marks 50 / 50.
+- **Each side's own make-up:** a lock-up / wheelspin / slide bar and the metres, e.g. *Rear 109 · 629 · 807 = 1 545 m*.
+
+They follow the corner you click in a Tyre Wear table or Corner Report, like the wheels.
+
+**Lap by lap (off by default; tick *Lap-by-lap table* in Properties).** Below the cards is a table for each open stint. For every complete lap it shows both splits, the gap and its main cause, and a **One-off?** column:
+- A lap is flagged **⚠** when its gap for one cause is far from what's usual in that stint: more than 4.5× the typical lap-to-lap spread, **and** at least 5% of a lap's wear per tyre (never under 50 m), so ordinary lap-to-lap wobble isn't flagged. The flag appears on a line under the lap and names the cause, size and side, e.g. *⚠ wheelspin +691 m on the rear (front vs rear)*.
+- That answers *"is the left wearing more because of how I drive, or because of one lap?"* A steady gap with no flags is driving style. A flag means one event (a lock-up, a spin, a big moment) pulled that lap out of step.
+- Laps over the worksheet's 107% cut-off are left out.
+- Click a lap to make it the reference; Ctrl/⌘ + click adds it as a comparison.
+
+On your Hungaroring stint:
+- **Front vs rear:** the rears take about 58% of the wear on every lap, and the gap is almost all **wheelspin**. That's the car, not one event.
+- **Left vs right:** the left takes about 55%, mostly **cornering slide**. Hungaroring is mainly right-handers, which load the left.
+- **One-offs:** your 1:32 lap 2 is flagged with a wheelspin one-off on the rear.
+
+**Balance channels** (on the Wear Balance sheet; also usable anywhere):
+
+| Channel | What it is |
 |---|---|
-| Tyre wear rate per tyre | One pane per tyre. |
-| Four Δ wear-rate track maps | One per tyre, laid out like the car (FL FR / RL RR). |
-| Tyre Wear component | Four tyre cards, with the table on one tyre at a time. |
-| Four Lap Trends | Wear per lap, one per tyre. |
-
-To use them in your own workspace:
-- Add the channels with **Math editor → Add missing defaults**.
-- Copy the worksheets, or add the pieces with **+ Component**.
+| `Tyre Wear Front-Rear` | Front minus rear wear rate along the lap. Above 0 = the fronts are wearing faster there. A map coloured by it is red where the fronts wear more, blue where the rears do. |
+| `Tyre Wear Left-Right` | Left minus right. Above 0 = the left wears faster: red on the map. |
+| `Tyre Wear Front Share` | The fronts' share of the lap's wear, in % (50 = even). Trend its end-of-lap value to see the balance lap by lap. |
+| `Tyre Wear Left Share` | The left side's share, in %. |
 
 ### Tyre Wear component
 
 It works on the selected laps: the reference and any comparisons.
 
-**Lap cards.** One card per tyre, or one card averaging the four (**Properties → Lap cards**). Each row is a selected lap:
+**Lap cards.** These follow the **Avg / FL / FR / RL / RR** buttons:
+- With **Avg**, you get your preference (**Properties → Lap cards**): one card per tyre, or one card averaging the four.
+- With a tyre button, you get just that tyre's card.
+
+Each row is a selected lap:
 
 | Column | What it means |
 |---|---|
 | Bar | Length is the lap's wear. Colours split it into **lock-up** (red), **wheelspin** (amber) and **cornering slide** (blue). Hover for the percentages. |
 | Metres | Wear in metres of full sliding at 5 kN (see [the math](#the-math-channels-term-by-term)). |
 | Δ % | Wear against the reference lap on the same tyre. Red = more wear, green = less. |
-| −x.xx % | Grip the game took off the tyre over the lap (`Tire Rubber Grip`), for comparison. Hide it in Properties. |
+| −x.xx % | Grip the game took off the tyre over the lap (`Tire Rubber Grip`). Hover it for the [game wear factor](#game-wear-factor-validation). **Off by default**; turn it on in Properties (*Game's grip loss … and the game wear factor*). |
 
-**Where table.** The lap is split into your corners and the straights between them (from the track profile), or into 200 m mini-sectors. Each row shows:
+**Where table.** The lap is split into your corners (from the track profile) or into 200 m mini-sectors. Each row shows:
 - **Reference lap:** its wear in that section, and its lock-up / wheelspin / slide bar.
 - **Each comparison lap:**
   - the difference to the reference (**Δ**) and a gain/loss bar
   - the cause that changed most, e.g. *cornering slide*, or *less lock-up* when it went down
 
-Turn on **Breakdown** (the button above the table, or in Properties) to also see each comparison lap's own wear and its lock-up / wheelspin / slide bar. It's off by default. All the cause bars share one scale, so their lengths compare across laps and rows.
+Turn on **Breakdown** to also see each comparison lap's own wear and its cause bar. All the cause bars share one scale, so their lengths compare across laps and rows.
+
+**Click a row** to look at that corner on its own:
+- The graphs zoom to it.
+- The row stays highlighted.
+- A **pop-out** opens with the corner's wheels: all four tyres with **Avg**, or the chosen tyre on its own. Next to them, a table of lock-up / wheelspin / slide / total in metres for the reference and each comparison lap, with the differences.
+- Every Tyre Wear Wheels component switches to that corner.
+
+Click the row again, or **✕**, to close. The Wear by Corner sheet turns the pop-out off (**Properties → Clicking a row opens that section's pop-out**) because its wheels already show the corner.
 
 Controls:
-- **Avg / FL / FR / RL / RR** chooses the tyre for the table: the four averaged, or one.
+- **Avg / FL / FR / RL / RR** chooses the tyre: the four averaged, or one. This also switches the cards.
 - **Corners / 200 m** chooses the sections.
-- **Straights** shows or hides the straight rows, as in the Corner Report. The whole-lap total still counts them.
+- **Straights** adds the straights between corners. It's **off by default**, as in the Corner Report; the whole-lap total always counts them.
 - **Breakdown** adds each comparison lap's own wear and cause bar.
 - **Lap order / Most extra wear** sorts the rows around the lap or by the worst sections first.
-- **Click a row** to zoom every graph to that section. **Hover** to highlight it on the track maps.
+- **Hover** a row to highlight it on the track maps.
 
 The line under the table summarises the first comparison lap, for example:
 
-> L5 vs reference: −3.1% tyre wear overall; biggest extra wear in T2 → T3 (+10 m, cornering slide).
+> L5 vs reference: −3.1% tyre wear overall; biggest extra wear in T8 (+35 m, cornering slide).
+
+### Game wear factor (validation)
+
+**The modelled wear does not change with the game's wear setting.** It is calculated only from speed, slip and load, so a lap driven the same way gives the same metres at 1× or 5×. The setting only changes how much grip the game removes for that wear. Your COTA stints show it:
+
+| COTA, same car, track and compound | Game's grip loss per km of modelled wear | Model wear per lap (average tyre) |
+|---|---|---|
+| 23/10 and 24/10 morning (5× setting) | 5.4 – 5.7 %/km | 1,560 – 1,620 m |
+| 24/10 from 11:30 (1× setting) | 1.10 – 1.12 %/km | 1,610 – 1,750 m |
+
+To check a setting yourself:
+- Turn on **Properties → Game's grip loss … and the game wear factor** (it's off by default).
+- Hover the **ⓘ Game wear factor** line under the table, or any **−x.xx %** value.
+- It reads e.g. *"Game wear factor: 2.31 % grip per km of modelled wear ≈ 2.0× the 1× rate for compound 2 (1.16 %/km)"*.
+- It is worked out over the whole session: the four tyres' total grip lost ÷ their total modelled wear.
+- The **≈ N×** part needs a recorded 1× rate for the compound. So far only compound 2 has one (1.16 %/km, from your Hungaroring, Sepang and COTA 1× stints). For other compounds it shows the raw %/km. Your compound-0 sessions read about 2.2–2.4 %/km and compound 3 about 0.84 %/km, but which wear setting they ran isn't known.
 
 ### Track map: difference to the reference
 
@@ -86,12 +164,29 @@ Any Track Map coloured by a channel can show **comparison lap − reference** in
 ### A workflow for "why did my tyres go off faster?"
 
 1. Open both stints. Make your representative lap the reference, and your team-mate's lap a comparison (Ctrl/⌘ + click).
-2. On **Tyre Wear**, look at the per-lap trend. A gap on one or two laps is an incident; a gap on every lap is driving style.
-3. For an incident, select that lap and sort the table by **Most extra wear**. One section with a big *wheelspin* or *lock-up* cause is the incident.
-4. For a style difference:
-   - Read the Δ track map and the table for the corners where you consistently wear more.
-   - Switch to **Tyre Wear Detail** to see which tyre it is.
-   - Click the corner, then compare steering, throttle, brake and slip-angle traces there.
+2. On **Tyre Wear**:
+   - The **wheels** show which tyre works hardest and what's doing it.
+   - The **per-lap trend** shows whether the gap is one or two laps (an incident) or every lap (driving style).
+3. On **Wear by Corner**, the table is ranked by extra wear. Click the top corner: the wheels show which tyre and which cause. The racing lines and the minimum speed show what was different.
+4. Go to **Wear Deep Dive – Fronts** or **Rears**. The graphs are already zoomed to that corner. Scrub through it:
+   - Watch the cause traces rise.
+   - Look at what happened just before: steering rate, brake, throttle, ndSlip, slip angle or ratio.
+   - Compare with your team-mate's lap, drawn in its lap colour.
+5. On **Wear Stint**, check that the game agrees: the rubber-grip slope, plus blistering or graining if grip falls faster than the wear explains. The **≤ 107%** filter on the lap-time chart leaves slow laps (traffic, spins, cool-down laps) out of every trend on that sheet and its fit lines.
+
+### Blistering vs graining
+
+Both are grip the tyre loses **on top of** rubber wear. CSP's tyre model logs them as `Tire Blister` and `Tire Grain`, and they appear side by side on **Wear Stint**, each with a one-line explanation (hover for more).
+
+| | **Blistering** | **Graining** |
+|---|---|---|
+| In one line | The tyre is **too hot** | The tyre is **too cold for the sliding it does** |
+| What happens | The rubber overheats inside (core or surface well above its window) for too long. Gas bubbles form under the surface and chunks of tread tear out. | The tread slides while it's below its working temperature. The surface tears into small rolls or balls of rubber that sit on the tread like ball bearings. |
+| Typical causes | Lots of sliding, pushing on a hot or worn tyre, low pressure, a hot track | Cold track, early laps, a hard or cold compound, too much lateral slide |
+| Does it go away? | **No.** The grip is gone, and it keeps growing while the tyre stays hot. | **It can.** Once the tyre is up to temperature and the loose rubber wears off, the grip comes back. |
+| What to do | Slide less (smoother inputs), run the tyre cooler (pressure / camber), back off for a lap | Get temperature in first, avoid sliding a cold tyre |
+| In your data | Builds through every long stint (e.g. Martin's Hungaroring stint reaches 6 on RL) | Only on the cooler days (road 22–24 °C: Sepang, COTA in September); zero at Hungaroring |
+
 
 ---
 
@@ -127,7 +222,7 @@ The rear tyres lose about 10% less grip per metre than the fronts, because of th
 
 ## The math channels, term by term
 
-There are ten wear channels in the default library: per tyre (FL, FR, RL, RR) plus averages. The FL versions, exactly as in the Math editor:
+There are 37 wear channels in the default library: the rate and per-lap wear for each tyre (FL, FR, RL, RR), the rate split by cause for each tyre, the causes per axle and each axle's left − right balance, front-vs-rear and left-vs-right balances, and averages of the four. The FL versions, exactly as in the Math editor:
 
 ```text
 Tyre Wear Rate FL  =  clamp(smooth('Ground Speed' [m/s] * 'ndSlip FL' * max('Tire Load FL', 0), 0.2) / 5000, 0, 100)
@@ -135,7 +230,22 @@ Tyre Wear Lap FL   =  integrate_lap('Ground Speed' [m/s] * 'ndSlip FL' * max('Ti
 
 Tyre Wear Rate Avg =  ('Tyre Wear Rate FL' + 'Tyre Wear Rate FR' + 'Tyre Wear Rate RL' + 'Tyre Wear Rate RR') / 4
 Tyre Wear Lap Avg  =  ('Tyre Wear Lap FL' + 'Tyre Wear Lap FR' + 'Tyre Wear Lap RL' + 'Tyre Wear Lap RR') / 4   [m]
+
+Tyre Wear Lock-up FL    =  clamp(smooth(v·s·F_z  ×  choose('Tire Slip Ratio FL' < 0, f_long, 0), 0.2) / 5000, 0, 100)
+Tyre Wear Wheelspin FL  =  clamp(smooth(v·s·F_z  ×  choose('Tire Slip Ratio FL' > 0, f_long, 0), 0.2) / 5000, 0, 100)
+Tyre Wear Slide FL      =  clamp(smooth(v·s·F_z  ×  (1 − f_long), 0.2) / 5000, 0, 100)
+    where  v·s·F_z = 'Ground Speed' [m/s] * 'ndSlip FL' * max('Tire Load FL', 0)
+           f_long  = sqr('Tire Slip Ratio FL' / 100) / max(sqr('Tire Slip Ratio FL' / 100) + sqr(rad('Tire Slip Angle FL')), 0.000000001)
+Tyre Wear Lock-up Avg etc. = the four tyres' cause channels / 4
+Tyre Wear Lock-up Front  =  ('Tyre Wear Lock-up FL' + 'Tyre Wear Lock-up FR') / 2      (likewise Wheelspin / Slide, and Rear with RL, RR)
+Tyre Wear Left-Right Front  =  'Tyre Wear Rate FL' - 'Tyre Wear Rate FR'               (Rear: RL − RR; above 0 = the left wears faster)
+Tyre Wear Front-Rear   =  (Rate FL + Rate FR) / 2 − (Rate RL + Rate RR) / 2
+Tyre Wear Left-Right   =  (Rate FL + Rate RL) / 2 − (Rate FR + Rate RR) / 2
+Tyre Wear Front Share  =  100 × (Lap FL + Lap FR) / max(Lap FL + Lap FR + Lap RL + Lap RR, 1)     [%]
+Tyre Wear Left Share   =  100 × (Lap FL + Lap RL) / max(Lap FL + Lap FR + Lap RL + Lap RR, 1)     [%]
 ```
+
+The three cause channels split each moment's wear rate by the direction of the slip ([cause split](#cause-split-component-and-cause-channels)). They add up to `Tyre Wear Rate`, within about 1% (the 0–100 cap can trim a big spike). The deep-dive sheets draw them in the cause colours, so a pane shows at a glance whether the wear in a corner comes from a lock-up, wheelspin or a slide.
 
 The Tyre Wear component computes the same thing directly in code (`src/core/tyreWear.ts`). A unit test checks that its lap totals match `Tyre Wear Lap` within 3%.
 
@@ -209,7 +319,7 @@ The scale is linear, so **the area under the trace is the wear**. `Tyre Wear Lap
 
 A single 0.3 s lock-up like the last row adds about 190 m: an eighth of a whole lap's FL wear at Hungaroring (about 1,250 m).
 
-### Cause split (component only)
+### Cause split (component and cause channels)
 
 The component also splits each sample's wear by the direction of the slip. The game scales κ and α by nearly the same peak (0.111 vs 0.112 rad), so the share of the slip that is longitudinal is:
 
@@ -221,7 +331,7 @@ wheelspin  =  ẇ · f_long     when κ > 0        tyre turning faster than the 
 cornering  =  ẇ · (1 − f_long)                 sliding sideways
 ```
 
-The three always add up to the total.
+The three always add up to the total. The cause channels use exactly this formula, with the slip ratio converted from % (÷ 100) and the slip angle from degrees (`rad`); `max(…, 0.000000001)` only stops a divide-by-zero when both are exactly 0.
 
 ---
 
@@ -338,6 +448,9 @@ Two more findings:
    - The causes add up to the total.
    - The sections add up to the lap.
    - The math channels match the component, and the rate stays within 0–100.
+   - The three cause channels add up to the wear rate (within 3%) and give the same slide share as the model (within 3 points).
+   - Every channel the six worksheets use exists, either logged or in the default math.
+   - The game wear factor of the bundled Singapore session reads about 2× (it ran a 2× wear rate).
 
 **Check it yourself:** put `Tyre Wear Lap RL` (stat = last) and `Tire Rubber Grip RL` (stat = change over lap) in two Lap Trends for one session. They should move together lap by lap.
 

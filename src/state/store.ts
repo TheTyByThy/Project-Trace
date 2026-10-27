@@ -243,8 +243,28 @@ function debounce(key: string, ms: number, fn: () => void) {
 }
 const saveSettings = () => debounce('settings', 400, () => pt().setSettings(get().settings));
 const saveWorkspace = (ws: Workspace) => {
-  if (!ws.locked) debounce('ws:' + ws.id, 600, () => pt().saveWorkspace(ws));
+  if (!ws.locked) debounce('ws:' + ws.id, 600, () => writeWorkspace(ws, true));
 };
+
+/** A file error from the main process in plain words (IPC wraps it in "Error invoking remote method …"). */
+function fileError(e: unknown): string {
+  const msg = String((e as Error)?.message ?? e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
+  return /EPERM|EACCES/.test(msg)
+    ? `${msg}. macOS may be blocking Project-Trace from your Documents folder — allow it in System Settings → Privacy & Security → Files and Folders.`
+    : msg;
+}
+
+let lastSaveError = 0;
+/** Write a workspace file. A failure is always shown (autosave failures at most every 15 s). Resolves to the path, or null. */
+async function writeWorkspace(ws: Workspace, autosave = false): Promise<string | null> {
+  try {
+    return await pt().saveWorkspace(ws);
+  } catch (e) {
+    if (!autosave || Date.now() - lastSaveError > 15000) toast(`Couldn't save "${ws.name}": ${fileError(e)}`, 'error', 12000);
+    lastSaveError = Date.now();
+    return null;
+  }
+}
 /** Drop a pending debounced save (used when a workspace is deleted). */
 const cancelSave = (id: string) => clearTimeout(timers.get('ws:' + id));
 const saveCache = () => debounce('cache', 800, () => pt().setCache(get().sessionCache));
@@ -476,7 +496,7 @@ function applySnapshot(snap: Snapshot) {
   }));
   restoring = false;
   saveSettings();
-  for (const ws of snap.workspaces) if (!prevWs.includes(ws) && !ws.locked) pt().saveWorkspace(ws);
+  for (const ws of snap.workspaces) if (!prevWs.includes(ws) && !ws.locked) void writeWorkspace(ws);
   for (const ws of prevWs)
     if (!snap.workspaces.some((w) => w.id === ws.id) && !ws.locked) {
       cancelSave(ws.id);
@@ -572,7 +592,9 @@ function normalizeBuiltIn(w: Workspace): Workspace {
 
 /** Pick up workspace files that appeared in the workspaces folder (e.g. one someone shared). */
 export async function syncWorkspacesFromFolder() {
-  const list = (await pt().listWorkspaces()) as Workspace[];
+  const list = (await pt()
+    .listWorkspaces()
+    .catch(() => [])) as Workspace[];
   const known = new Set(get().workspaces.map((w) => w.id));
   const added = list.filter((w) => w && Array.isArray(w.worksheets) && !known.has(w.id)).map(normalizeWorkspace);
   if (!added.length) return;
@@ -585,7 +607,10 @@ export async function initApp() {
   const [info, rawSettings, list, defaults, cache, notes, library] = await Promise.all([
     bridge.appInfo(),
     bridge.getSettings(),
-    bridge.listWorkspaces(),
+    bridge.listWorkspaces().catch((e) => {
+      toast(`Couldn't read your workspaces folder: ${fileError(e)}`, 'error', 15000);
+      return [];
+    }),
     bridge.defaultWorkspaces(),
     bridge.getCache(),
     bridge.getNotes(),
@@ -620,7 +645,7 @@ export async function initApp() {
   if (!workspaces.length) {
     const mine = buildDefaultWorkspace('My Workspace');
     workspaces = [mine];
-    bridge.saveWorkspace(mine);
+    void writeWorkspace(mine);
   }
   workspaces.sort((a, b) => a.createdAt - b.createdAt);
   workspaces = [...builtIns, ...workspaces];
@@ -984,7 +1009,7 @@ export function updateWorkspace(fn: (ws: Workspace) => Workspace, opts: EditOpts
     const edited = fn(copy);
     set((s) => ({ workspaces: [...s.workspaces, edited], settings: { ...s.settings, activeWorkspaceId: edited.id } }));
     saveSettings();
-    pt().saveWorkspace(edited);
+    void writeWorkspace(edited);
     toast(`"${ws.name}" is a read-only default, so your change was saved in a new workspace, "${edited.name}".`, 'info', 6500);
     return;
   }
@@ -1260,7 +1285,8 @@ export function setActiveWorkspace(id: string) {
   recomputeMath();
 }
 
-export function createWorkspace(kind: 'starter' | 'blank' | 'duplicate', name?: string) {
+/** Add a workspace and switch to it; resolves to its file path, or null if it couldn't be written. */
+export function createWorkspace(kind: 'starter' | 'blank' | 'duplicate', name?: string): Promise<string | null> {
   recordHistory('New workspace');
   let ws: Workspace;
   const now = Date.now();
@@ -1270,8 +1296,9 @@ export function createWorkspace(kind: 'starter' | 'blank' | 'duplicate', name?: 
     delete ws.locked;
   } else ws = kind === 'starter' ? buildDefaultWorkspace(uniqueWorkspaceName(name || 'My Workspace')) : buildBlankWorkspace(uniqueWorkspaceName(name || 'Blank workspace'));
   set((s) => ({ workspaces: [...s.workspaces, ws] }));
-  pt().saveWorkspace(ws);
+  const written = writeWorkspace(ws);
   setActiveWorkspace(ws.id);
+  return written;
 }
 
 /** Save the current workspace to its file now (workspaces also save automatically). Defaults → Save as. */
@@ -1280,8 +1307,8 @@ export async function saveCurrentWorkspace() {
   if (!ws) return;
   if (ws.locked) return saveWorkspaceAs();
   clearTimeout(timers.get('ws:' + ws.id));
-  const file = await pt().saveWorkspace(ws);
-  toast(`Saved "${ws.name}"${file ? ` to ${file}` : ''}`, 'success', 3500);
+  const file = await writeWorkspace(ws);
+  if (file) toast(`Saved "${ws.name}" to ${file}`, 'success', 3500);
 }
 
 /** Save a copy of the current workspace under a new name (and switch to it). */
@@ -1290,10 +1317,10 @@ export async function saveWorkspaceAs(name?: string) {
   if (!ws) return;
   const n = name ?? (await promptName('Save workspace as', ws.locked ? `My ${ws.name}` : `${ws.name} copy`));
   if (!n) return;
-  createWorkspace('duplicate', n);
+  const written = createWorkspace('duplicate', n);
   const copy = activeWorkspace();
-  const file = await pt().saveWorkspace(copy);
-  toast(`Saved "${copy.name}"${file ? ` to ${file}` : ''}`, 'success', 3500);
+  const file = await written;
+  if (file) toast(`Saved "${copy.name}" to ${file}`, 'success', 3500);
 }
 
 /** In-app name prompt (set by the UI layer, which owns the prompt dialog). */
@@ -1356,7 +1383,7 @@ export async function importWorkspace() {
   ws.constants ??= [];
   ws.channelProps ??= {};
   set((s) => ({ workspaces: [...s.workspaces, ws] }));
-  pt().saveWorkspace(ws);
+  void writeWorkspace(ws);
   setActiveWorkspace(ws.id);
   toast(`Imported "${ws.name}"`, 'success');
 }

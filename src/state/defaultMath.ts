@@ -88,6 +88,72 @@ export const DEFAULT_MATH_CHANNELS: MathChannelDef[] = [
       0,
     ),
   ),
+  // The wear rate split by cause, on the same 0–100 scale (they add up to Tyre Wear Rate): the longitudinal
+  // share of the slip is sr² / (sr² + α²) — lock-up when the slip ratio is negative, wheelspin when positive —
+  // and the rest is cornering slide. Shown in the cause colours on the wear deep-dive worksheets.
+  ...corners.flatMap((c) => {
+    const base = `'Ground Speed' [m/s] * 'ndSlip ${c}' * max('Tire Load ${c}', 0)`;
+    const sr2 = `sqr('Tire Slip Ratio ${c}' / 100)`;
+    const long = `${sr2} / max(${sr2} + sqr(rad('Tire Slip Angle ${c}')), 0.000000001)`;
+    const rate = (share: string) => `clamp(smooth(${base} * ${share}, 0.2) / 5000, 0, 100)`;
+    return [
+      def(`Tyre Wear Lock-up ${c}`, rate(`choose('Tire Slip Ratio ${c}' < 0, ${long}, 0)`), '', `Part of the ${c} wear rate from lock-ups / braking slip (negative slip ratio), 0–100.`, 0),
+      def(`Tyre Wear Wheelspin ${c}`, rate(`choose('Tire Slip Ratio ${c}' > 0, ${long}, 0)`), '', `Part of the ${c} wear rate from wheelspin / traction slip (positive slip ratio), 0–100.`, 0),
+      def(`Tyre Wear Slide ${c}`, rate(`(1 - ${long})`), '', `Part of the ${c} wear rate from cornering slide (slip angle), 0–100.`, 0),
+    ];
+  }),
+  ...(['Lock-up', 'Wheelspin', 'Slide'] as const).map((k) =>
+    def(`Tyre Wear ${k} Avg`, `(${corners.map((c) => `'Tyre Wear ${k} ${c}'`).join(' + ')}) / 4`, '', `${k === 'Slide' ? 'Cornering-slide' : k} part of the wear rate, averaged over the four tyres.`, 0),
+  ),
+  // Per axle: each cause averaged over left and right (one trace per lap, so two laps compare cleanly), and
+  // the left − right balance of the wear rate (positive = the left tyre is wearing faster).
+  ...(
+    [
+      ['Front', 'FL', 'FR'],
+      ['Rear', 'RL', 'RR'],
+    ] as const
+  ).flatMap(([axle, l, r]) => [
+    ...(['Lock-up', 'Wheelspin', 'Slide'] as const).map((k) =>
+      def(`Tyre Wear ${k} ${axle}`, `('Tyre Wear ${k} ${l}' + 'Tyre Wear ${k} ${r}') / 2`, '', `${k === 'Slide' ? 'Cornering-slide' : k} part of the wear rate, ${axle.toLowerCase()} axle (${l} and ${r} averaged), 0–100.`, 0),
+    ),
+    def(
+      `Tyre Wear Left-Right ${axle}`,
+      `'Tyre Wear Rate ${l}' - 'Tyre Wear Rate ${r}'`,
+      '',
+      `${axle} axle wear-rate balance: ${l} minus ${r}. Above 0 = the left tyre is wearing faster there, below 0 = the right.`,
+      0,
+    ),
+  ]),
+  // Balance between the axles and the sides. Rates (along the lap): front minus rear and left minus right,
+  // each the average of its two tyres. Per lap: the front's and the left's share of the lap's wear, in % (50 = even).
+  def(
+    'Tyre Wear Front-Rear',
+    "('Tyre Wear Rate FL' + 'Tyre Wear Rate FR') / 2 - ('Tyre Wear Rate RL' + 'Tyre Wear Rate RR') / 2",
+    '',
+    'Front minus rear wear rate (each axle averaged). Above 0 = the fronts are wearing faster there, below 0 = the rears.',
+    0,
+  ),
+  def(
+    'Tyre Wear Left-Right',
+    "('Tyre Wear Rate FL' + 'Tyre Wear Rate RL') / 2 - ('Tyre Wear Rate FR' + 'Tyre Wear Rate RR') / 2",
+    '',
+    'Left minus right wear rate (each side averaged). Above 0 = the left tyres are wearing faster there (right-hand corners load the left), below 0 = the right.',
+    0,
+  ),
+  def(
+    'Tyre Wear Front Share',
+    "100 * ('Tyre Wear Lap FL' + 'Tyre Wear Lap FR') / max('Tyre Wear Lap FL' + 'Tyre Wear Lap FR' + 'Tyre Wear Lap RL' + 'Tyre Wear Lap RR', 1)",
+    '%',
+    "The fronts' share of the wear so far in the lap (50 = even). Its end-of-lap value in a Lap Trend is the front / rear balance per lap.",
+    1,
+  ),
+  def(
+    'Tyre Wear Left Share',
+    "100 * ('Tyre Wear Lap FL' + 'Tyre Wear Lap RL') / max('Tyre Wear Lap FL' + 'Tyre Wear Lap FR' + 'Tyre Wear Lap RL' + 'Tyre Wear Lap RR', 1)",
+    '%',
+    "The left tyres' share of the wear so far in the lap (50 = even). Its end-of-lap value in a Lap Trend is the left / right balance per lap.",
+    1,
+  ),
   def(
     'Tyre Wear Rate Avg',
     "('Tyre Wear Rate FL' + 'Tyre Wear Rate FR' + 'Tyre Wear Rate RL' + 'Tyre Wear Rate RR') / 4",

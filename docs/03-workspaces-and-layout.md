@@ -57,7 +57,9 @@ Changes are saved automatically within a second. To save explicitly, or to make 
 | **Save** | the workspace name menu in the top bar, **Workspace → Save Workspace** | Ctrl/⌘ + S |
 | **Save as…** | the workspace name menu, **Workspace → Save Workspace As…** (on a default, *Save* saves a copy) | |
 
-A notice confirms the file it was saved to.
+A notice confirms the file it was saved to. If a save fails, including an automatic one, a red notice gives the reason. The same goes for when the workspaces folder can't be read at start-up.
+
+On macOS the usual cause is the Documents folder permission. Each new build of the app needs it again, because the builds aren't signed with a developer certificate. Allow it in **System Settings → Privacy & Security → Files and Folders → Project-Trace → Documents Folder**, then save again.
 
 ## Undo and redo
 

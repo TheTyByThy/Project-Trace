@@ -34,15 +34,15 @@ Project-Trace remembers the last folder you opened a session from. Next launch i
 | Column | Meaning |
 |---|---|
 | **Saved** | When the export was written (from the file header; falls back to the file name/date). Tag shows `csv` or `ld`. |
-| **In-game** | The **time of day in the sim** at the start of the session (see below). |
+| **Track** | Track name, with the layout underneath. |
 | **Driver** | Driver name from the file. |
 | **Car** | Car folder name prettified, plus the livery/team. |
 | **Laps** | Complete laps / total laps (the first lap of a log is normally a partial out lap). |
 | **Best lap** | Fastest complete lap from the header, with its lap number. The fastest in the folder is highlighted. |
-| **Best valid** | Fastest lap that **wasn't invalidated**. AC's invalid flag is only known after reading the whole file, so this fills in once you've opened the session (it's cached). `?` = not opened yet. |
-| **Duration** | Length of the log. |
 | **Air / track** | Ambient and track temperatures at the start. |
 | **Size** | File size. |
+
+The in-game time of day and the log's duration are in the details pane when you click a session.
 
 Click a column header to sort. Type in **Filter sessions…** to search by driver, car, track or file name.
 

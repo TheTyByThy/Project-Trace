@@ -10,10 +10,15 @@ import {
   activeWorkspace,
   copyWorksheet,
   deleteWorksheet,
+  deleteWorkspace,
+  saveCurrentWorkspace,
+  saveWorkspaceAs,
   pasteWorksheet,
   redo,
   removeComponentById,
   setActiveWorkspace,
+  updateWorkspace,
+  trackProfile,
   STARTER_ID,
   undo,
   initApp,
@@ -51,6 +56,10 @@ import { TrackProfileDialog } from './ui/TrackProfileEditor';
 import { CommandPalette, SettingsDialog, ShortcutsDialog } from './ui/Dialogs';
 import { SheetTabs, StatusBar, Toasts, TopBar } from './ui/Chrome';
 import { startLive } from './state/live';
+import { allTyreWearSheets } from './state/tyreWearSheets';
+import { setWearFocus } from './charts/wearShared';
+import { WEAR_CHANNEL_PROPS } from './state/tyreWearSheets';
+import { DEFAULT_MATH_CHANNELS } from './state/defaultMath';
 
 function usePanelResizer(key: 'sidebarWidth' | 'inspectorWidth', dir: 1 | -1) {
   return (e: React.PointerEvent) => {
@@ -149,6 +158,12 @@ function installAutomation() {
       'trend-fit',
       'tyre-wear',
       'tyre-wear-detail',
+      'wear-popout',
+      'wear-balance',
+      'wear-by-corner',
+      'wear-deep-fronts',
+      'wear-deep-rears',
+      'wear-stint',
       'live-mode',
       'scatter-fit',
       'playback',
@@ -199,6 +214,32 @@ function installAutomation() {
       } else if (name === 'live-mode') {
         // Screenshot profile only: show the Live mode settings switched on.
         updateSettings({ live: { ...useStore.getState().settings.live, enabled: true, requireSim: true } });
+      } else if (name.startsWith('wear-')) {
+        // Screenshot profile only: add the full tyre-wear worksheet set (as in a dedicated workspace) once.
+        if (sheetIndex('Wear by Corner') < 0)
+          updateWorkspace((ws) => ({
+            ...ws,
+            worksheets: [...ws.worksheets, ...allTyreWearSheets().slice(2)],
+            math: [...ws.math, ...DEFAULT_MATH_CHANNELS.filter((m) => !ws.math.some((x) => x.name === m.name))],
+            channelProps: { ...WEAR_CHANNEL_PROPS, ...ws.channelProps },
+          }));
+        const target = { 'wear-balance': 'Wear Balance', 'wear-popout': 'Tyre Wear', 'wear-by-corner': 'Wear by Corner', 'wear-deep-fronts': 'Wear Deep Dive – Fronts', 'wear-deep-rears': 'Wear Deep Dive – Rears', 'wear-stint': 'Wear Stint' }[name]!;
+        setActiveSheet(sheetIndex(target));
+        // Wear by Corner shows the wheels' % view (the other sheets show metres).
+        if (name === 'wear-by-corner')
+          for (const c of Object.values(activeSheet()?.components ?? {})) if (c.type === 'wearwheels') updateComponent(c.id, { units: 'pct' });
+        // Focus the second corner (from a Tyre Wear table on this sheet, so its pop-out opens).
+        const corner = trackProfile(venue).corners.slice().sort((a, b) => a.dist - b.dist)[1];
+        const tw = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'tyrewear');
+        if (corner && name !== 'wear-stint' && name !== 'wear-balance') {
+          setWearFocus({ name: corner.name, entry: corner.dist - 120, exit: corner.dist + 80, venue, source: tw?.id ?? '' });
+          setXMode('distance');
+          setZoom([corner.dist - 250, corner.dist + 200]);
+          setCursor(corner.dist);
+        } else {
+          setWearFocus(null);
+          setZoom(null);
+        }
       } else if (name === 'tyre-wear' || name === 'tyre-wear-detail') {
         setZoom(null);
         setActiveSheet(sheetIndex(name === 'tyre-wear' ? 'Tyre Wear' : 'Tyre Wear Detail'));
@@ -315,7 +356,7 @@ function installAutomation() {
     errors: () => useStore.getState().errors,
     sessions: () => useStore.getState().sessions.map((x) => x.fileName),
     /** End-to-end checks of undo/redo and the read-only Starter workspace (run by the screenshot script). */
-    checks: () => {
+    checks: async () => {
       const out: string[] = [];
       const ok = (cond: boolean, what: string) => out.push(`${cond ? 'PASS' : 'FAIL'}: ${what}`);
       const count = () => Object.keys(activeSheet()?.components ?? {}).length;
@@ -360,6 +401,37 @@ function installAutomation() {
         undo();
         setActiveWorkspace(mine);
       }
+      // Save / Save as: each way of saving shows the "Saved" pop-up and writes the file.
+      const savedToast = () => useStore.getState().toasts.some((t) => t.kind === 'success' && t.text.startsWith('Saved'));
+      const clearToasts = () => useStore.setState({ toasts: [] });
+      const onDisk = async (id: string) => (await pt().listWorkspaces()).some((w) => w.id === id);
+      for (const [how, run] of [
+        ['Save', () => saveCurrentWorkspace()],
+        ['the Workspace menu Save', () => handleMenuAction('ws-save')],
+        ['⌘/Ctrl+S', async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', metaKey: true, ctrlKey: true, cancelable: true }))],
+      ] as const) {
+        clearToasts();
+        await run();
+        await new Promise((r) => setTimeout(r, 300));
+        ok(savedToast() && (await onDisk(mine)), `${how} shows the Saved pop-up and writes the file`);
+      }
+      clearToasts();
+      const count0 = useStore.getState().workspaces.length;
+      await saveWorkspaceAs('Save As Check');
+      const copy = activeWorkspace();
+      ok(copy.name === 'Save As Check' && useStore.getState().workspaces.length === count0 + 1, 'Save as makes a named copy and switches to it');
+      ok(savedToast() && (await onDisk(copy.id)), 'Save as shows the Saved pop-up and writes the file');
+      deleteWorkspace(copy.id);
+      setActiveWorkspace(mine);
+      // A save that fails (here: a value that can't be sent to the main process) says so instead of doing nothing.
+      clearToasts();
+      const saved = useStore.getState().workspaces;
+      useStore.setState({ workspaces: saved.map((w) => (w.id === mine ? ({ ...w, unsendable: () => 0 } as typeof w) : w)) });
+      await saveCurrentWorkspace();
+      const ts = useStore.getState().toasts;
+      ok(!savedToast() && ts.some((t) => t.kind === 'error' && t.text.startsWith("Couldn't save")), 'a failed save shows an error instead of nothing');
+      useStore.setState({ workspaces: saved, errors: [] });
+      clearToasts();
       return out;
     },
   };

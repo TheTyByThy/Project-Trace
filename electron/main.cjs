@@ -572,8 +572,10 @@ async function listWorkspaces() {
       out.push(ws);
     }
     return out;
-  } catch {
-    return [];
+  } catch (e) {
+    // Let the app say so (e.g. macOS blocking the Documents folder) rather than show no workspaces.
+    console.error('[workspaces] could not read', workspacesDir(), e);
+    throw e;
   }
 }
 

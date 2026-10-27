@@ -12,6 +12,7 @@ import { lapLabel } from '../core/session';
 import { convertUnit } from '../core/units';
 import { selectedLaps, setCursor, setHighlight, setTrackProfile, setXMode, setZoom, trackProfile, updateComponent, useStore } from '../state/store';
 import type { CornersConfig } from '../state/workspace';
+import { setWearFocus } from './wearShared';
 
 /** Times of a minute or more as m:ss.ss (e.g. 1:41.40), shorter ones in seconds. */
 const fmtTime = (v: number) => (Number.isFinite(v) && Math.abs(v) >= 60 ? formatLapTime(v, 2) : formatValue(v, 2));
@@ -67,7 +68,7 @@ export function CornerReportView({ config }: { config: CornersConfig }) {
   const sc = convertUnit('kph', speedUnit) ?? { k: 1, b: 0 };
   const value = (m: CornerLapMetrics | null) => (m ? (metric.time ? m.time : m[metric.key as 'minSpeed'] * sc.k + sc.b) : NaN);
   const segments = bucketSegments(ctx, trackSegments(windows, ref.session.trackLength));
-  const shownSegments = config.showStraights === false ? segments.filter((g) => g.kind === 'corner') : segments;
+  const shownSegments = config.showStraights !== true ? segments.filter((g) => g.kind === 'corner') : segments;
   // Metrics for every lap × segment (time feeds the totals).
   const metrics = new Map<TrackSegment, (CornerLapMetrics | null)[]>(segments.map((g) => [g, laps.map((l) => cornerMetrics(l.session, l.lap, g))]));
   // Time per bucket (low / medium / high-speed corners, straights) for each lap; they add up to the lap.
@@ -97,8 +98,8 @@ export function CornerReportView({ config }: { config: CornersConfig }) {
           {metric.time ? 's' : speedUnit} · ref {lapLabel(ref.lap)} · click a row to zoom to it
         </span>
         <button
-          className={'btn small' + (config.showStraights !== false ? ' active' : '')}
-          onClick={() => updateComponent(config.id, { showStraights: config.showStraights === false }, 'Show straights')}
+          className={'btn small' + (config.showStraights === true ? ' active' : '')}
+          onClick={() => updateComponent(config.id, { showStraights: config.showStraights !== true }, 'Show straights')}
           title="Show or hide the straights between corners in the table (totals still count them)"
         >
           Straights
@@ -141,7 +142,7 @@ export function CornerReportView({ config }: { config: CornersConfig }) {
       <table className="grid">
         <thead>
           <tr>
-            <th className="l">{config.showStraights === false ? 'Corner' : 'Corner / straight'}</th>
+            <th className="l">{config.showStraights !== true ? 'Corner' : 'Corner / straight'}</th>
             <th>Range</th>
             {laps.map((l, i) => (
               <th key={l.key} style={{ background: lapHeaderTint(l.color), color: 'var(--text)' }}>
@@ -165,6 +166,8 @@ export function CornerReportView({ config }: { config: CornersConfig }) {
                   setXMode('distance');
                   setZoom([g.entry - 40, g.exit + 40]);
                   setCursor(g.apex);
+                  // Tyre Wear Wheels on any sheet follow the clicked corner.
+                  setWearFocus({ name: g.name, entry: g.entry, exit: g.exit, venue: ref.session.meta.venue, source: config.id });
                 }}
                 onMouseEnter={() => setHighlight({ entry: g.entry, exit: g.exit })}
                 onMouseLeave={() => setHighlight(null)}

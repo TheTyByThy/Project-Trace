@@ -9,7 +9,7 @@ import { summarizeFile, type SessionSummary } from '../state/loader';
 import { closeSession, openFiles, setDefaultTelemetryFolder, setTelemetryFolders, setUi, telemetryFolders, updateSettings, useStore } from '../state/store';
 import { openMenu, promptText } from './overlays';
 
-type SortKey = 'savedAt' | 'gameTimeUtc' | 'driver' | 'vehicle' | 'laps' | 'bestLap' | 'duration' | 'size';
+type SortKey = 'savedAt' | 'track' | 'driver' | 'vehicle' | 'laps' | 'bestLap' | 'size';
 
 const sep = (p: string) => (p.includes('\\') ? '\\' : '/');
 const exportKey = (name: string) => name.replace(/\.(csv|txt|ld)$/i, '').toLowerCase();
@@ -33,7 +33,6 @@ function preferredFiles(files: DirFile[]): (DirFile & { alsoLd?: boolean })[] {
 export function SessionBrowser() {
   const settings = useStore((s) => s.settings);
   const appInfo = useStore((s) => s.appInfo);
-  const cache = useStore((s) => s.sessionCache);
   const loaded = useStore((s) => s.sessions);
   const hasSessions = loaded.length > 0;
   const loadedPaths = new Set(loaded.map((s) => normPath(s.path)));
@@ -145,8 +144,8 @@ export function SessionBrowser() {
       switch (sort.key) {
         case 'savedAt':
           return r.savedAt ?? r.mtime;
-        case 'gameTimeUtc':
-          return r.gameTimeUtc ?? 0;
+        case 'track':
+          return r.venue ? prettyTrack(r.venue).full.toLowerCase() : '';
         case 'driver':
           return r.driver ?? '';
         case 'vehicle':
@@ -155,8 +154,6 @@ export function SessionBrowser() {
           return r.completeLaps ?? 0;
         case 'bestLap':
           return r.bestLap ?? Infinity;
-        case 'duration':
-          return r.duration ?? 0;
         case 'size':
           return r.size;
       }
@@ -451,13 +448,11 @@ export function SessionBrowser() {
                           <tr>
                             <th style={{ width: 28 }}></th>
                             {sortHead('savedAt', 'Saved', 'l')}
-                            {sortHead('gameTimeUtc', 'In-game')}
+                            {sortHead('track', 'Track', 'l')}
                             {sortHead('driver', 'Driver', 'l')}
                             {sortHead('vehicle', 'Car', 'l')}
                             {sortHead('laps', 'Laps')}
                             {sortHead('bestLap', 'Best lap')}
-                            <th title="Fastest lap not invalidated (known after opening a session once)">Best valid</th>
-                            {sortHead('duration', 'Duration')}
                             <th>Air / track</th>
                             {sortHead('size', 'Size')}
                           </tr>
@@ -465,7 +460,6 @@ export function SessionBrowser() {
                         <tbody>
                           {rows.map((r) => {
                             const sel = selected.includes(r.path);
-                            const c = cache[r.path];
                             const isFastest = fastestInFolder === r;
                             return (
                               <tr
@@ -487,7 +481,14 @@ export function SessionBrowser() {
                                     </span>
                                   </div>
                                 </td>
-                                <td className="num">{r.ok ? formatGameClock(r.gameTimeUtc, zoneForVenue(r.venue, settings.trackZones, settings.gameClock)) : ''}</td>
+                                <td className="l" title={r.venue}>
+                                  {r.venue ? prettyTrack(r.venue).track : ''}
+                                  {r.venue && prettyTrack(r.venue).layout && (
+                                    <div className="muted" style={{ fontSize: 11 }}>
+                                      {prettyTrack(r.venue).layout}
+                                    </div>
+                                  )}
+                                </td>
                                 <td className="l">{r.driver || (r.ok ? '—' : <span className="muted">{r.error ? 'unreadable' : '…'}</span>)}</td>
                                 <td className="l" title={r.vehicle}>
                                   {r.vehicle ? prettyCar(r.vehicle) : ''}
@@ -502,8 +503,6 @@ export function SessionBrowser() {
                                   {r.bestLap != null ? formatLapTime(r.bestLap) : r.ok ? '—' : ''}
                                   {r.bestLapNumber != null && <span className="muted"> L{r.bestLapNumber}</span>}
                                 </td>
-                                <td className="num">{c && c.mtime === r.mtime ? (c.bestValid != null ? formatLapTime(c.bestValid) : 'none') : <span className="muted">?</span>}</td>
-                                <td className="num">{r.duration ? formatDuration(r.duration) : ''}</td>
                                 <td className="num">{r.airTemp != null ? `${r.airTemp.toFixed(0)}° / ${r.roadTemp?.toFixed(0) ?? '—'}°` : ''}</td>
                                 <td className="num muted">{formatBytes(r.size)}</td>
                               </tr>

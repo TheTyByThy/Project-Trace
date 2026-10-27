@@ -87,6 +87,13 @@ One statistic per lap across the session, with each loaded session as a series:
 - **click a point** to make that lap the reference (Ctrl/⌘ + click to overlay);
 - **Y-axis range**: set a fixed min/max in Properties. Lap times are in seconds, e.g. 100–104 for 1:40–1:44. Or drag a rectangle to zoom.
 - **Best fit line** (off by default): right-click the chart → *Best fit line* and *Show fit equation*, or Properties → *Best fit* to pick **linear, polynomial (2nd–4th order), exponential, logarithmic or power**. One dashed line per session (raw and fuel-corrected fitted separately), with x = lap number; the equation box shows each fit with **R²**, and a linear fit also shows the change per lap (e.g. `−0.120 s/lap` — your pace or degradation trend).
+- **≤ 107%** (top right, lap time only): the classic 107% rule. It leaves out complete laps slower than a percentage of the fastest lap of the open stints (traffic, spins, cool-down laps), so they don't squash the scale or skew the fit.
+  - Click it to turn it on. The slider next to it tightens it from **107%** (the default and the most lenient) down to **100%**, in 1% steps.
+  - **It applies to the whole worksheet:** every other Lap Trend on the same sheet (tyre wear, rubber grip, blistering, temperatures…) leaves out the same laps, and so do their fit lines. Each chart's footer says how many slow laps were left out.
+  - Also in Properties.
+- **Note** (Properties): a one-line explanation shown at the top of the chart, e.g. what blistering means.
+- **Complete laps only** (Properties, channel trends): leaves out out-laps, in-laps and partial laps. Use it for per-lap totals such as `Tyre Wear Lap` or fuel used, where a short in-lap would drag a fit line down.
+- **Stint key** (Properties, off by default): the key of which colour is which session. The colours already follow the lap selection, so it's hidden unless you turn it on.
 - **Raw / Fuel-corrected / Both** (top right of the chart, lap time only): fuel-corrected = lap time − *fuel effect* × the average fuel on board during the lap — each lap as if run on an empty tank, so stint pace and tyre degradation aren't hidden by the car getting lighter. *Both* draws the corrected times as a dashed line with ◆ markers. The fuel effect (default **0.03 s per litre**) is a slider in Properties. It needs a fuel level channel.
 
 ![Raw and fuel-corrected lap times](images/fuel-corrected.png)

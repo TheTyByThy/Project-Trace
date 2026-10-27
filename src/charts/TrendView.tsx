@@ -9,7 +9,7 @@ import { fitCurve, fitEquation, fitRequirement, fitSettings } from '../core/fit'
 import { formatDelta, formatLapTime, formatValue, prettyTrack } from '../core/format';
 import { rangeStats } from '../core/stats';
 import { lapKey, type Lap, type Session } from '../core/types';
-import { selectedLaps, selectLap, sessionsWithSelection, updateComponent, useStore } from '../state/store';
+import { activeSheet, selectedLaps, selectLap, sessionsWithSelection, updateComponent, useStore } from '../state/store';
 import type { TrendConfig } from '../state/workspace';
 import { drawAxes, drawMarker, makeAxes, padRange, type Axes } from './axes';
 import { BoxZoomLayer, type View } from './BoxZoom';
@@ -33,6 +33,28 @@ function lapStat(s: Session, lap: Lap, cfg: TrendConfig): number {
 }
 
 export const DEFAULT_FUEL_EFFECT = 0.03;
+
+/** The 107% rule's slider range: 100–107% of the fastest lap, in 1% steps (107% = the default and the most lenient). */
+export const CUTOFF_MIN = 100;
+export const CUTOFF_MAX = 107;
+const clampCutoff = (v: number | undefined) => Math.max(CUTOFF_MIN, Math.min(CUTOFF_MAX, Math.round(v ?? CUTOFF_MAX)));
+
+/** This worksheet's slow-lap cut-off (%), set by a lap-time trend on it with "≤ 107%" on; null when off. */
+export function useSheetCutoff(): number | null {
+  return useStore((s) => {
+    const c = Object.values(activeSheet(s)?.components ?? {}).find((x) => x.type === 'trend' && !x.channel && x.cutoffOn) as TrendConfig | undefined;
+    return c ? clampCutoff(c.cutoff) : null;
+  });
+}
+
+/** Complete laps slower than `pct` % of the fastest complete lap of these sessions. */
+export function slowLaps(sessions: Session[], pct: number | null): Set<Lap> {
+  const slow = new Set<Lap>();
+  if (pct == null) return slow;
+  const best = Math.min(...sessions.flatMap((s) => s.laps.filter((l) => l.complete && l.time > 0).map((l) => l.time)));
+  if (Number.isFinite(best)) for (const s of sessions) for (const l of s.laps) if (l.complete && l.time > (best * pct) / 100) slow.add(l);
+  return slow;
+}
 
 /**
  * Fuel-corrected lap time: the lap time minus the time the fuel on board cost, i.e. the lap as if run
@@ -75,6 +97,8 @@ export function TrendView({ config }: { config: TrendConfig }) {
   const refKey = useStore((s) => s.refKey);
   const dataVersion = useStore((s) => s.dataVersion);
   const theme = useStore((s) => s.settings.theme);
+  // The slow-lap cut-off for this worksheet: set by a lap-time trend on it with "≤ 107%" switched on.
+  const sheetCutoff = useSheetCutoff();
 
   const draw = useCallback(() => {
     const { w, h } = size;
@@ -88,7 +112,11 @@ export function TrendView({ config }: { config: TrendConfig }) {
     // Lap times can be shown raw, fuel-corrected, or both (corrected = dashed line, diamond markers).
     const mode = config.channel ? 'raw' : config.lapTimes ?? 'raw';
     const k = config.fuelEffect ?? DEFAULT_FUEL_EFFECT;
-    const keep = (p: { l: Lap; v: number }) => Number.isFinite(p.v) && (!config.validOnly || !p.l.invalid) && (config.channel ? true : p.l.complete);
+    // The worksheet's slow-lap filter (the 107% rule, switched on in its lap-time trend): complete laps slower
+    // than the cut-off × the fastest lap of the open stints are left out of every trend on the sheet and its fits.
+    const slow = slowLaps(sessions, sheetCutoff);
+    const keep = (p: { l: Lap; v: number }) =>
+      Number.isFinite(p.v) && !slow.has(p.l) && (!config.validOnly || !p.l.invalid) && (config.channel && !config.completeOnly ? true : p.l.complete);
     // Each stint takes the colour of its first selected lap (the reference's stint gets the reference
     // colour), so the trend matches the lap colours used by every other chart; selected points keep
     // their own lap colour.
@@ -115,7 +143,9 @@ export function TrendView({ config }: { config: TrendConfig }) {
     let x0 = 0.5,
       x1 = maxLap + 0.5;
     if (viewRef.current) ({ x0, x1, y0, y1 } = viewRef.current);
-    const rect = { x: 60, y: 12, w: Math.max(10, w - 60 - 14), h: Math.max(10, h - 12 - 40) };
+    // Lap-time trends keep a strip at the top for their buttons (107% cut-off, raw / fuel-corrected).
+    const top = config.channel ? (config.note ? 30 : 12) : 36;
+    const rect = { x: 60, y: top, w: Math.max(10, w - 60 - 14), h: Math.max(10, h - top - 40) };
     const A = makeAxes(rect, x0, x1, y0, y1);
     axesRef.current = A;
     const ch = config.channel ? sessions[0]?.channels.get(config.channel) : undefined;
@@ -253,15 +283,44 @@ export function TrendView({ config }: { config: TrendConfig }) {
     const fuelNote =
       (mode === 'raw' ? '' : `${mode === 'both' ? 'dashed ◆ = ' : ''}fuel-corrected (−${k} s per litre on board) · `) +
       (fit.on && fit.equation ? `fit: x = lap number, y in ${config.channel ? unit || 'channel units' : 'seconds'} · ` : '');
-    ctx.fillText(viewRef.current ? 'zoomed — double-click to reset' : `${fuelNote}hollow = invalid lap · click a point to make it the reference · drag to zoom`, rect.x, h - 8);
-  }, [size, config, sessions, lapSel, refKey, dataVersion, theme]);
+    const cutNote = sheetCutoff != null ? `${slow.size} slow lap${slow.size === 1 ? '' : 's'} (over ${sheetCutoff}%) left out${config.channel ? ' — set on the lap-time trend' : ''} · ` : '';
+    ctx.fillText(viewRef.current ? 'zoomed — double-click to reset' : `${cutNote}${fuelNote}hollow = invalid lap · click a point to make it the reference · drag to zoom`, rect.x, h - 8);
+  }, [size, config, sessions, lapSel, refKey, dataVersion, theme, sheetCutoff]);
 
   useEffect(draw, [draw]);
 
   const mode = config.lapTimes ?? 'raw';
+  const cutoff = clampCutoff(config.cutoff);
   return (
     <div ref={wrapRef} className="chart">
       <canvas ref={ref} />
+      {config.note && (
+        <div className="chart-note" title={config.noteDetail ?? config.note}>
+          ⓘ {config.note}
+        </div>
+      )}
+      {!config.channel && (
+        <div className="chart-tools">
+          {config.cutoffOn && (
+            <input
+              type="range"
+              min={CUTOFF_MIN}
+              max={CUTOFF_MAX}
+              step={1}
+              value={cutoff}
+              title={`Leave out laps slower than ${cutoff}% of the fastest lap, here and in every trend on this worksheet`}
+              onChange={(e) => updateComponent(config.id, { cutoff: Number(e.target.value) }, 'Lap time cut-off')}
+            />
+          )}
+          <button
+            className={'btn small' + (config.cutoffOn ? ' active' : '')}
+            title="The 107% rule: leave out laps slower than this percentage of the fastest lap (traffic, spins, cool-down laps) — from this chart, every other trend on this worksheet, and their fit lines. Drag the slider (100–107%) to tighten it."
+            onClick={() => updateComponent(config.id, { cutoffOn: !config.cutoffOn }, 'Lap time cut-off')}
+          >
+            ≤ {cutoff}%
+          </button>
+        </div>
+      )}
       {!config.channel && (
         <div className="seg chart-seg" title="Lap times as logged, corrected for the fuel on board, or both">
           {(

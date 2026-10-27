@@ -18,6 +18,8 @@ import { TrackMapView } from './TrackMapView';
 import { TimeBreakdownView } from './TimeBreakdownView';
 import { TrendView } from './TrendView';
 import { TyreWearView } from './TyreWearView';
+import { WearWheelsView } from './WearWheelsView';
+import { WearBalanceView } from './WearBalanceView';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const VIEWS: Record<ComponentType, FC<{ config: any }>> = {
@@ -40,6 +42,8 @@ export const VIEWS: Record<ComponentType, FC<{ config: any }>> = {
   fft: FftView,
   details: DetailsView,
   tyrewear: TyreWearView,
+  wearwheels: WearWheelsView,
+  wearbalance: WearBalanceView,
 };
 
 export function defaultTitle(c: ComponentConfig): string {
@@ -80,6 +84,10 @@ export function defaultTitle(c: ComponentConfig): string {
       return 'Time breakdown';
     case 'tyrewear':
       return 'Tyre wear';
+    case 'wearwheels':
+      return 'Tyre wear wheels';
+    case 'wearbalance':
+      return 'Tyre wear balance';
     case 'bars':
       return c.rows.map((r) => r.label || channelLabel(r.channel)).slice(0, 3).join(', ') || 'Bars';
   }

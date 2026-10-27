@@ -633,6 +633,50 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
           </div>
         </div>
       );
+    case 'wearbalance':
+      return (
+        <div className="props-single">
+          <G title="Tyre wear balance">
+            <F label="Comparison laps under the reference">
+              <Select value={String(c.maxCompare ?? 1)} options={[['0', 'None (reference only)'], ['1', 'One'], ['2', 'Two']]} onChange={(v) => up({ maxCompare: Number(v) })} />
+            </F>
+            <Check label="Lap-by-lap table through each stint (one-offs flagged)" value={c.showLaps === true} onChange={(v) => up({ showLaps: v })} />
+            <Check label="Follow the corner clicked in a Tyre Wear table or Corner Report" value={c.followFocus !== false} onChange={(v) => up({ followFocus: v })} />
+            <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+              Front = FL and FR averaged, rear = RL and RR, left = FL and RL, right = FR and RR, so the numbers are per tyre. The bar is each side's share of the wear;
+              the line above it says which side wears more, by how much, and what the gap is made of. A lap is flagged as a one-off when its gap for one cause is
+              far from the stint's usual (more than 4.5 × the typical lap-to-lap spread, and at least 5% of a lap's wear per tyre, never under 50 m) — a single lock-up, say.
+            </div>
+          </G>
+        </div>
+      );
+    case 'wearwheels':
+      return (
+        <div className="props-single">
+          <G title="Tyre wear wheels">
+            <F label="Rings">
+              <Select value={c.mode ?? 'share'} options={[['share', 'The mix (each ring all the way round)'], ['amount', 'The amount (ring length = wear)']]} onChange={(v) => up({ mode: v })} />
+            </F>
+            <F label="Tyres">
+              <Select
+                value={c.tyre ?? 'all'}
+                options={[['all', 'All four'], ['front', 'Front axle (FL, FR)'], ['rear', 'Rear axle (RL, RR)'], ['avg', 'Average of the four'], ['FL', 'Front left'], ['FR', 'Front right'], ['RL', 'Rear left'], ['RR', 'Rear right']]}
+                onChange={(v) => up({ tyre: v })}
+              />
+            </F>
+            <F label="Comparison laps as inner rings">
+              <Select value={String(c.maxCompare ?? 1)} options={[['0', 'None (reference only)'], ['1', 'One'], ['2', 'Two']]} onChange={(v) => up({ maxCompare: Number(v) })} />
+            </F>
+            <Check label="Follow the corner clicked in a Tyre Wear table" value={c.followFocus !== false} onChange={(v) => up({ followFocus: v })} />
+            <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+              Each tyre's rubber is a ring split into lock-up (red), wheelspin (amber) and cornering slide (blue). The reference lap is the outer ring and
+              comparison laps sit inside it; the middle shows the reference's wear in metres and the first comparison's difference. "The mix" makes every ring
+              go all the way round so you compare what causes the wear; "the amount" makes ring length the wear itself, so a tyre or lap that wears less has a
+              shorter ring.
+            </div>
+          </G>
+        </div>
+      );
     case 'tyrewear':
       return (
         <div className="props-grid">
@@ -647,9 +691,10 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
               <F label="Order">
                 <Select value={c.sort ?? 'track'} options={[['track', 'Around the lap'], ['delta', 'Biggest extra wear first']]} onChange={(v) => up({ sort: v })} />
               </F>
-              <Check label="Straights between corners" value={c.showStraights !== false} onChange={(v) => up({ showStraights: v })} />
+              <Check label="Straights between corners" value={c.showStraights === true} onChange={(v) => up({ showStraights: v })} />
+              <Check label="Clicking a row opens that section's pop-out" value={c.popout !== false} onChange={(v) => up({ popout: v })} />
               <Check label="Comparison laps: show their own wear breakdown, not just Δ" value={!!c.showBreakdown} onChange={(v) => up({ showBreakdown: v })} />
-              <Check label="Game's grip loss (Tire Rubber Grip) next to each lap" value={c.showGame !== false} onChange={(v) => up({ showGame: v })} />
+              <Check label="Game's grip loss (Tire Rubber Grip) next to each lap, and the game wear factor" value={c.showGame === true} onChange={(v) => up({ showGame: v })} />
               <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
                 Wear is speed × normalised slip × tyre load, summed over the lap: metres of full sliding at 5 kN. It follows the game's rubber wear closely, and
                 because it only depends on the driving it compares fairly between drivers and stints even when the wear-rate setting differs. Without corners
@@ -670,7 +715,7 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
               <F label="Metric">
                 <Select value={c.metric} options={[['time', 'Time through corner'], ['minSpeed', 'Minimum speed'], ['entrySpeed', 'Entry speed'], ['exitSpeed', 'Exit speed']]} onChange={(v) => up({ metric: v })} />
               </F>
-              <Check label="Straights between corners" value={c.showStraights !== false} onChange={(v) => up({ showStraights: v })} />
+              <Check label="Straights between corners" value={c.showStraights === true} onChange={(v) => up({ showStraights: v })} />
               <Check label="Total time in corners vs on straights" value={c.showTotals !== false} onChange={(v) => up({ showTotals: v })} />
               <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
                 Each corner runs from where you leave full throttle before it to where you're back at full throttle after it (with the padding above), never past
@@ -753,11 +798,19 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
               </F>
             )}
             <Check label="Valid laps only" value={c.validOnly} onChange={(v) => up({ validOnly: v })} />
+            {c.channel && <Check label="Complete laps only (no out / in laps)" value={!!c.completeOnly} onChange={(v) => up({ completeOnly: v })} />}
+            <F label="Note at the top of the chart (optional)">
+              <input className="input" value={c.note ?? ''} placeholder="e.g. what this channel means" onChange={(e) => up({ note: e.target.value || undefined })} />
+            </F>
             <Check label="Stint key (which colour is which session)" value={!!c.showLegend} onChange={(v) => up({ showLegend: v })} />
             {!c.channel && (
               <>
                 <F label="Lap times">
                   <Select value={c.lapTimes ?? 'raw'} options={[['raw', 'Raw'], ['corrected', 'Fuel-corrected'], ['both', 'Both (corrected dashed)']]} onChange={(v) => up({ lapTimes: v })} />
+                </F>
+                <Check label="Leave out slow laps (107% rule) — on every trend on this worksheet" value={!!c.cutoffOn} onChange={(v) => up({ cutoffOn: v })} />
+                <F label={`Slow-lap cut-off (${Math.min(107, Math.round(c.cutoff ?? 107))}% of the fastest lap)`}>
+                  <input type="range" min={100} max={107} step={1} value={Math.min(107, Math.round(c.cutoff ?? 107))} onChange={(e) => up({ cutoff: Number(e.target.value) })} />
                 </F>
                 <F label={`Fuel effect (${(c.fuelEffect ?? 0.03).toFixed(3)} s per litre)`}>
                   <input type="range" min={0} max={0.1} step={0.005} value={c.fuelEffect ?? 0.03} onChange={(e) => up({ fuelEffect: Number(e.target.value) })} />
