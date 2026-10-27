@@ -7,6 +7,7 @@ import { lapXRange, timeToX, xToTime } from '../core/axis';
 import { lapColor, type Theme } from '../core/colors';
 import { DEFAULT_CORNER_SETTINGS, type CornerSettings, type TrackCorner } from '../core/corners';
 import { applyMathChannels, type MathChannelDef, type MathConstant } from '../core/math/evaluate';
+import { applyChannelMasters, DEFAULT_CHANNEL_MASTERS, type ChannelMaster } from '../core/channelMasters';
 import { fastestLap, getLap, theoreticalBest } from '../core/session';
 import { lapKey, parseLapKey, type Lap, type Session, type XMode } from '../core/types';
 import { DEFAULT_UNITS, type UnitPrefs } from '../core/units';
@@ -80,6 +81,8 @@ export interface Settings {
   shortcuts: Record<string, string[]>;
   /** Live mode: open new telemetry exports as soon as they're written (see src/state/live.ts). */
   live: LiveSettings;
+  /** Master channels: one name filled from whichever source channel each log has (Settings → Master channels). */
+  channelMasters: ChannelMaster[];
   /** Bumped when a default changes in a way existing users should pick up (see initApp). */
   settingsVersion: number;
 }
@@ -107,6 +110,7 @@ export const DEFAULT_SETTINGS: Settings = {
   corners: DEFAULT_CORNER_SETTINGS,
   shortcuts: {},
   live: DEFAULT_LIVE,
+  channelMasters: DEFAULT_CHANNEL_MASTERS,
   settingsVersion: 2,
 };
 
@@ -132,6 +136,8 @@ export interface UiState {
   browser: boolean;
   math: boolean;
   settings: boolean;
+  /** Settings dialog tab (kept while the app runs). */
+  settingsTab?: 'general' | 'masters';
   shortcuts: boolean;
   palette: boolean;
   properties: boolean;
@@ -383,6 +389,11 @@ export function updateSettings(patch: Partial<Settings>) {
   set((s) => ({ settings: { ...s.settings, ...patch } }));
   saveSettings();
   if (patch.theme) document.documentElement.dataset.theme = patch.theme;
+  // New master channels take effect at once: re-map every open session, then rebuild the math channels on top.
+  if (patch.channelMasters) {
+    for (const s of get().sessions) applyChannelMasters(s, patch.channelMasters);
+    recomputeMath();
+  }
   if (patch.units || patch.theme || patch.smoothing || patch.refColors || patch.corners) set((s) => ({ dataVersion: s.dataVersion + 1 }));
 }
 
@@ -625,6 +636,7 @@ export async function initApp() {
     shortcuts: { ...(raw.shortcuts ?? {}) },
     corners: { ...DEFAULT_CORNER_SETTINGS, ...(raw.corners ?? {}) },
     live: { ...DEFAULT_LIVE, ...(raw.live ?? {}) },
+    channelMasters: Array.isArray(raw.channelMasters) ? raw.channelMasters : DEFAULT_CHANNEL_MASTERS,
     settingsVersion: DEFAULT_SETTINGS.settingsVersion,
   };
   // v2: smoothing is on by default at 50 ms (older settings files saved it switched off).
@@ -686,6 +698,7 @@ export async function openFiles(paths: string[], mode: 'replace' | 'add' = 'repl
         set((s) => ({ loading: s.loading.map((l) => (l.path === path ? { ...l, progress: p } : l)) })),
       );
       const ws = activeWorkspace();
+      applyChannelMasters(session, get().settings.channelMasters);
       const res = applyMathChannels(session, ws.math, ws.constants);
       set((s) => ({
         sessions: [...s.sessions, session],

@@ -633,6 +633,34 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
           </div>
         </div>
       );
+    case 'wearsummary':
+      return (
+        <div className="props-single">
+          <G title="Tyre wear summary">
+            <F label="Rows">
+              <Select
+                value={c.source ?? 'laps'}
+                options={[
+                  ['laps', 'The selected laps (reference first)'],
+                  ['stints', 'One average lap per stint with a selected lap (107% filter applies)'],
+                ]}
+                onChange={(v) => up({ source: v as 'laps' | 'stints' })}
+              />
+            </F>
+            <Check label="Per tyre (FL, FR, RL, RR — laid out like the car) instead of the whole car" value={c.perTyre === true} onChange={(v) => up({ perTyre: v })} />
+            <F label="Comparison laps under the reference">
+              <Select value={String(c.maxCompare ?? 3)} options={[['0', 'None (reference only)'], ['1', 'One'], ['2', 'Two'], ['3', 'Three']]} onChange={(v) => up({ maxCompare: Number(v) })} />
+            </F>
+            <F label="Comparison laps shown as">
+              <Select value={c.units ?? 'm'} options={[['m', 'Difference in metres'], ['pct', 'Difference in %']]} onChange={(v) => up({ units: v as 'm' | 'pct' })} />
+            </F>
+            <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+              The whole car over the whole lap: FL + FR + RL + RR added up, and that total split into lock-up, wheelspin and cornering slide (metres of full sliding
+              at 5 kN). Also switchable with m / % in the component.
+            </div>
+          </G>
+        </div>
+      );
     case 'wearbalance':
       return (
         <div className="props-single">

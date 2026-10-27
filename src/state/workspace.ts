@@ -26,7 +26,8 @@ export type ComponentType =
   | 'breakdown'
   | 'tyrewear'
   | 'wearwheels'
-  | 'wearbalance';
+  | 'wearbalance'
+  | 'wearsummary';
 
 export interface GraphPane {
   id: string;
@@ -107,6 +108,19 @@ export interface BreakdownConfig extends Base {
   showBars?: boolean;
   /** The reference lap's time in each bucket (default on). */
   showTimes?: boolean;
+}
+
+/** Tyre wear summary: the whole car's wear over the lap (four tyres added up) and its split by cause; comparison laps as differences. */
+export interface WearSummaryConfig extends Base {
+  type: 'wearsummary';
+  /** Four tables, one per tyre (laid out like the car), instead of the whole car added up (default off). */
+  perTyre?: boolean;
+  /** 'laps' (default): the selected laps; 'stints': one average lap per stint with the reference or a comparison lap selected (complete laps, minus those over the worksheet's 107% filter). */
+  source?: 'laps' | 'stints';
+  /** Comparison laps listed under the reference (default 3). */
+  maxCompare?: number;
+  /** Comparison laps' differences in metres ('m', default) or as % of the reference ('pct'). */
+  units?: 'm' | 'pct';
 }
 
 /** Tyre wear balance: front vs rear and left vs right — shares, metres and what each gap is made of; lap by lap below. */
@@ -458,7 +472,8 @@ export type ComponentConfig =
   | BreakdownConfig
   | TyreWearConfig
   | WearWheelsConfig
-  | WearBalanceConfig;
+  | WearBalanceConfig
+  | WearSummaryConfig;
 
 export type LayoutNode =
   | { kind: 'split'; id: string; dir: 'row' | 'col'; children: LayoutNode[]; sizes: number[] }

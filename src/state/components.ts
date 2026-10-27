@@ -18,6 +18,7 @@ export const COMPONENT_CATALOG: { type: ComponentType; label: string; icon: stri
   { type: 'trend', label: 'Lap Trend', icon: '📈', description: 'A per-lap statistic across the session (lap time, max temp, fuel…).' },
   { type: 'gauges', label: 'Gauges', icon: '◔', description: 'Dial, bar and digital gauges showing values at the cursor.' },
   { type: 'inputs', label: 'Driver Inputs', icon: '🎮', description: 'Pedals, steering wheel, gear and speed at the cursor.' },
+  { type: 'wearsummary', label: 'Tyre Wear Summary', icon: 'Σ', description: 'The whole car over the whole lap: all four tyres added up, split into lock-up, wheelspin and cornering slide. Comparison laps as differences in metres or %.' },
   { type: 'wearbalance', label: 'Tyre Wear Balance', icon: '⇋', description: 'Front axle vs rear and left side vs right: each side\'s share of the wear, the gap in metres and what it is made of (lock-up / wheelspin / slide), lap by lap with one-offs flagged.' },
   { type: 'wearwheels', label: 'Tyre Wear Wheels', icon: '◉', description: 'The four tyres as rings split into lock-up / wheelspin / cornering slide — what is wearing each tyre at a glance, reference vs comparison.' },
   { type: 'tyrewear', label: 'Tyre Wear', icon: '◍', description: 'How much rubber each tyre loses per lap, why (lock-ups, wheelspin, slides) and in which corners — against the reference.' },
@@ -130,6 +131,9 @@ export function createComponent(type: ComponentType, patch: Partial<ComponentCon
       break;
     case 'wearbalance':
       c = { id, type, maxCompare: 1, showLaps: false, followFocus: true };
+      break;
+    case 'wearsummary':
+      c = { id, type, maxCompare: 3, units: 'm' };
       break;
     case 'details':
       c = { id, type, tab: 'setup', diffOnly: false };

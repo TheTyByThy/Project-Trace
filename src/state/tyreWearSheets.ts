@@ -55,8 +55,12 @@ export function tyreWearOverviewSheet(): Worksheet {
       [
         split(
           'col',
-          [add('wearwheels', P({ title: 'What is wearing each tyre', mode: 'share' })), add('tyrewear', P({ cards: 'average', tyre: 'all' }))],
-          [0.52, 0.48],
+          [
+            add('wearsummary', P({ title: 'Whole car — all four tyres added up' })),
+            add('wearwheels', P({ title: 'What is wearing each tyre', mode: 'share' })),
+            add('tyrewear', P({ cards: 'average', tyre: 'all' })),
+          ],
+          [0.17, 0.43, 0.4],
         ),
         split(
           'col',
@@ -221,8 +225,12 @@ export function wearStintSheet(): Worksheet {
       [
         split(
           'col',
-          [add('laps', P({ split: 'sectors', showStats: true })), add('trend', P({ title: 'Lap times', channel: '', cutoffOn: true, cutoff: 107, showFit: true, fit: 'linear' }))],
-          [0.5, 0.5],
+          [
+            add('wearsummary', P({ title: 'Average lap per stint — whole car (107% filter applies)', source: 'stints' })),
+            add('laps', P({ split: 'sectors', showStats: true })),
+            add('trend', P({ title: 'Lap times', channel: '', cutoffOn: true, cutoff: 107, showFit: true, fit: 'linear' })),
+          ],
+          [0.18, 0.41, 0.41],
         ),
         split(
           'col',
@@ -246,6 +254,33 @@ export function wearStintSheet(): Worksheet {
   );
 }
 
+/** The stint per tyre: each tyre's average lap per selected stint, and each tyre's wear lap by lap. */
+export function wearStintTyresSheet(): Worksheet {
+  const tyreTrend = (t: string) =>
+    P({ title: `${t} — wear per lap`, channel: `Tyre Wear Lap ${t}`, stat: 'last', completeOnly: true, showFit: true, fit: 'linear', showEquation: false });
+  return sheet('Wear Stint – Tyres', (add) =>
+    split(
+      'row',
+      [
+        split(
+          'col',
+          [
+            add('wearsummary', P({ title: 'Average lap per stint — each tyre (107% filter applies)', source: 'stints', perTyre: true })),
+            add('trend', P({ title: 'Lap times — the 107% filter for this sheet', channel: '', cutoffOn: true, cutoff: 107, showFit: true, fit: 'linear' })),
+          ],
+          [0.42, 0.58],
+        ),
+        split(
+          'col',
+          [split('row', [add('trend', tyreTrend('FL')), add('trend', tyreTrend('FR'))], [0.5, 0.5]), split('row', [add('trend', tyreTrend('RL')), add('trend', tyreTrend('RR'))], [0.5, 0.5])],
+          [0.5, 0.5],
+        ),
+      ],
+      [0.6, 0.4],
+    ),
+  );
+}
+
 /** Every tyre-wear worksheet, in order. */
 export const allTyreWearSheets = (): Worksheet[] => [
   tyreWearOverviewSheet(),
@@ -255,4 +290,5 @@ export const allTyreWearSheets = (): Worksheet[] => [
   wearDeepDiveFrontsSheet(),
   wearDeepDiveRearsSheet(),
   wearStintSheet(),
+  wearStintTyresSheet(),
 ];

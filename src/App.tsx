@@ -152,6 +152,7 @@ function installAutomation() {
       'math-editor',
       'command-palette',
       'settings',
+      'settings-masters',
       'zoom-measure',
       'fuel-corrected',
       'gg-envelope',
@@ -164,6 +165,7 @@ function installAutomation() {
       'wear-deep-fronts',
       'wear-deep-rears',
       'wear-stint',
+      'wear-stint-tyres',
       'live-mode',
       'scatter-fit',
       'playback',
@@ -179,7 +181,8 @@ function installAutomation() {
       'light-theme',
     ],
     runExtra: (name: string) => {
-      setUi({ math: name === 'math-editor', palette: name === 'command-palette', settings: name === 'settings' || name === 'live-mode', shortcuts: name === 'shortcuts', properties: false, trackProfile: false });
+      setUi({ math: name === 'math-editor', palette: name === 'command-palette', settings: name === 'settings' || name === 'live-mode' || name === 'settings-masters',
+        settingsTab: name === 'settings-masters' ? 'masters' : 'general', shortcuts: name === 'shortcuts', properties: false, trackProfile: false });
       const ref = selectedLaps()[0];
       const venue = ref?.session.meta.venue ?? '';
       if (name === 'corners-and-gps') {
@@ -223,7 +226,7 @@ function installAutomation() {
             math: [...ws.math, ...DEFAULT_MATH_CHANNELS.filter((m) => !ws.math.some((x) => x.name === m.name))],
             channelProps: { ...WEAR_CHANNEL_PROPS, ...ws.channelProps },
           }));
-        const target = { 'wear-balance': 'Wear Balance', 'wear-popout': 'Tyre Wear', 'wear-by-corner': 'Wear by Corner', 'wear-deep-fronts': 'Wear Deep Dive – Fronts', 'wear-deep-rears': 'Wear Deep Dive – Rears', 'wear-stint': 'Wear Stint' }[name]!;
+        const target = { 'wear-balance': 'Wear Balance', 'wear-popout': 'Tyre Wear', 'wear-by-corner': 'Wear by Corner', 'wear-deep-fronts': 'Wear Deep Dive – Fronts', 'wear-deep-rears': 'Wear Deep Dive – Rears', 'wear-stint': 'Wear Stint', 'wear-stint-tyres': 'Wear Stint – Tyres' }[name]!;
         setActiveSheet(sheetIndex(target));
         // Wear by Corner shows the wheels' % view (the other sheets show metres).
         if (name === 'wear-by-corner')
@@ -231,7 +234,7 @@ function installAutomation() {
         // Focus the second corner (from a Tyre Wear table on this sheet, so its pop-out opens).
         const corner = trackProfile(venue).corners.slice().sort((a, b) => a.dist - b.dist)[1];
         const tw = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'tyrewear');
-        if (corner && name !== 'wear-stint' && name !== 'wear-balance') {
+        if (corner && name !== 'wear-stint' && name !== 'wear-stint-tyres' && name !== 'wear-balance') {
           setWearFocus({ name: corner.name, entry: corner.dist - 120, exit: corner.dist + 80, venue, source: tw?.id ?? '' });
           setXMode('distance');
           setZoom([corner.dist - 250, corner.dist + 200]);

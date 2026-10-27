@@ -24,6 +24,25 @@ Open **Settings** with **Ctrl/⌘ + ,** or **File → Settings…** (also in the
 
 ![Light theme](images/light-theme.png)
 
+## Master channels
+
+The second tab in Settings. Different exports can log the same data under different names. Your team-mate's car-script channels might come out as `Ext_Throttle Pedal`, `Ext_Diff Entry`, `Ext_KERS Deploy MJ`…, cut to 32 characters (`Ext_Tyre Min Starting Pressure F`), where yours are `Throttle Pedal`, `Diff Entry`, `KERS Deploy MJ`.
+
+Each **master channel** is one name that workspaces, graph traces, reports and math channels use. It has a list of **sources**. Each session fills the master from the **first source in the list that its log has**, so one workspace works on both drivers' logs:
+
+| Master | Sources | Your log uses | Team-mate's log uses |
+|---|---|---|---|
+| Throttle Pedal | Throttle Pedal, Ext_Throttle Pedal | Throttle Pedal | Ext_Throttle Pedal |
+| Diff Entry | Diff Entry, Ext_Diff Entry | Diff Entry | Ext_Diff Entry |
+
+- **Defaults:** all 50 channels that differ between the two naming styles (checked on both drivers' COTA logs of 26/10), grouped as Throttle, Brakes, Differential, ERS, Engine & PU and Other. Throttle Pos and Brake Pos are included too, so you can choose what they come from.
+- **Pick a different source** by putting it first. For example, *Throttle Pos* ← `Throttle Raw, Ext_Throttle Raw` makes every throttle trace and math channel that uses Throttle Pos read the raw throttle instead. Leave a master's own name first to keep the logged channel.
+- **Nothing found:** if a log has none of the sources, the channel is simply missing in that session, as before.
+- **Changes apply straight away** to the open sessions: traces redraw and math channels recalculate with no reload.
+- The **Open sessions use** column shows what each open session took: *as logged*, the source name, or *not logged*.
+- **+ Add master channel** adds your own. **+ Add N Ext_ channels from open sessions** appears when an open log has `Ext_` channels that aren't covered yet. **Restore defaults** puts the list back.
+- Master channels are a setting, not part of a workspace, so they apply to every workspace (FA26 V1.3 needs no changes: it uses the plain names).
+
 ## Where things are stored
 
 Your **workspaces** are in a visible folder so you can find, back up and share them: `Documents/Project-Trace/Workspaces/` (see [03](03-workspaces-and-layout.md#the-workspaces-folder)). Everything else lives in Project-Trace's data folder (shown in Settings; **Help → Open Settings Folder**):

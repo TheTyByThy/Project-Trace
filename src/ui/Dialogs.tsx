@@ -5,6 +5,7 @@ import { pt } from '../core/bridge';
 import { buildCommands } from '../actions';
 import { bindings, comboFromEvent, formatCombo, keyHint, SHORTCUTS } from '../shortcuts';
 import { DEFAULT_SETTINGS, setDefaultTelemetryFolder, setSmoothing, setUi, telemetryFolders, toast, updateSettings, useStore } from '../state/store';
+import { MasterChannelsPanel } from './MasterChannels';
 import { SIMS, type LiveSettings } from '../core/sims';
 import { useLive } from '../state/live';
 
@@ -16,6 +17,8 @@ export function SettingsDialog() {
     pt().workspacesDir().then(setWsDir);
   }, []);
   const close = () => setUi({ settings: false });
+  const tab = useStore((st) => st.ui.settingsTab ?? 'general');
+  const setTab = (t: 'general' | 'masters') => setUi({ settingsTab: t });
   const live = s.live;
   const liveStatus = useLive();
   const setLive = (patch: Partial<LiveSettings>) => updateSettings({ live: { ...live, ...patch } });
@@ -44,10 +47,17 @@ export function SettingsDialog() {
   );
   return (
     <div className="modal-back" onMouseDown={close}>
-      <div className="modal" style={{ width: 720 }} onMouseDown={(e) => e.stopPropagation()}>
+      <div className="modal" style={{ width: tab === 'masters' ? 980 : 720 }} onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h2>Settings</h2>
+          <span className="grow" />
+          {seg(tab, [['general', 'General'], ['masters', 'Master channels']], setTab)}
         </div>
+        {tab === 'masters' ? (
+          <div className="modal-body">
+            <MasterChannelsPanel />
+          </div>
+        ) : (
         <div className="modal-body">
           {row('Theme', seg(s.theme, [['dark', 'Dark'], ['light', 'Light']], (v) => updateSettings({ theme: v })), 'Also in View → Theme; you can give it a key in Keyboard Shortcuts.')}
           {row(
@@ -176,6 +186,7 @@ export function SettingsDialog() {
             'Settings, notes and the session cache live here.',
           )}
         </div>
+        )}
         <div className="modal-foot">
           <button
             className="btn"
