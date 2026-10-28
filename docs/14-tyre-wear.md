@@ -17,7 +17,7 @@ Project-Trace estimates **how much rubber each tyre loses, where on the lap it h
 
 ### The worksheets
 
-There are eight tyre-wear worksheets, going from a quick look to scrubbing through one corner. The **FA26** workspaces have them; the Starter has the first two. To put any of them in another workspace, right-click the tab → **Copy worksheet**, then paste it there. Any math channels it needs come along with it.
+There are nine tyre-wear worksheets, going from a quick look to scrubbing through one corner. The **FA26 Tyre Deg** workspace has them; the Starter has the first two. To put any of them in another workspace, right-click the tab → **Copy worksheet**, then paste it there. Any math channels it needs come along with it.
 
 | Worksheet | What it's for | What's on it |
 |---|---|---|
@@ -25,10 +25,11 @@ There are eight tyre-wear worksheets, going from a quick look to scrubbing throu
 | **Tyre Wear Detail** | The same, tyre by tyre. | Wear rate per tyre · four Δ maps laid out like the car · Tyre Wear component with four cards · four per-lap trends |
 | **Wear Balance** | Front axle vs rear, left side vs right: how much, as a %, and what makes up each gap. | Just the reference and comparison laps: Tyre Wear Balance cards · both balances along the lap · the four wheels · two maps coloured front-vs-rear and left-vs-right |
 | **Wear by Corner** | Which corners cost rubber, and why. | Corner table in lap order (switch to *Most extra wear* to rank them; click one) · the clicked corner's wheels, with ring length = wear · Corner Report (time in corner) · Δ map · racing lines · driver inputs at the cursor |
+| **Wear by Corner – Stint** | Wear by Corner over whole stints: where the wear builds and why, without lap-to-lap variance. | The Tyre Wear table in **stint average** mode (each corner averaged over each selected stint's laps) · lap times with the **107%** filter · average lap per stint for the whole car · the wheels for the clicked corner, averaged over the stint |
 | **Wear Deep Dive – Fronts** | Scrub through a corner and see what builds front wear. | One graph: speed · steering angle · brake and throttle · **brake-steer combination** · front **lock-up** · front **wheelspin** · front **cornering slide** · front **left − right**. Beside it: the FL and FR wheels for the clicked corner, tyres at the cursor, racing lines. |
 | **Wear Deep Dive – Rears** | The same for the rears, where traction matters. | Speed and **gear** · throttle and brake · steering angle (counter-steer) · rear lock-up · rear wheelspin · rear cornering slide · rear left − right. Beside it: the RL and RR wheels, tyres at the cursor, racing lines. |
-| **Wear Stint** | How the stint went, and a check against the game. | Average lap per stint for the whole car (Tyre Wear Summary; follows the 107% filter) · Stint report · lap times with the **107%** filter (on) · wear per lap with a fit line · the game's rubber grip (RL) · **blistering** and **graining** (RL) side by side, i.e. grip lost on top of the wear |
-| **Wear Stint – Tyres** | The stint, tyre by tyre. | Average lap per selected stint for each tyre (Tyre Wear Summary, per tyre; follows this sheet's 107% filter) · lap times with the **107%** filter · wear per lap for FL, FR, RL and RR with fit lines |
+| **Wear Stint** | How the stint went, and how the wear built up. | Average lap per stint for the whole car (Tyre Wear Summary; follows the 107% filter) · Stint report · lap times with the **107%** filter (on) · wear per lap with a fit line · **cumulative wear** (the running total through the stint) · **blistering** and **graining** (RL) side by side, i.e. grip lost on top of the wear |
+| **Wear Stint – Tyres** | The stint, tyre by tyre. | Average lap per selected stint for each tyre (Tyre Wear Summary, per tyre; follows this sheet's 107% filter) · lap times with the **107%** filter · wear per lap for FL, FR, RL and RR with fit lines (each switchable to cumulative) |
 
 **How the deep dives are laid out.**
 - **One trace per lap in every wear pane.** Each cause has its own pane (lock-up, wheelspin, cornering slide) and shows the axle: left and right averaged. When you compare two laps, the reference is drawn in the cause colour and the comparison in its lap colour, one line each, so they never get mixed up. Six panes (three causes × two tyres) would have been twelve overlapping lines once a comparison lap is on.
@@ -44,6 +45,21 @@ There are eight tyre-wear worksheets, going from a quick look to scrubbing throu
 | Lock-up / wheelspin / cornering slide | What is wearing the tyres at each moment. The three add up to the axle's wear rate. |
 | Left − right | Which side of the axle is doing more of the wearing. |
 | Tyres at the cursor | Wear rate (**Rate**), ndSlip (**nd**, 1 = at the grip peak), load, slip angle, slip ratio and surface temperatures for all four tyres at the cursor. Surface temperatures flash up when a tyre slides. |
+
+### Stint averages (Laps | Stint avg)
+
+The Tyre Wear component has a **Laps | Stint avg** switch, and the wheels have the same choice in Properties (*Compare*). With **Stint avg**, each selected lap is replaced by its stint's **average lap**:
+- **Which laps count:** the stint's complete laps, minus any the worksheet's 107% filter leaves out. Move the slider and everything updates.
+- **What gets averaged:** every number is the average over those laps. That includes each corner and straight (an average T1, an average T5…), the cause split, the per-tyre cards and the clicked corner's wheels and pop-out. Lap-to-lap variance drops out, leaving a steadier picture of where each driver wears the tyres and why.
+- **Which stints are compared:** each stint with the reference or a comparison lap selected. The reference's stint comes first, and the others show as differences from it. Rows are labelled with the driver ("Lewis avg"); hover a card row to see the laps used.
+- **What can't be averaged:** racing lines and the along-the-lap graphs stay per lap. Compare those one lap at a time.
+
+### Cumulative wear
+
+Every wear-per-lap chart (any trend of a `Tyre Wear Lap …` channel) has a **Per lap | Cumulative** switch in its top-right corner. **Cumulative** adds each lap's wear to a running total through the stint, so over a long run you can see the gap between two drivers grow lap by lap. The Wear Stint sheet has one set to cumulative.
+- Every complete lap counts, including laps the 107% filter leaves out of the other charts: a slow lap still wore the tyres, so leaving it out would understate the total. Out and in laps aren't counted.
+- The fit line works on the running total too. With a linear fit, the slope is the average wear per lap.
+- Any other channel trend can be made cumulative in Properties.
 
 ### Tyre Wear Summary
 

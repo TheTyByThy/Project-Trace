@@ -2110,3 +2110,19 @@ table.grid tr.group-title td {
 .wear-summary-table.compact .wear-summary-value {
   font-size: 13px;
 }
+
+/* Tyre Wear cards in stint mode: room for "Name avg" */
+.wear-row.stint {
+  grid-template-columns: 84px minmax(40px, 1fr) 62px 52px 52px;
+}
+.wear-row.stint > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wear-summary-table .wear-summary-total {
+  border-left: 1px solid var(--border-strong);
+  border-right: 1px solid var(--border-strong);
+  padding-left: 12px;
+  padding-right: 12px;
+}

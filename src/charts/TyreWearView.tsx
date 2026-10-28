@@ -7,12 +7,11 @@
 import { lapHeaderTint, lapTint } from '../core/colors';
 import { lapBuckets } from '../core/corners';
 import { formatDelta, formatValue } from '../core/format';
-import { lapLabel } from '../core/session';
-import { avgSplits, hasWearChannels, lapWear, sumSplits, TYRES, WEAR_CAUSES, type LapWear, type Tyre, type WearSplit } from '../core/tyreWear';
+import { avgSplits, hasWearChannels, sumSplits, TYRES, WEAR_CAUSES, type LapWear, type Tyre, type WearSplit } from '../core/tyreWear';
 import { selectedLaps, setCursor, setHighlight, setXMode, setZoom, trackProfile, updateComponent, useStore } from '../state/store';
 import type { TyreWearConfig } from '../state/workspace';
 import { WheelsGrid } from './WearWheelsView';
-import { CauseBar, causeColors, gameFactor, gameFactorText, pctDelta, setWearFocus, useWearFocus } from './wearShared';
+import { CauseBar, causeColors, gameFactor, gameFactorText, itemWear, pctDelta, setWearFocus, useWearFocus, useWearItems, type WearItem } from './wearShared';
 
 /** Mini-sector length (m) when the track has no corners, or when chosen in the Properties. */
 export const MINI_SECTOR = 200;
@@ -43,10 +42,14 @@ export function TyreWearView({ config }: { config: TyreWearConfig }) {
   const theme = useStore((s) => s.settings.theme);
   const cornerSettings = useStore((s) => s.settings.corners);
   const focus = useWearFocus((s) => s.focus);
-  const laps = selectedLaps();
-  const ref = laps[0];
-  if (!ref) return <div className="empty-state">Select a lap to see its tyre wear.</div>;
-  if (ref.lap.index === -1) return <div className="empty-state">Pick a single lap as the reference (not the whole session).</div>;
+  // Stint mode: one average lap per selected stint (107% filter applied) in place of each selected lap.
+  const stints = config.source === 'stints';
+  const items = useWearItems(stints);
+  const sel = selectedLaps();
+  if (!sel[0]) return <div className="empty-state">Select a lap to see its tyre wear.</div>;
+  if (!stints && sel[0].lap.index === -1) return <div className="empty-state">Pick a single lap as the reference (not the whole session).</div>;
+  const ref = items[0];
+  if (!ref) return <div className="empty-state">No complete laps in the selected stints (or all over the worksheet's 107% cut-off).</div>;
   if (!hasWearChannels(ref.session))
     return (
       <div className="empty-state" style={{ maxWidth: 440 }}>
@@ -61,9 +64,9 @@ export function TyreWearView({ config }: { config: TyreWearConfig }) {
   const tyre = config.tyre ?? 'all';
   const corners = trackProfile(ref.session.meta.venue).corners;
   const byCorners = (config.sections ?? 'corners') === 'corners' && corners.length > 0;
-  const trackLen = ref.session.trackLength || ref.lap.length;
+  const trackLen = ref.session.trackLength || ref.laps[0].length;
   const sections = byCorners
-    ? lapBuckets({ session: ref.session, lap: ref.lap, settings: cornerSettings }, corners).map((g) => ({
+    ? lapBuckets({ session: ref.session, lap: ref.laps[0], settings: cornerSettings }, corners).map((g) => ({
         name: g.name,
         entry: g.entry,
         exit: g.exit,
@@ -77,12 +80,11 @@ export function TyreWearView({ config }: { config: TyreWearConfig }) {
       });
   const edges = sections.length ? [sections[0].entry, ...sections.map((s) => s.exit)] : undefined;
 
-  // Wear of every selected lap, per tyre (null where a lap's session lacks the channels).
-  const wear: (Record<Tyre, LapWear> | null)[] = laps.map((l) => {
-    if (l.lap.index === -1) return null;
+  // Wear of every item (lap, or a stint's average lap), per tyre (null where its session lacks the channels).
+  const wear: (Record<Tyre, LapWear> | null)[] = items.map((it) => {
     const out = {} as Record<Tyre, LapWear>;
     for (const t of TYRES) {
-      const w = lapWear(l.session, l.lap, t, edges);
+      const w = itemWear(it, t, edges);
       if (!w) return null;
       out[t] = w;
     }
@@ -97,7 +99,7 @@ export function TyreWearView({ config }: { config: TyreWearConfig }) {
   const cards: (Tyre | 'avg')[] = tyre !== 'all' ? [tyre] : averaged ? ['avg'] : [...TYRES];
   const cardWear = (w: Record<Tyre, LapWear>, t: Tyre | 'avg'): { total: WearSplit; gameGripLoss: number } =>
     t === 'avg' ? { total: avgSplits(TYRES.map((x) => w[x].total)), gameGripLoss: TYRES.reduce((a, x) => a + w[x].gameGripLoss, 0) / 4 } : w[t];
-  const cmp = laps.slice(1);
+  const cmp = items.slice(1);
   const maxTyre = Math.max(1, ...wear.flatMap((w) => (w ? TYRES.map((t) => w[t].total.total) : [])));
   const showGame = config.showGame === true && TYRES.some((t) => Number.isFinite(refW[t].gameGripLoss));
 
@@ -122,7 +124,7 @@ export function TyreWearView({ config }: { config: TyreWearConfig }) {
     const d = pctDelta(tot(wear[1]!), tot(refW));
     const worstTyre = TYRES.map((t) => ({ t, d: pctDelta(wear[1]![t].total.total, refW[t].total.total) })).sort((a, b) => b.d - a.d)[0];
     const worstRow = visible.filter((r) => r.cmp[0]).sort((a, b) => b.cmp[0]!.total - b.ref.total - (a.cmp[0]!.total - a.ref.total))[0];
-    summary = `${lapLabel(cmp[0].lap)} vs reference: ${formatDelta(d, 1)}% tyre wear overall`;
+    summary = `${cmp[0].stint ? cmp[0].short : cmp[0].long} vs reference: ${formatDelta(d, 1)}% tyre wear overall`;
     if (worstTyre && worstTyre.d > 0.5) summary += `, most on ${worstTyre.t} (${formatDelta(worstTyre.d, 1)}%)`;
     if (worstRow && worstRow.cmp[0]!.total - worstRow.ref.total > 0)
       summary += `; biggest extra wear${tyre === 'all' ? '' : ` (${tyre})`} in ${worstRow.s.name} (${formatDelta(worstRow.cmp[0]!.total - worstRow.ref.total, 0)} m, ${mainCause(worstRow.ref, worstRow.cmp[0]!)})`;
@@ -133,12 +135,20 @@ export function TyreWearView({ config }: { config: TyreWearConfig }) {
     !!focus && focus.venue === ref.session.meta.venue && Math.abs(focus.entry - s.entry) < 0.5 && Math.abs(focus.exit - s.exit) < 0.5;
   const popout = focus && focus.source === config.id && focus.venue === ref.session.meta.venue && config.popout !== false ? focus : null;
   // Game vs model: how hard the game wore the tyres for this much modelled wear (validation of the wear setting).
-  const factors = [...new Set(laps.map((l) => l.session))].map((s) => ({ s, f: gameFactor(s) }));
+  const factors = [...new Set(items.map((l) => l.session))].map((s) => ({ s, f: gameFactor(s) }));
 
   return (
     <>
       <div className="html-panel">
         <div className="subtabs">
+          <div className="seg" title="Compare the selected laps, or each selected stint's average lap (complete laps, minus those over the worksheet's 107% filter)">
+            <button className={!stints ? 'on' : ''} onClick={() => updateComponent(config.id, { source: 'laps' }, 'Tyre wear: laps')}>
+              Laps
+            </button>
+            <button className={stints ? 'on' : ''} onClick={() => updateComponent(config.id, { source: 'stints' }, 'Tyre wear: stint average')}>
+              Stint avg
+            </button>
+          </div>
           <span className="muted" style={{ fontSize: 12 }}>
             Where:
           </span>
@@ -204,18 +214,18 @@ export function TyreWearView({ config }: { config: TyreWearConfig }) {
           {cards.map((t) => (
             <div key={t} className="wear-card">
               <div className="wear-card-head">{t === 'avg' ? 'Average of the four tyres' : t}</div>
-              {laps.map((l, li) => {
+              {items.map((l, li) => {
                 const w = wear[li] && cardWear(wear[li]!, t);
                 if (!w) return null;
                 const d = li ? pctDelta(w.total.total, cardWear(refW, t).total.total) : NaN;
                 return (
                   <div
                     key={l.key}
-                    className="wear-row"
+                    className={'wear-row' + (stints ? ' stint' : '')}
                     style={{ background: lapTint(l.color, 0.12) }}
-                    title={`${lapLabel(l.lap)}: ${formatValue(w.total.total, 0)} m of full sliding at 5 kN`}
+                    title={`${l.long}: ${formatValue(w.total.total, 0)} m of full sliding at 5 kN`}
                   >
-                    <span>L{l.lap.number}</span>
+                    <span>{l.short}</span>
                     <CauseBar w={w.total} max={maxTyre} colors={colors} />
                     <span className="num">{formatValue(w.total.total, 0)} m</span>
                     <span className="num" style={{ color: !Number.isFinite(d) ? undefined : d > 0 ? 'var(--loss)' : 'var(--gain)' }}>
@@ -241,11 +251,11 @@ export function TyreWearView({ config }: { config: TyreWearConfig }) {
             <tr>
               <th className="l">{byCorners ? 'Section' : 'Lap distance'}</th>
               <th style={{ background: lapHeaderTint(ref.color), color: 'var(--text)' }} colSpan={2}>
-                L{ref.lap.number} (ref) · {tyre === 'all' ? 'avg of 4 tyres' : tyre}
+                {ref.short} (ref) · {tyre === 'all' ? 'avg of 4 tyres' : tyre}
               </th>
               {cmp.map((l) => (
                 <th key={l.key} colSpan={cmpSpan} style={{ background: lapHeaderTint(l.color), color: 'var(--text)' }}>
-                  L{l.lap.number} {breakdown ? '· Δ to ref' : 'Δ'}
+                  {l.short} {breakdown ? '· Δ to ref' : 'Δ'}
                 </th>
               ))}
             </tr>
@@ -312,7 +322,7 @@ export function TyreWearView({ config }: { config: TyreWearConfig }) {
             ))}
             <tr className="sub">
               <td className="l">
-                <b>Whole lap</b>
+                <b>{stints ? 'Average lap' : 'Whole lap'}</b>
               </td>
               <td className="num" style={{ background: lapTint(ref.color) }}>
                 <b>{formatValue(refLapTotal.total, 0)}</b>
@@ -340,8 +350,10 @@ export function TyreWearView({ config }: { config: TyreWearConfig }) {
         <div className="muted" style={{ padding: '8px 12px', fontSize: 12, lineHeight: 1.5 }}>
           {summary ||
             (cmp.length
-              ? 'Red = more wear than the reference there; green = less.'
-              : 'Wear in metres of full sliding at 5 kN (speed × normalised slip × load). Select a comparison lap (Ctrl/⌘ + click) to see where it wears the tyres more.')}{' '}
+              ? `Red = more wear than the reference${stints ? ' stint' : ''} there; green = less.`
+              : stints
+                ? 'Each corner is the average over the stint’s complete laps (minus any over the worksheet’s 107% cut-off). Select a lap in another stint (Ctrl/⌘ + click) to compare the stints.'
+                : 'Wear in metres of full sliding at 5 kN (speed × normalised slip × load). Select a comparison lap (Ctrl/⌘ + click) to see where it wears the tyres more.')}{' '}
           Click a row to look at that corner on its own.
           {showGame && (
             <div
@@ -363,17 +375,27 @@ export function TyreWearView({ config }: { config: TyreWearConfig }) {
           )}
         </div>
       </div>
-      {popout && <SectionPopout focus={popout} tyre={tyre} theme={theme} />}
+      {popout && <SectionPopout focus={popout} tyre={tyre} theme={theme} items={items} />}
     </>
   );
 }
 
 /** The clicked section on its own: the wheels (four tyres, or the chosen one) and its wear by cause, per lap. */
-function SectionPopout({ focus, tyre, theme }: { focus: { name: string; entry: number; exit: number }; tyre: 'all' | Tyre; theme: 'dark' | 'light' }) {
-  const laps = selectedLaps();
+function SectionPopout({
+  focus,
+  tyre,
+  theme,
+  items,
+}: {
+  focus: { name: string; entry: number; exit: number };
+  tyre: 'all' | Tyre;
+  theme: 'dark' | 'light';
+  items: WearItem[];
+}) {
+  const laps = items;
   const colors = causeColors(theme);
   const range: [number, number] = [focus.entry, focus.exit];
-  const per = laps.map((l) => (l.lap.index === -1 ? null : TYRES.map((t) => lapWear(l.session, l.lap, t, range)?.segments[0] ?? null)));
+  const per = laps.map((l) => TYRES.map((t) => itemWear(l, t, range)?.segments[0] ?? null));
   const of = (i: number) => {
     const p = per[i];
     if (!p || p.some((x) => !x)) return null;
@@ -397,7 +419,7 @@ function SectionPopout({ focus, tyre, theme }: { focus: { name: string; entry: n
         </button>
       </div>
       <div className="wear-popout-body">
-        <WheelsGrid laps={laps} range={range} tyre={tyre} mode="share" theme={theme} maxCompare={2} size={tyre === 'all' ? 92 : 150} showShares={false} />
+        <WheelsGrid items={laps} range={range} tyre={tyre} mode="share" theme={theme} maxCompare={2} size={tyre === 'all' ? 92 : 150} showShares={false} />
         {ref && (
           <table className="grid">
             <thead>
@@ -405,7 +427,7 @@ function SectionPopout({ focus, tyre, theme }: { focus: { name: string; entry: n
                 <th className="l">{tyre === 'all' ? 'Avg of 4 tyres' : tyre}</th>
                 {laps.map((l, i) => (
                   <th key={l.key} colSpan={i ? 2 : 1} style={{ background: lapHeaderTint(l.color), color: 'var(--text)' }}>
-                    L{l.lap.number}
+                    {l.short}
                     {i ? ' · Δ' : ' (ref)'}
                   </th>
                 ))}

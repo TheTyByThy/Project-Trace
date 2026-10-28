@@ -166,6 +166,7 @@ function installAutomation() {
       'wear-deep-rears',
       'wear-stint',
       'wear-stint-tyres',
+      'wear-corner-stint',
       'live-mode',
       'scatter-fit',
       'playback',
@@ -226,7 +227,7 @@ function installAutomation() {
             math: [...ws.math, ...DEFAULT_MATH_CHANNELS.filter((m) => !ws.math.some((x) => x.name === m.name))],
             channelProps: { ...WEAR_CHANNEL_PROPS, ...ws.channelProps },
           }));
-        const target = { 'wear-balance': 'Wear Balance', 'wear-popout': 'Tyre Wear', 'wear-by-corner': 'Wear by Corner', 'wear-deep-fronts': 'Wear Deep Dive – Fronts', 'wear-deep-rears': 'Wear Deep Dive – Rears', 'wear-stint': 'Wear Stint', 'wear-stint-tyres': 'Wear Stint – Tyres' }[name]!;
+        const target = { 'wear-balance': 'Wear Balance', 'wear-popout': 'Tyre Wear', 'wear-by-corner': 'Wear by Corner', 'wear-deep-fronts': 'Wear Deep Dive – Fronts', 'wear-deep-rears': 'Wear Deep Dive – Rears', 'wear-stint': 'Wear Stint', 'wear-stint-tyres': 'Wear Stint – Tyres', 'wear-corner-stint': 'Wear by Corner – Stint' }[name]!;
         setActiveSheet(sheetIndex(target));
         // Wear by Corner shows the wheels' % view (the other sheets show metres).
         if (name === 'wear-by-corner')

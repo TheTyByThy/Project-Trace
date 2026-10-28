@@ -5,9 +5,11 @@
 import { create } from 'zustand';
 import { CATEGORICAL, withAlpha } from '../core/colors';
 import { formatDelta, formatValue } from '../core/format';
-import { avgSplits, lapWear, TYRES, WEAR_CAUSES, type Tyre, type WearSplit } from '../core/tyreWear';
-import type { Session } from '../core/types';
-import type { SelectedLap } from '../state/store';
+import { avgSplits, lapWear, TYRES, WEAR_CAUSES, type LapWear, type Tyre, type WearSplit } from '../core/tyreWear';
+import { lapLabel } from '../core/session';
+import type { Lap, Session } from '../core/types';
+import { selectedLaps, sessionsWithSelection, useStore, type SelectedLap } from '../state/store';
+import { slowLaps, useSheetCutoff } from './TrendView';
 
 export type Cause = (typeof WEAR_CAUSES)[number]['key'];
 
@@ -63,6 +65,107 @@ export function lapFourWear(l: SelectedLap, range?: [number, number]): FourWear 
   const game = {} as Record<Tyre, number>;
   for (const t of TYRES) {
     const w = lapWear(l.session, l.lap, t, range ? [range[0], range[1]] : undefined);
+    if (!w) return null;
+    wear[t] = range ? w.segments[0] : w.total;
+    game[t] = range ? NaN : w.gameGripLoss;
+  }
+  return { wear, game };
+}
+
+// ---- wear items: a selected lap, or a selected stint's average lap ----
+
+/**
+ * What the tyre-wear components compare: one selected lap, or the average lap of a selected stint (its
+ * complete laps, minus those the worksheet's 107% filter drops). The first item is the reference.
+ */
+export interface WearItem {
+  key: string;
+  color: string;
+  session: Session;
+  /** The laps averaged (one for a lap). */
+  laps: Lap[];
+  /** Short label for headers and rows ("L5", "Lewis avg"). */
+  short: string;
+  /** Full label for tooltips and sentences. */
+  long: string;
+  stint: boolean;
+}
+
+export const lapItems = (sel: SelectedLap[]): WearItem[] =>
+  sel.filter((l) => l.lap.index !== -1).map((l) => ({ key: l.key, color: l.color, session: l.session, laps: [l.lap], short: `L${l.lap.number}`, long: lapLabel(l.lap), stint: false }));
+
+/** One item per stint with a selected lap (the reference's first), averaging its complete laps that aren't in `slow`. */
+export function stintItems(sel: SelectedLap[], slow: Set<Lap>): WearItem[] {
+  const seen = new Set<Session>();
+  const out: WearItem[] = [];
+  for (const l of sel) {
+    if (seen.has(l.session)) continue;
+    seen.add(l.session);
+    const s = l.session;
+    const laps = s.laps.filter((x) => x.complete && !slow.has(x));
+    if (!laps.length) continue;
+    const who = (s.meta.driver || 'Stint').split(/\s+/)[0].slice(0, 12);
+    const at = new Date(s.meta.savedAt ?? 0).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    out.push({
+      key: 'stint:' + s.id,
+      color: l.color,
+      session: s,
+      laps,
+      short: `${who} avg`,
+      long: `${s.meta.driver || 'Stint'} ${at} — average of ${laps.length} lap${laps.length > 1 ? 's' : ''} (${laps.map((x) => x.number).join(', ')})`,
+      stint: true,
+    });
+  }
+  return out;
+}
+
+/** The items a tyre-wear component compares: the selected laps, or (stint mode) one average lap per selected stint. */
+export function useWearItems(stints: boolean): WearItem[] {
+  const sessions = useStore((s) => s.sessions);
+  const lapSel = useStore((s) => s.laps);
+  useStore((s) => s.refKey);
+  useStore((s) => s.dataVersion);
+  const cutoff = useSheetCutoff();
+  const sel = selectedLaps();
+  if (!stints) return lapItems(sel);
+  // The same slow laps the worksheet's trends leave out (judged on the stints with a selected lap).
+  return stintItems(sel, slowLaps(sessionsWithSelection(sessions, lapSel), cutoff));
+}
+
+// lapWear for one lap is the same every time (until the session's channels change): keep it.
+const lapWearCache = new WeakMap<Lap, Map<string, { nd: unknown; w: LapWear | null }>>();
+function cachedLapWear(s: Session, lap: Lap, t: Tyre, edges?: number[]): LapWear | null {
+  let m = lapWearCache.get(lap);
+  if (!m) lapWearCache.set(lap, (m = new Map()));
+  const k = `${t}|${edges ? edges.map((e) => e.toFixed(1)).join(',') : ''}`;
+  const nd = s.channels.get(`ndSlip ${t}`);
+  const hit = m.get(k);
+  if (hit && hit.nd === nd) return hit.w;
+  const w = lapWear(s, lap, t, edges);
+  m.set(k, { nd, w });
+  return w;
+}
+
+/** One tyre's wear for an item: the lap's, or the average over the stint's laps (segments averaged too). */
+export function itemWear(item: WearItem, t: Tyre, edges?: number[]): LapWear | null {
+  const ws = item.laps.map((l) => cachedLapWear(item.session, l, t, edges));
+  if (ws.some((w) => !w)) return null;
+  if (ws.length === 1) return ws[0];
+  const all = ws as LapWear[];
+  return {
+    ...all[0],
+    total: avgSplits(all.map((w) => w.total)),
+    segments: all[0].segments.map((_, i) => avgSplits(all.map((w) => w.segments[i]))),
+    gameGripLoss: all.reduce((a, w) => a + w.gameGripLoss, 0) / all.length,
+  };
+}
+
+/** An item's wear on each tyre over the whole lap or one lap-distance range. */
+export function itemFourWear(item: WearItem, range?: [number, number]): FourWear | null {
+  const wear = {} as Record<Tyre, WearSplit>;
+  const game = {} as Record<Tyre, number>;
+  for (const t of TYRES) {
+    const w = itemWear(item, t, range ? [range[0], range[1]] : undefined);
     if (!w) return null;
     wear[t] = range ? w.segments[0] : w.total;
     game[t] = range ? NaN : w.gameGripLoss;

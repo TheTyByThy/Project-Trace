@@ -82,6 +82,9 @@ function drawSelRing(ctx: CanvasRenderingContext2D, x: number, y: number, color:
   }
 }
 
+/** Trends that can show a running total: per-lap wear (end-of-lap value of a "Tyre Wear Lap …" channel), or any trend set to cumulative. */
+const canCumulate = (c: TrendConfig) => !!c.channel && (c.cumulative !== undefined || (/^Tyre Wear Lap\b/.test(c.channel) && (c.stat ?? 'last') === 'last'));
+
 const seriesName = (s: Session) => `${prettyTrack(s.meta.venue).track} ${new Date(s.meta.savedAt ?? 0).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 
 export function TrendView({ config }: { config: TrendConfig }) {
@@ -122,10 +125,23 @@ export function TrendView({ config }: { config: TrendConfig }) {
     // their own lap colour.
     const sel = selectedLaps();
     const lapColorOf = new Map(sel.map((l) => [l.key, l.color]));
+    // Cumulative: each lap's value added to a running total through the stint (complete laps). Every complete
+    // lap counts, the 107% filter included — a slow lap still wore the tyres — so the totals stay comparable.
+    const cumulative = (s: Session) => {
+      let sum = 0;
+      return s.laps
+        .filter((l) => l.complete)
+        .flatMap((l) => {
+          const v = lapStat(s, l, config);
+          if (!Number.isFinite(v)) return [];
+          sum += v;
+          return [{ l, v: sum }];
+        });
+    };
     const series = sessions.map((s, si) => ({
       s,
       color: sel.find((l) => l.session.id === s.id)?.color ?? CATEGORICAL[theme][si % 8],
-      pts: mode === 'corrected' ? [] : s.laps.map((l) => ({ l, v: lapStat(s, l, config) })).filter(keep),
+      pts: mode === 'corrected' ? [] : config.channel && config.cumulative ? cumulative(s) : s.laps.map((l) => ({ l, v: lapStat(s, l, config) })).filter(keep),
       corr: mode === 'raw' ? [] : s.laps.map((l) => ({ l, v: fuelCorrected(s, l, k) })).filter(keep),
     }));
     const noFuel = mode !== 'raw' && series.every((sr) => !sr.corr.length);
@@ -144,14 +160,14 @@ export function TrendView({ config }: { config: TrendConfig }) {
       x1 = maxLap + 0.5;
     if (viewRef.current) ({ x0, x1, y0, y1 } = viewRef.current);
     // Lap-time trends keep a strip at the top for their buttons (107% cut-off, raw / fuel-corrected).
-    const top = config.channel ? (config.note ? 30 : 12) : 36;
+    const top = config.channel ? (canCumulate(config) ? 40 : config.note ? 30 : 12) : 36;
     const rect = { x: 60, y: top, w: Math.max(10, w - 60 - 14), h: Math.max(10, h - top - 40) };
     const A = makeAxes(rect, x0, x1, y0, y1);
     axesRef.current = A;
     const ch = config.channel ? sessions[0]?.channels.get(config.channel) : undefined;
     const unit = ch ? conv(ch).unit : 's';
     const dps = ch ? channelDps(ch) : 3;
-    const label = config.channel ? `${config.stat} ${channelLabel(config.channel)}${unit ? ` [${unit}]` : ''}` : 'lap time';
+    const label = config.channel ? `${config.cumulative ? 'cumulative' : config.stat} ${channelLabel(config.channel)}${unit ? ` [${unit}]` : ''}` : 'lap time';
     drawAxes(ctx, T, A, x0, x1, y0, y1, 'lap', label, {
       xFmt: (v) => (Number.isInteger(Math.round(v * 1000) / 1000) ? String(Math.round(v)) : ''),
       yFmt: (v, step) => (config.channel ? formatValue(v, step < 1 ? 2 : 0) : formatLapTime(v, step < 0.1 ? 2 : 1)),
@@ -283,7 +299,12 @@ export function TrendView({ config }: { config: TrendConfig }) {
     const fuelNote =
       (mode === 'raw' ? '' : `${mode === 'both' ? 'dashed ◆ = ' : ''}fuel-corrected (−${k} s per litre on board) · `) +
       (fit.on && fit.equation ? `fit: x = lap number, y in ${config.channel ? unit || 'channel units' : 'seconds'} · ` : '');
-    const cutNote = sheetCutoff != null ? `${slow.size} slow lap${slow.size === 1 ? '' : 's'} (over ${sheetCutoff}%) left out${config.channel ? ' — set on the lap-time trend' : ''} · ` : '';
+    const cutNote =
+      config.channel && config.cumulative
+        ? 'running total of every complete lap (the 107% filter leaves no lap out: a slow lap still wears the tyres) · '
+        : sheetCutoff != null
+          ? `${slow.size} slow lap${slow.size === 1 ? '' : 's'} (over ${sheetCutoff}%) left out${config.channel ? ' — set on the lap-time trend' : ''} · `
+          : '';
     ctx.fillText(viewRef.current ? 'zoomed — double-click to reset' : `${cutNote}${fuelNote}hollow = invalid lap · click a point to make it the reference · drag to zoom`, rect.x, h - 8);
   }, [size, config, sessions, lapSel, refKey, dataVersion, theme, sheetCutoff]);
 
@@ -318,6 +339,16 @@ export function TrendView({ config }: { config: TrendConfig }) {
             onClick={() => updateComponent(config.id, { cutoffOn: !config.cutoffOn }, 'Lap time cut-off')}
           >
             ≤ {cutoff}%
+          </button>
+        </div>
+      )}
+      {canCumulate(config) && (
+        <div className="seg chart-seg" title="Each lap's wear, or the running total through the stint (the gap between drivers builds up lap by lap)">
+          <button className={!config.cumulative ? 'on' : ''} onClick={() => updateComponent(config.id, { cumulative: false }, 'Per-lap wear')}>
+            Per lap
+          </button>
+          <button className={config.cumulative ? 'on' : ''} onClick={() => updateComponent(config.id, { cumulative: true }, 'Cumulative wear')}>
+            Cumulative
           </button>
         </div>
       )}

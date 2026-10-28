@@ -7,7 +7,7 @@ import { formatDelta, formatDateTime, formatValue } from '../core/format';
 import { hasWearChannels, lapWear, TYRES, WEAR_CAUSES, type Tyre, type WearSplit } from '../core/tyreWear';
 import { lapLabel } from '../core/session';
 import type { Lap, Session } from '../core/types';
-import { selectedLaps, updateComponent, useStore } from '../state/store';
+import { selectedLaps, sessionsWithSelection, updateComponent, useStore } from '../state/store';
 import type { WearSummaryConfig } from '../state/workspace';
 import { slowLaps, useSheetCutoff } from './TrendView';
 import { causeColors, lapFourWear, pctDelta } from './wearShared';
@@ -46,7 +46,7 @@ interface Row {
 }
 
 export function WearSummaryView({ config }: { config: WearSummaryConfig }) {
-  useStore((s) => s.laps);
+  const lapSel = useStore((s) => s.laps);
   useStore((s) => s.refKey);
   useStore((s) => s.dataVersion);
   const sessions = useStore((s) => s.sessions);
@@ -61,7 +61,7 @@ export function WearSummaryView({ config }: { config: WearSummaryConfig }) {
   if (stints) {
     // One average lap per stint that has the reference or a comparison lap selected (the reference's stint
     // first): its complete laps, minus the ones over the worksheet's 107% cut-off (judged across all open stints).
-    const slow = slowLaps(sessions, cutoff);
+    const slow = slowLaps(sessionsWithSelection(sessions, lapSel), cutoff);
     const picked = laps.map((l) => l.session).filter((s, i, a) => a.indexOf(s) === i);
     rows = picked.flatMap((s) => {
       if (!hasWearChannels(s)) return [];
@@ -159,10 +159,12 @@ export function WearSummaryView({ config }: { config: WearSummaryConfig }) {
 
   /** One table: a row per lap / stint, for the whole car or one tyre. */
   const table = (part: 'car' | Tyre, corner: React.ReactNode) => {
+    // The causes first, then the total on the far right (outlined, so it stands out).
     const cols = [
-      { key: 'total' as const, label: part === 'car' ? 'All four tyres' : 'Total', color: undefined },
       ...WEAR_CAUSES.map((c) => ({ key: c.key, label: perTyre ? { lock: 'Lock', spin: 'Spin', slide: 'Slide' }[c.key] : c.label, color: colors[c.key] })),
+      { key: 'total' as const, label: part === 'car' ? 'All four tyres' : 'Total', color: undefined },
     ];
+    const totalCls = (k: string) => (k === 'total' ? ' wear-summary-total' : '');
     const b = base[part];
     return (
       <table className={'grid wear-summary-table' + (perTyre ? ' compact' : '')}>
@@ -172,7 +174,7 @@ export function WearSummaryView({ config }: { config: WearSummaryConfig }) {
               {corner}
             </th>
             {cols.map((c) => (
-              <th key={c.key} style={c.color ? { color: c.color } : undefined}>
+              <th key={c.key} className={totalCls(c.key)} style={c.color ? { color: c.color } : undefined}>
                 {c.label}
               </th>
             ))}
@@ -185,13 +187,13 @@ export function WearSummaryView({ config }: { config: WearSummaryConfig }) {
               {cols.map((c) => {
                 const v = r.w[part][c.key];
                 return i === 0 ? (
-                  <td key={c.key} className="num wear-summary-value">
+                  <td key={c.key} className={'num wear-summary-value' + totalCls(c.key)}>
                     {formatValue(v, 0)} m
                   </td>
                 ) : (
                   <td
                     key={c.key}
-                    className="num wear-summary-value"
+                    className={'num wear-summary-value' + totalCls(c.key)}
                     title={`${formatValue(v, 0)} m`}
                     style={{ color: Math.abs(v - b[c.key]) < 0.5 ? undefined : v > b[c.key] ? 'var(--loss)' : 'var(--gain)' }}
                   >

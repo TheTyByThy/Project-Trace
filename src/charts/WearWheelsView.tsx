@@ -5,11 +5,10 @@
 
 import { formatDelta, formatValue } from '../core/format';
 import { hasWearChannels, TYRES, WEAR_CAUSES, type Tyre } from '../core/tyreWear';
-import { lapLabel } from '../core/session';
-import { selectedLaps, updateComponent, useStore, type SelectedLap } from '../state/store';
+import { selectedLaps, updateComponent, useStore } from '../state/store';
 import type { WearWheelsConfig } from '../state/workspace';
 import { useElementSize } from './canvas';
-import { causeColors, lapFourWear, pctDelta, pick, setWearFocus, sharePct, useWearFocus, WearWheel, type FourWear } from './wearShared';
+import { causeColors, itemFourWear, pctDelta, pick, setWearFocus, sharePct, useWearFocus, useWearItems, WearWheel, type FourWear, type WearItem } from './wearShared';
 
 /** Which tyres a wheels view shows. */
 export type WheelTyres = 'all' | 'avg' | 'front' | 'rear' | Tyre;
@@ -25,7 +24,7 @@ function RingTag({ i, color }: { i: number; color: string }) {
 }
 
 /** Key: a mini wheel with the reference as the outer ring and the comparison laps inside, each named. */
-export function RingKey({ laps }: { laps: SelectedLap[] }) {
+export function RingKey({ laps }: { laps: WearItem[] }) {
   const r = [11, 7.5, 4.5];
   return (
     <span className="ring-key" title="Outer ring = the reference lap; inner ring(s) = comparison lap(s)">
@@ -36,7 +35,7 @@ export function RingKey({ laps }: { laps: SelectedLap[] }) {
       </svg>
       {laps.map((l, i) => (
         <span key={l.key}>
-          {i === 0 ? 'outer' : i === 1 ? 'inner' : 'innermost'} <RingTag i={i} color={l.color} /> {lapLabel(l.lap)}
+          {i === 0 ? 'outer' : i === 1 ? 'inner' : 'innermost'} <RingTag i={i} color={l.color} /> {l.stint ? l.short : l.long}
         </span>
       ))}
     </span>
@@ -45,7 +44,7 @@ export function RingKey({ laps }: { laps: SelectedLap[] }) {
 
 /** The wheels for some laps over a lap-distance range (or the whole lap): four tyres, an axle, one tyre, or the average. */
 export function WheelsGrid({
-  laps,
+  items: laps,
   range,
   tyre,
   mode,
@@ -55,7 +54,8 @@ export function WheelsGrid({
   showShares = true,
   units = 'm',
 }: {
-  laps: SelectedLap[];
+  /** The selected laps, or stints' average laps (see useWearItems); the first is the reference. */
+  items: WearItem[];
   range?: [number, number];
   tyre: WheelTyres;
   mode: 'share' | 'amount';
@@ -69,8 +69,8 @@ export function WheelsGrid({
 }) {
   const colors = causeColors(theme);
   const shown = laps.slice(0, 1 + maxCompare);
-  const wear = shown.map((l) => lapFourWear(l, range));
-  const ok = shown.map((l, i) => ({ l, w: wear[i] })).filter((x): x is { l: SelectedLap; w: FourWear } => !!x.w);
+  const wear = shown.map((l) => itemFourWear(l, range));
+  const ok = shown.map((l, i) => ({ l, w: wear[i] })).filter((x): x is { l: WearItem; w: FourWear } => !!x.w);
   if (!ok.length)
     return (
       <div className="muted" style={{ padding: 12 }}>
@@ -82,7 +82,7 @@ export function WheelsGrid({
   return (
     <div className={'wheels-car' + (tyres.length === 1 ? ' one' : '')}>
       {tyres.map((t) => {
-        const rings = ok.map(({ l, w }) => ({ w: pick(w, t), color: l.color, label: lapLabel(l.lap) + (l.isRef ? ' (ref)' : '') }));
+        const rings = ok.map(({ l, w }, i) => ({ w: pick(w, t), color: l.color, label: l.long + (i === 0 ? ' (ref)' : '') }));
         const ref = rings[0];
         return (
           <div key={t} className="wheel-cell">
@@ -132,10 +132,14 @@ export function WearWheelsView({ config }: { config: WearWheelsConfig }) {
   const theme = useStore((s) => s.settings.theme);
   const focus = useWearFocus((s) => s.focus);
   const [gridRef, size] = useElementSize<HTMLDivElement>();
-  const laps = selectedLaps();
+  // Stint mode: one average lap per selected stint (107% filter applied) in place of each selected lap.
+  const stints = config.source === 'stints';
+  const laps = useWearItems(stints);
+  const sel = selectedLaps();
+  if (!sel[0]) return <div className="empty-state">Select a lap to see its tyre wear.</div>;
+  if (!stints && sel[0].lap.index === -1) return <div className="empty-state">Pick a single lap as the reference (not the whole session).</div>;
   const ref = laps[0];
-  if (!ref) return <div className="empty-state">Select a lap to see its tyre wear.</div>;
-  if (ref.lap.index === -1) return <div className="empty-state">Pick a single lap as the reference (not the whole session).</div>;
+  if (!ref) return <div className="empty-state">No complete laps in the selected stints (or all over the worksheet's 107% cut-off).</div>;
   if (!hasWearChannels(ref.session)) return <div className="empty-state">No tyre slip data (ndSlip / Tire Load) in this session.</div>;
 
   const colors = causeColors(theme);
@@ -181,7 +185,7 @@ export function WearWheelsView({ config }: { config: WearWheelsConfig }) {
         </span>
       </div>
       <div ref={gridRef} className="wheels-wrap">
-        {size.w > 0 && <WheelsGrid laps={laps} range={range} tyre={tyre} mode={mode} theme={theme} maxCompare={maxCompare} size={wheel} units={units} />}
+        {size.w > 0 && <WheelsGrid items={laps} range={range} tyre={tyre} mode={mode} theme={theme} maxCompare={maxCompare} size={wheel} units={units} />}
       </div>
     </div>
   );

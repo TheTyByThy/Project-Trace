@@ -682,6 +682,16 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
       return (
         <div className="props-single">
           <G title="Tyre wear wheels">
+            <F label="Compare">
+              <Select
+                value={c.source ?? 'laps'}
+                options={[
+                  ['laps', 'The selected laps'],
+                  ['stints', 'Each selected stint’s average lap (107% filter applies)'],
+                ]}
+                onChange={(v) => up({ source: v as 'laps' | 'stints' })}
+              />
+            </F>
             <F label="Rings">
               <Select value={c.mode ?? 'share'} options={[['share', 'The mix (each ring all the way round)'], ['amount', 'The amount (ring length = wear)']]} onChange={(v) => up({ mode: v })} />
             </F>
@@ -710,6 +720,16 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
         <div className="props-grid">
           <div>
             <G title="Tyre wear">
+              <F label="Compare">
+                <Select
+                  value={c.source ?? 'laps'}
+                  options={[
+                    ['laps', 'The selected laps'],
+                    ['stints', 'Each selected stint’s average lap (107% filter applies)'],
+                  ]}
+                  onChange={(v) => up({ source: v as 'laps' | 'stints' })}
+                />
+              </F>
               <F label="Lap cards">
                 <Select value={c.cards ?? 'tyres'} options={[['tyres', 'One per tyre'], ['average', 'Average of the four tyres']]} onChange={(v) => up({ cards: v })} />
               </F>
@@ -827,6 +847,13 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
             )}
             <Check label="Valid laps only" value={c.validOnly} onChange={(v) => up({ validOnly: v })} />
             {c.channel && <Check label="Complete laps only (no out / in laps)" value={!!c.completeOnly} onChange={(v) => up({ completeOnly: v })} />}
+            {c.channel && (
+              <Check
+                label="Cumulative: running total through the stint (every complete lap; the 107% filter doesn't remove wear)"
+                value={!!c.cumulative}
+                onChange={(v) => up({ cumulative: v })}
+              />
+            )}
             <F label="Note at the top of the chart (optional)">
               <input className="input" value={c.note ?? ''} placeholder="e.g. what this channel means" onChange={(e) => up({ note: e.target.value || undefined })} />
             </F>

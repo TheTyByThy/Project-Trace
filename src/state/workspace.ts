@@ -123,6 +123,9 @@ export interface WearSummaryConfig extends Base {
   units?: 'm' | 'pct';
 }
 
+/** Laps compared by the tyre-wear components: the selected laps, or one average lap per selected stint (107% filter applied). */
+export type WearSource = 'laps' | 'stints';
+
 /** Tyre wear balance: front vs rear and left vs right — shares, metres and what each gap is made of; lap by lap below. */
 export interface WearBalanceConfig extends Base {
   type: 'wearbalance';
@@ -137,6 +140,8 @@ export interface WearBalanceConfig extends Base {
 /** Tyre wear wheels: each tyre's rubber as a ring split into lock-up / wheelspin / slide (ref outside, comparisons inside). */
 export interface WearWheelsConfig extends Base {
   type: 'wearwheels';
+  /** 'stints': one average lap per selected stint (complete laps, minus those over the worksheet's 107% filter) instead of each selected lap. */
+  source?: WearSource;
   /** 'share' (default): every ring goes all the way round, showing the mix; 'amount': ring length = wear. */
   mode?: 'share' | 'amount';
   /** Four tyres (default), one axle, one tyre, or the average of the four. */
@@ -152,6 +157,8 @@ export interface WearWheelsConfig extends Base {
 /** Tyre wear: how much rubber each tyre loses on each selected lap, why (lock-up / wheelspin / slide), and where. */
 export interface TyreWearConfig extends Base {
   type: 'tyrewear';
+  /** 'stints': one average lap per selected stint (complete laps, minus those over the worksheet's 107% filter) instead of each selected lap. */
+  source?: WearSource;
   /** Lap cards: one per tyre (default), or one card with the four tyres averaged. */
   cards?: 'tyres' | 'average';
   /** Tyre the "where" table looks at (default the four averaged). */
@@ -424,6 +431,8 @@ export interface TrendConfig extends Base {
   showEquation?: boolean;
   /** Channel trends: leave out laps that aren't complete (out / in / partial laps; default off). */
   completeOnly?: boolean;
+  /** Channel trends: plot the running total through the stint instead of each lap's value (every complete lap counts, regardless of the 107% filter). */
+  cumulative?: boolean;
   /** Lap times: hide laps slower than `cutoff` % of the fastest shown (the 107% rule; default off, 107). */
   cutoffOn?: boolean;
   cutoff?: number;

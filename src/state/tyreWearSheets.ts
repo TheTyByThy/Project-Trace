@@ -138,6 +138,37 @@ export function wearByCornerSheet(): Worksheet {
   );
 }
 
+/**
+ * Wear by Corner over whole stints: every corner (and the wheels for the clicked one) as the average over each
+ * selected stint's laps, so lap-to-lap variance drops out. The lap-time chart sets the 107% filter for the sheet.
+ */
+export function wearByCornerStintSheet(): Worksheet {
+  return sheet('Wear by Corner – Stint', (add) =>
+    split(
+      'row',
+      [
+        split(
+          'col',
+          [
+            add('tyrewear', P({ title: 'Average corner per stint — ranked by extra wear, click one', source: 'stints', cards: 'tyres', tyre: 'all', sort: 'track', popout: false })),
+            add('trend', P({ title: 'Lap times — the 107% filter for this sheet', channel: '', cutoffOn: true, cutoff: 107, showFit: true, fit: 'linear' })),
+          ],
+          [0.72, 0.28],
+        ),
+        split(
+          'col',
+          [
+            add('wearsummary', P({ title: 'Average lap per stint — whole car', source: 'stints' })),
+            add('wearwheels', P({ title: 'The clicked corner, tyre by tyre — stint average', source: 'stints', mode: 'amount', maxCompare: 2 })),
+          ],
+          [0.2, 0.8],
+        ),
+      ],
+      [0.56, 0.44],
+    ),
+  );
+}
+
 export function wearBalanceSheet(): Worksheet {
   return sheet('Wear Balance', (add) =>
     split(
@@ -236,7 +267,7 @@ export function wearStintSheet(): Worksheet {
           'col',
           [
             add('trend', P({ title: 'Tyre wear per lap (average of 4) — the deg measure', channel: 'Tyre Wear Lap Avg', stat: 'last', completeOnly: true, showFit: true, fit: 'linear' })),
-            add('trend', P({ title: "Game's rubber grip, rear left (end of lap)", channel: 'Tire Rubber Grip RL', stat: 'last', completeOnly: true, showFit: true, fit: 'linear' })),
+            add('trend', P({ title: 'Cumulative tyre wear (average of 4) — the running total through the stint', channel: 'Tyre Wear Lap Avg', stat: 'last', completeOnly: true, cumulative: true, showFit: true, fit: 'linear' })),
             split(
               'row',
               [
@@ -287,6 +318,7 @@ export const allTyreWearSheets = (): Worksheet[] => [
   tyreWearDetailSheet(),
   wearBalanceSheet(),
   wearByCornerSheet(),
+  wearByCornerStintSheet(),
   wearDeepDiveFrontsSheet(),
   wearDeepDiveRearsSheet(),
   wearStintSheet(),
