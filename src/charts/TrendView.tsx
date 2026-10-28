@@ -8,7 +8,7 @@ import { CATEGORICAL, withAlpha } from '../core/colors';
 import { fitCurve, fitEquation, fitRequirement, fitSettings } from '../core/fit';
 import { formatDelta, formatLapTime, formatValue, prettyTrack } from '../core/format';
 import { rangeStats } from '../core/stats';
-import { lapKey, type Lap, type Session } from '../core/types';
+import { lapKey, parseLapKey, type Lap, type Session } from '../core/types';
 import { activeSheet, selectedLaps, selectLap, sessionsWithSelection, updateComponent, useStore } from '../state/store';
 import type { TrendConfig } from '../state/workspace';
 import { drawAxes, drawMarker, makeAxes, padRange, type Axes } from './axes';
@@ -144,10 +144,16 @@ export function TrendView({ config }: { config: TrendConfig }) {
           return [{ l, v: sum }];
         });
     };
+    // Gap to reference: each stint's running total minus the reference stint's at the same lap number, so
+    // the reference runs flat along 0 and the gap that builds up through the stint fills the chart.
+    const gap = !!(config.channel && config.cumulative && config.cumulativeGap);
+    const refSession = sessions.find((s) => s.id === (refKey ? parseLapKey(refKey).sessionId : '')) ?? sessions[0];
+    const refTotals = new Map(gap && refSession ? cumulative(refSession).map((p) => [p.l.number, p.v]) : []);
+    const gapTo = (pts: { l: Lap; v: number }[]) => pts.filter((p) => refTotals.has(p.l.number)).map((p) => ({ l: p.l, v: p.v - refTotals.get(p.l.number)! }));
     const series = sessions.map((s, si) => ({
       s,
       color: sel.find((l) => l.session.id === s.id)?.color ?? CATEGORICAL[theme][si % 8],
-      pts: mode === 'corrected' ? [] : config.channel && config.cumulative ? cumulative(s) : s.laps.map((l) => ({ l, v: lapStat(s, l, config) })).filter(keep),
+      pts: mode === 'corrected' ? [] : config.channel && config.cumulative ? (gap ? gapTo(cumulative(s)) : cumulative(s)) : s.laps.map((l) => ({ l, v: lapStat(s, l, config) })).filter(keep),
       corr: mode === 'raw' ? [] : s.laps.map((l) => ({ l, v: fuelCorrected(s, l, k) })).filter(keep),
     }));
     const noFuel = mode !== 'raw' && series.every((sr) => !sr.corr.length);
@@ -173,15 +179,25 @@ export function TrendView({ config }: { config: TrendConfig }) {
     const ch = config.channel ? sessions[0]?.channels.get(config.channel) : undefined;
     const unit = ch ? conv(ch).unit : 's';
     const dps = ch ? channelDps(ch) : 3;
-    const label = config.channel ? `${config.cumulative ? 'cumulative' : config.stat} ${channelLabel(config.channel)}${unit ? ` [${unit}]` : ''}` : 'lap time';
+    const label = config.channel ? `${gap ? 'gap to ref, cumulative' : config.cumulative ? 'cumulative' : config.stat} ${channelLabel(config.channel)}${unit ? ` [${unit}]` : ''}` : 'lap time';
     drawAxes(ctx, T, A, x0, x1, y0, y1, 'lap', label, {
       xFmt: (v) => (Number.isInteger(Math.round(v * 1000) / 1000) ? String(Math.round(v)) : ''),
-      yFmt: (v, step) => (config.channel ? formatValue(v, step < 1 ? 2 : 0) : formatLapTime(v, step < 0.1 ? 2 : 1)),
+      yFmt: (v, step) => (gap ? formatDelta(v, step < 1 ? 2 : 0) : config.channel ? formatValue(v, step < 1 ? 2 : 0) : formatLapTime(v, step < 0.1 ? 2 : 1)),
     });
     ctx.save();
     ctx.beginPath();
     ctx.rect(rect.x, rect.y, rect.w, rect.h);
     ctx.clip();
+    if (gap) {
+      ctx.strokeStyle = T.text3;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(rect.x, A.py(0));
+      ctx.lineTo(rect.x + rect.w, A.py(0));
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
     for (const sr of series) {
       ctx.strokeStyle = sr.color;
       ctx.lineWidth = 1.5;
@@ -214,7 +230,7 @@ export function TrendView({ config }: { config: TrendConfig }) {
         if (rect.w / Math.max(1, x1 - x0) > 46) {
           ctx.fillStyle = T.text2;
           ctx.textAlign = 'center';
-          ctx.fillText(config.channel ? formatValue(p.v, dps) : formatLapTime(p.v), X, Y - 14);
+          ctx.fillText(gap ? formatDelta(p.v, dps) : config.channel ? formatValue(p.v, dps) : formatLapTime(p.v), X, Y - 14);
         }
       }
     }
@@ -306,7 +322,9 @@ export function TrendView({ config }: { config: TrendConfig }) {
       (mode === 'raw' ? '' : `${mode === 'both' ? 'dashed ◆ = ' : ''}fuel-corrected (−${k} s per litre on board) · `) +
       (fit.on && fit.equation ? `fit: x = lap number, y in ${config.channel ? unit || 'channel units' : 'seconds'} · ` : '');
     const cutNote =
-      config.channel && config.cumulative
+      gap
+        ? `running total minus the reference stint's (${refSession ? seriesName(refSession) : 'none'}) at each lap${sessions.length < 2 ? ' — open another stint to compare' : ''} · every complete lap counts · `
+        : config.channel && config.cumulative
         ? 'running total of every complete lap (the 107% filter leaves no lap out: a slow lap still wears the tyres) · '
         : sheetCutoff != null
           ? `${slow.size} slow lap${slow.size === 1 ? '' : 's'} (over ${sheetCutoff}%) left out${config.channel ? ' — set on the lap-time trend' : ''} · `
@@ -349,12 +367,15 @@ export function TrendView({ config }: { config: TrendConfig }) {
         </div>
       )}
       {canCumulate(config) && (
-        <div className="seg chart-seg" title="Each lap's wear, or the running total through the stint (the gap between drivers builds up lap by lap)">
+        <div className="seg chart-seg" title="Each lap's wear, the running total through the stint, or that total's gap to the reference stint (how the difference builds up lap by lap)">
           <button className={!config.cumulative ? 'on' : ''} onClick={() => updateComponent(config.id, { cumulative: false }, 'Per-lap wear')}>
             Per lap
           </button>
-          <button className={config.cumulative ? 'on' : ''} onClick={() => updateComponent(config.id, { cumulative: true }, 'Cumulative wear')}>
+          <button className={config.cumulative && !config.cumulativeGap ? 'on' : ''} onClick={() => updateComponent(config.id, { cumulative: true, cumulativeGap: false }, 'Cumulative wear')}>
             Cumulative
+          </button>
+          <button className={config.cumulative && config.cumulativeGap ? 'on' : ''} onClick={() => updateComponent(config.id, { cumulative: true, cumulativeGap: true }, 'Cumulative gap to reference')}>
+            Gap to ref
           </button>
         </div>
       )}

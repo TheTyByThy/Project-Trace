@@ -76,7 +76,9 @@ The Tyre Wear component has a **Laps | Stint avg** switch, and the wheels have t
 
 ### Cumulative wear
 
-Every wear-per-lap chart (any trend of a `Tyre Wear Lap …` channel) has a **Per lap | Cumulative** switch in its top-right corner. **Cumulative** adds each lap's wear to a running total through the stint, so over a long run you can see the gap between two drivers grow lap by lap. The Wear Stint sheet has one set to cumulative.
+Every wear-per-lap chart (any trend of a `Tyre Wear Lap …` channel) has a **Per lap | Cumulative | Gap to ref** switch in its top-right corner.
+- **Cumulative** adds each lap's wear to a running total through the stint, so over a long run you can see the gap between two drivers grow lap by lap. The Wear Stint sheet has one set to cumulative.
+- **Gap to ref** plots each stint's running total minus the reference stint's at the same lap number. The reference stint is the flat line at 0, and the other stints show how far ahead or behind on wear they are, e.g. *−1325 m* after lap 7. The whole chart height is spent on the difference, so the end-of-stint gap is easy to read. A linear fit gives the gap per lap. Laps the reference stint doesn't have are left out.
 - Every complete lap counts, including laps the 107% filter leaves out of the other charts: a slow lap still wore the tyres, so leaving it out would understate the total. Out and in laps aren't counted.
 - The fit line works on the running total too. With a linear fit, the slope is the average wear per lap.
 - Any other channel trend can be made cumulative in Properties.

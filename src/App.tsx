@@ -422,12 +422,15 @@ function installAutomation() {
       out.push('INFO: workspaces: ' + all.map((w) => `${w.name}${w.locked ? ' (built-in)' : ''}`).join(', '));
       // Track profiles: the built-ins load, and an edit is written to the Tracks folder as its own file
       // (undoing it back to the built-in removes the file again).
-      const cota = 'cota_2022-layout_f1_2024';
-      ok(trackProfile(cota).corners.length === 12, 'built-in track corners load (COTA: 12 corners)');
+      // (A built-in track no open session uses: the screenshot extras edit the open sessions' track.)
+      const builtInTracks = await pt().defaultTracks();
+      const openVenues = new Set(useStore.getState().sessions.map((s) => s.meta.venue));
+      const cota = Object.keys(builtInTracks).find((v) => builtInTracks[v].corners.length && !openVenues.has(v)) ?? '';
+      ok(!!cota && trackProfile(cota).corners.length === builtInTracks[cota].corners.length, `built-in track corners load (${cota})`);
       setTrackProfile(cota, { mirror: true }, 'Check');
       await new Promise((r) => setTimeout(r, 900));
       const written = (await pt().listTracks())[cota];
-      ok(written?.mirror === true && written.corners.length === 12, 'editing a track saves it in the Tracks folder');
+      ok(written?.mirror === true && written.corners.length === builtInTracks[cota].corners.length, 'editing a track saves it in the Tracks folder');
       undo();
       await new Promise((r) => setTimeout(r, 900));
       ok(!(await pt().listTracks())[cota] && trackProfile(cota).mirror === false, 'undo goes back to the built-in track and removes the file');

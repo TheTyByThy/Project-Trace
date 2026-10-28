@@ -79,7 +79,7 @@ The tyre compound each stint ran on is shown by its number, e.g. **C3** or **C4*
 - in the **lap-time and per-lap trends**: each stint's name in the key and fit notes, e.g. *COTA 2022 12:54 · C3*;
 - in the tyre-wear tables, summaries and wheels, next to each lap or stint average.
 
-**Where the names come from.** MoTeC logs (`.ld` + `.ldx`) name each compound value, e.g. 3 → *Piorani M (C2)*. Hover a badge to see the full name. CSV exports don't carry the names, so they show *Compound 2*.
+**Where the names come from.** MoTeC logs (`.ld` + `.ldx`) name each compound value, e.g. 3 → *Piorani M (C2)*. Hover a badge to see the full name. Some exporters leave the names out of the `.ldx`, and CSV exports never carry them. For the Formula Alpha 2026 the app knows the names anyway (0 = C5 … 4 = C1, 5 = INT, 6 = WET); for other cars these logs show the number, e.g. *Compound 2*.
 
 ## Lap colours in side-by-side data
 

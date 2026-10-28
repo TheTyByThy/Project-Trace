@@ -145,7 +145,7 @@ export function WearSummaryView({ config }: { config: WearSummaryConfig }) {
   const diff = (v: number, r: number) => {
     if (units === 'pct') {
       const p = pctDelta(v, r);
-      return Number.isFinite(p) ? `${formatDelta(p, 1)}%` : '—';
+      return Number.isFinite(p) ? `${formatDelta(p, 0)}%` : '—';
     }
     return `${formatDelta(v - r, 0)} m`;
   };

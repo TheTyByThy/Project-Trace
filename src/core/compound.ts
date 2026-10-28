@@ -26,8 +26,23 @@ const COLORS: Record<string, string> = {
   WET: '#3987e5',
 };
 
+// Some exporters leave the compound names out of the .ldx; for the Formula Alpha 2026 they're known.
+const FA26_COMPOUNDS: Record<number, string> = {
+  0: 'Piorani US (C5)',
+  1: 'Piorani SS (C4)',
+  2: 'Piorani S (C3)',
+  3: 'Piorani M (C2)',
+  4: 'Piorani H (C1)',
+  5: 'Piorani Inter (INT)',
+  6: 'Piorani Wet (WET)',
+};
+
+function compoundNames(s: Session): Record<number, string> | undefined {
+  return s.meta.enums?.['Tyres Compound'] ?? (/formula[\s_-]*alpha[\s_-]*2026/i.test(s.meta.vehicle ?? '') ? FA26_COMPOUNDS : undefined);
+}
+
 export function compoundFor(s: Session, index: number): Compound {
-  const raw = s.meta.enums?.['Tyres Compound']?.[index];
+  const raw = compoundNames(s)?.[index];
   if (!raw) return { index, name: `Compound ${index}`, letter: String(index), short: `Compound ${index}`, color: '#8b93a1' };
   // "Piorani M (C2)" → shown as C2 (coloured as a medium); "Piorani Inter (INT)" → INT.
   const words = raw.replace(/\([^)]*\)\s*$/, '').trim().split(/\s+/);

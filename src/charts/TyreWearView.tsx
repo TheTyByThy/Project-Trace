@@ -125,8 +125,8 @@ export function TyreWearView({ config }: { config: TyreWearConfig }) {
     const d = pctDelta(tot(wear[1]!), tot(refW));
     const worstTyre = TYRES.map((t) => ({ t, d: pctDelta(wear[1]![t].total.total, refW[t].total.total) })).sort((a, b) => b.d - a.d)[0];
     const worstRow = visible.filter((r) => r.cmp[0]).sort((a, b) => b.cmp[0]!.total - b.ref.total - (a.cmp[0]!.total - a.ref.total))[0];
-    summary = `${cmp[0].stint ? cmp[0].short : cmp[0].long} vs reference: ${formatDelta(d, 1)}% tyre wear overall`;
-    if (worstTyre && worstTyre.d > 0.5) summary += `, most on ${worstTyre.t} (${formatDelta(worstTyre.d, 1)}%)`;
+    summary = `${cmp[0].stint ? cmp[0].short : cmp[0].long} vs reference: ${formatDelta(d, 0)}% tyre wear overall`;
+    if (worstTyre && worstTyre.d > 0.5) summary += `, most on ${worstTyre.t} (${formatDelta(worstTyre.d, 0)}%)`;
     if (worstRow && worstRow.cmp[0]!.total - worstRow.ref.total > 0)
       summary += `; biggest extra wear${tyre === 'all' ? '' : ` (${tyre})`} in ${worstRow.s.name} (${formatDelta(worstRow.cmp[0]!.total - worstRow.ref.total, 0)} m, ${mainCause(worstRow.ref, worstRow.cmp[0]!)})`;
     summary += '.';
@@ -233,7 +233,7 @@ export function TyreWearView({ config }: { config: TyreWearConfig }) {
                     <CauseBar w={w.total} max={maxTyre} colors={colors} />
                     <span className="num">{formatValue(w.total.total, 0)} m</span>
                     <span className="num" style={{ color: !Number.isFinite(d) ? undefined : d > 0 ? 'var(--loss)' : 'var(--gain)' }}>
-                      {li ? `${formatDelta(d, 1)}%` : 'ref'}
+                      {li ? `${formatDelta(d, 0)}%` : 'ref'}
                     </span>
                     {showGame && (
                       <span
@@ -346,7 +346,7 @@ export function TyreWearView({ config }: { config: TyreWearConfig }) {
                     style={{ background: lapTint(l.color), fontWeight: 700, color: d > 0 ? 'var(--loss)' : 'var(--gain)' }}
                   >
                     {breakdown ? `${formatValue(lapTotal(w).total, 0)} m · ` : ''}
-                    {formatDelta(d, 0)} m ({formatDelta(pctDelta(lapTotal(w).total, refLapTotal.total), 1)}%)
+                    {formatDelta(d, 0)} m ({formatDelta(pctDelta(lapTotal(w).total, refLapTotal.total), 0)}%)
                   </td>
                 );
               })}

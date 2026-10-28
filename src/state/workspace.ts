@@ -435,6 +435,8 @@ export interface TrendConfig extends Base {
   completeOnly?: boolean;
   /** Channel trends: plot the running total through the stint instead of each lap's value (every complete lap counts, regardless of the 107% filter). */
   cumulative?: boolean;
+  /** With `cumulative`: plot each stint's running total minus the reference stint's, lap by lap (the reference is the flat line at 0). */
+  cumulativeGap?: boolean;
   /** Lap times: hide laps slower than `cutoff` % of the fastest shown (the 107% rule; default off, 107). */
   cutoffOn?: boolean;
   cutoff?: number;

@@ -29,6 +29,11 @@ describe('tyre compounds', () => {
     expect(compoundFor({ meta: {} } as any, 2)).toMatchObject({ name: 'Compound 2', letter: '2' });
   });
 
+  it('knows the Formula Alpha 2026 compounds when the .ldx leaves the names out', () => {
+    expect(compoundFor({ meta: { vehicle: 'VRC Formula Alpha 2026 CSP' } } as any, 2)).toMatchObject({ name: 'Piorani S (C3)', short: 'C3' });
+    expect(compoundFor({ meta: { vehicle: 'vrc_formula_alpha_2026_csp' } } as any, 1)).toMatchObject({ short: 'C4' });
+  });
+
   // A real log: lowerlaptime's COTA run on the SS (C4).
   const p = path.join(__dirname, '..', 'myTelemData', 'Martin', '26102026-194918-lowerlaptime-vrc_formula_alpha_2026_csp-cota_2022-layout_f1_2024.ld');
   it.skipIf(!fs.existsSync(p))('names the compound of a real stint', () => {
