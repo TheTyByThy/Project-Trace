@@ -30,6 +30,7 @@ import type { GraphConfig } from '../state/workspace';
 import { channelDps, channelLabel, conv } from '../charts/data';
 import { openChannelProps, openColorPicker, openMenu, renameChannel } from './overlays';
 import { keyHint } from '../shortcuts';
+import { SessionCompounds } from './CompoundBadge';
 
 function SessionCard({ s }: { s: Session }) {
   const lapSel = useStore((st) => st.laps);
@@ -100,6 +101,7 @@ function SessionCard({ s }: { s: Session }) {
             </div>
             <div className="muted" style={{ fontSize: 11 }}>
               {s.meta.savedAt ? new Date(s.meta.savedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : ''}
+              <SessionCompounds s={s} />
             </div>
           </div>
           <button className="btn icon ghost" title="Close session" onClick={() => closeSession(s.id)}>

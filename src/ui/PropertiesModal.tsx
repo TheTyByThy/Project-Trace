@@ -692,7 +692,17 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
                 onChange={(v) => up({ source: v as 'laps' | 'stints' })}
               />
             </F>
-            <F label="Rings">
+            <F label="Shape">
+              <Select
+                value={c.shape ?? 'rings'}
+                options={[
+                  ['rings', 'Rings (a tyre with a ring per lap)'],
+                  ['bars', 'Bars (a straight bar per lap — easier to compare)'],
+                ]}
+                onChange={(v) => up({ shape: v as 'rings' | 'bars' })}
+              />
+            </F>
+            <F label="Rings / bars">
               <Select value={c.mode ?? 'share'} options={[['share', 'The mix (each ring all the way round)'], ['amount', 'The amount (ring length = wear)']]} onChange={(v) => up({ mode: v })} />
             </F>
             <F label="Tyres">

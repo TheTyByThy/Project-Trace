@@ -111,6 +111,8 @@ export interface LdxInfo {
   totalLaps: number | null;
   fastestTime: number | null;
   fastestLap: number | null;
+  /** Value names per channel (MathEnumeration linked by a MathExpression `'Channel' []`). */
+  enums: Record<string, Record<number, string>>;
 }
 
 const attr = (tag: string, name: string) => {
@@ -120,7 +122,7 @@ const attr = (tag: string, name: string) => {
 
 /** Regex-based (works inside a Web Worker, where DOMParser is unavailable). */
 export function parseLdx(text: string): LdxInfo {
-  const info: LdxInfo = { beacons: [], details: {}, setup: {}, totalLaps: null, fastestTime: null, fastestLap: null };
+  const info: LdxInfo = { beacons: [], details: {}, setup: {}, totalLaps: null, fastestTime: null, fastestLap: null, enums: {} };
   for (const m of text.matchAll(/<Marker\b[^>]*>/g)) {
     const t = Number(attr(m[0], 'Time'));
     if (Number.isFinite(t) && t > 0) info.beacons.push(t / 1e6);
@@ -142,6 +144,24 @@ export function parseLdx(text: string): LdxInfo {
     const script = attr(m[0], 'Script');
     if (id?.startsWith('Setup ') && script != null && /^-?\d+(\.\d+)?$/.test(script.trim()))
       info.setup[id.slice(6)] = { value: script.trim(), unit: attr(m[0], 'Unit') ?? '' };
+  }
+  // Enumerations (e.g. "Tyres Available": 3 → "Piorani M (C2)"), and the channels they name.
+  const enumerations: Record<string, Record<number, string>> = {};
+  for (const m of text.matchAll(/<MathEnumeration\b[^>]*>([\s\S]*?)<\/MathEnumeration>/g)) {
+    const name = attr(m[0], 'Name');
+    if (!name) continue;
+    const values: Record<number, string> = {};
+    for (const e of m[1].matchAll(/<Enum\b[^>]*\/>/g)) {
+      const v = Number(attr(e[0], 'Value'));
+      const n = attr(e[0], 'Name');
+      if (Number.isFinite(v) && n) values[v] = n;
+    }
+    enumerations[name] = values;
+  }
+  for (const m of text.matchAll(/<MathExpression\b[^>]*\/>/g)) {
+    const en = attr(m[0], 'EnumerationName');
+    const ch = attr(m[0], 'Script')?.match(/^\s*'([^']+)'\s*\[\]\s*$/)?.[1];
+    if (en && ch && enumerations[en]) info.enums[ch] = enumerations[en];
   }
   return info;
 }
@@ -201,6 +221,7 @@ export function parseLd(buffer: ArrayBuffer, fileName: string, ldxText?: string,
     meta.lapCountHeader = x.totalLaps;
     meta.details = x.details;
     meta.setup = x.setup;
+    if (Object.keys(x.enums).length) meta.enums = x.enums;
   } else warnings.push('No .ldx file found next to the .ld — laps are detected from the Lap Number channel.');
   const utc = channels.find((c) => /^utc time$/i.test(c.name));
   if (utc && utc.data[0] > 1e8) meta.gameTimeUtc = utc.data[0];

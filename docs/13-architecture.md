@@ -94,7 +94,7 @@ Workspaces are updated immutably, so a history entry is just a snapshot of the `
 `buildDefaultWorkspace()` generates the Starter on every launch with id `starter` and `locked: true`; it is never written to disk. `updateWorkspace()` on a locked workspace clones it into a new personal workspace, applies the edit there and switches to it (copy-on-write). View-only changes such as `activeSheet` are applied in memory without copying.
 
 ### Persistence
-Personal workspaces are readable JSON files named after the workspace in `Documents/Project-Trace/Workspaces` (main keeps an id → file map; a rename moves the file; the folder is watched so dropped-in files appear). Built-in defaults are the code-generated Starter plus the files in `default-workspaces/` (shipped as an extra resource), loaded read-only with copy-on-write like the Starter. Settings (including shortcut overrides), the worksheet library, notes and the session cache are JSON files in Electron's `userData` folder. The main process writes them atomically, through a per-file queue with unique temp names; the renderer debounces the saves.
+Personal workspaces are readable JSON files named after the workspace in `Documents/Project-Trace/Workspaces` (main keeps an id → file map; a rename moves the file; the folder is watched so dropped-in files appear). Built-in defaults are the code-generated Starter plus the files in `default-workspaces/` (shipped as an extra resource), loaded read-only with copy-on-write like the Starter. Track profiles work the same way: one `{ venue, …profile }` file per circuit in `Documents/Project-Trace/Tracks`, layered over the built-ins in `default-tracks/` (also an extra resource). The renderer writes only the venues whose profile object changed (a profile that's back to the built-in object deletes its file), and the watched folder only applies files that differ from what the app last wrote. Profiles that older versions kept in `settings.json` are moved to the folder once at start-up. Settings (including shortcut overrides), the worksheet library, notes and the session cache are JSON files in Electron's `userData` folder. The main process writes them atomically, through a per-file queue with unique temp names; the renderer debounces the saves.
 
 ## Security model
 - `contextIsolation: true`, `nodeIntegration: false`.
@@ -115,6 +115,7 @@ npm run screenshots # launches the real app headlessly, opens the sample session
 Environment variables for `npm run screenshots`:
 - `PT_SCREENSHOT_BROWSE=<folder>` — also capture the session browser at that folder;
 - `PT_SCREENSHOT_OPEN=<file;file>` — open specific sessions instead of the sample.
+- `PT_SCREENSHOT_WORKSPACE=<workspace .json>` — capture that workspace's sheets (it becomes the active workspace in the throwaway profile).
 
 Screenshot runs use a throwaway profile and never touch your settings. At the end, the run also executes end-to-end checks (remove → undo → redo, delete worksheet → undo, editing the read-only Starter) and prints `[check] PASS/FAIL` lines.
 

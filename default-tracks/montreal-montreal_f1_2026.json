@@ -1,0 +1,46 @@
+{
+  "venue": "montreal-montreal_f1_2026",
+  "rotation": 119.4,
+  "mirror": false,
+  "sections": [
+    {
+      "name": "int 1",
+      "dist": 1040
+    },
+    {
+      "name": "int 2",
+      "dist": 2374
+    }
+  ],
+  "corners": [
+    {
+      "name": "T1+2",
+      "dist": 279
+    },
+    {
+      "name": "T3+4",
+      "dist": 730
+    },
+    {
+      "name": "T6+7",
+      "dist": 1294
+    },
+    {
+      "name": "T8+9",
+      "dist": 1987
+    },
+    {
+      "name": "T10",
+      "dist": 2653
+    },
+    {
+      "name": "T13+14",
+      "dist": 3854
+    }
+  ],
+  "sectionNames": [
+    "Sector 1",
+    "Sector 2",
+    "Sector 3"
+  ]
+}

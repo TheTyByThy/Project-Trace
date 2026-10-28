@@ -38,6 +38,7 @@ import {
   setNamePrompt,
   setSplitSizes,
   setZoom,
+  syncTracksFromFolder,
   syncWorkspacesFromFolder,
   toggleDatum,
   togglePlayback,
@@ -57,6 +58,7 @@ import { CommandPalette, SettingsDialog, ShortcutsDialog } from './ui/Dialogs';
 import { SheetTabs, StatusBar, Toasts, TopBar } from './ui/Chrome';
 import { startLive } from './state/live';
 import { allTyreWearSheets } from './state/tyreWearSheets';
+import { tyreDegSheets } from './state/tyreDegWorkspace';
 import { setWearFocus } from './charts/wearShared';
 import { WEAR_CHANNEL_PROPS } from './state/tyreWearSheets';
 import { DEFAULT_MATH_CHANNELS } from './state/defaultMath';
@@ -167,6 +169,12 @@ function installAutomation() {
       'wear-stint',
       'wear-stint-tyres',
       'wear-corner-stint',
+      'wear-bars',
+      'deg-1',
+      'deg-2',
+      'deg-3',
+      'deg-4',
+      'deg-5',
       'live-mode',
       'scatter-fit',
       'playback',
@@ -176,7 +184,7 @@ function installAutomation() {
       'hidden-channel',
       'lap-report-delta',
       'shortcuts',
-      'basic-fa26',
+      'default-fa26',
       'compare-lap',
       'time-axis',
       'light-theme',
@@ -218,7 +226,9 @@ function installAutomation() {
       } else if (name === 'live-mode') {
         // Screenshot profile only: show the Live mode settings switched on.
         updateSettings({ live: { ...useStore.getState().settings.live, enabled: true, requireSim: true } });
-      } else if (name.startsWith('wear-')) {
+      } else if (name.startsWith('wear-') || name.startsWith('deg-')) {
+        // Screenshot profile only: the Tyre Deg workspace's sheets, once.
+        if (name.startsWith('deg-') && sheetIndex('1 · Lap') < 0) updateWorkspace((ws) => ({ ...ws, worksheets: [...ws.worksheets, ...tyreDegSheets()] }));
         // Screenshot profile only: add the full tyre-wear worksheet set (as in a dedicated workspace) once.
         if (sheetIndex('Wear by Corner') < 0)
           updateWorkspace((ws) => ({
@@ -227,15 +237,16 @@ function installAutomation() {
             math: [...ws.math, ...DEFAULT_MATH_CHANNELS.filter((m) => !ws.math.some((x) => x.name === m.name))],
             channelProps: { ...WEAR_CHANNEL_PROPS, ...ws.channelProps },
           }));
-        const target = { 'wear-balance': 'Wear Balance', 'wear-popout': 'Tyre Wear', 'wear-by-corner': 'Wear by Corner', 'wear-deep-fronts': 'Wear Deep Dive – Fronts', 'wear-deep-rears': 'Wear Deep Dive – Rears', 'wear-stint': 'Wear Stint', 'wear-stint-tyres': 'Wear Stint – Tyres', 'wear-corner-stint': 'Wear by Corner – Stint' }[name]!;
+        const target = { 'wear-balance': 'Wear Balance', 'wear-popout': 'Tyre Wear', 'wear-by-corner': 'Wear by Corner', 'wear-deep-fronts': 'Wear Deep Dive – Fronts', 'wear-deep-rears': 'Wear Deep Dive – Rears', 'wear-stint': 'Wear Stint', 'wear-stint-tyres': 'Wear Stint – Tyres', 'wear-corner-stint': 'Wear by Corner – Stint', 'wear-bars': 'Wear by Corner', 'deg-1': '1 · Lap', 'deg-2': '2 · Lap corners', 'deg-3': '3 · Stint', 'deg-4': '4 · Stint corners', 'deg-5': '5 · Corner traces' }[name]!;
         setActiveSheet(sheetIndex(target));
         // Wear by Corner shows the wheels' % view (the other sheets show metres).
-        if (name === 'wear-by-corner')
-          for (const c of Object.values(activeSheet()?.components ?? {})) if (c.type === 'wearwheels') updateComponent(c.id, { units: 'pct' });
+        if (name === 'wear-by-corner' || name === 'wear-bars')
+          for (const c of Object.values(activeSheet()?.components ?? {}))
+            if (c.type === 'wearwheels') updateComponent(c.id, name === 'wear-bars' ? { units: 'm', shape: 'bars' } : { units: 'pct', shape: 'rings' });
         // Focus the second corner (from a Tyre Wear table on this sheet, so its pop-out opens).
         const corner = trackProfile(venue).corners.slice().sort((a, b) => a.dist - b.dist)[1];
         const tw = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'tyrewear');
-        if (corner && name !== 'wear-stint' && name !== 'wear-stint-tyres' && name !== 'wear-balance') {
+        if (corner && !['wear-stint', 'wear-stint-tyres', 'wear-balance', 'deg-1', 'deg-3'].includes(name)) {
           setWearFocus({ name: corner.name, entry: corner.dist - 120, exit: corner.dist + 80, venue, source: tw?.id ?? '' });
           setXMode('distance');
           setZoom([corner.dist - 250, corner.dist + 200]);
@@ -323,10 +334,10 @@ function installAutomation() {
       } else if (name === 'shortcuts') {
         const lr = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'lapreport');
         if (lr) updateComponent(lr.id, { sectorMode: 'absolute' });
-      } else if (name === 'basic-fa26') {
-        if (useStore.getState().workspaces.some((w) => w.id === 'basic-fa26')) {
+      } else if (name === 'default-fa26') {
+        if (useStore.getState().workspaces.some((w) => w.id === 'default-fa26')) {
           prevWorkspace = useStore.getState().settings.activeWorkspaceId;
-          setActiveWorkspace('basic-fa26');
+          setActiveWorkspace('default-fa26');
           setActiveSheet(0);
         }
       } else if (name === 'compare-lap') {
@@ -405,6 +416,22 @@ function installAutomation() {
         undo();
         setActiveWorkspace(mine);
       }
+      // The bundled defaults load read-only, next to any editable copies of them.
+      const all = useStore.getState().workspaces;
+      ok(['default-fa26', 'default-tyre-deg'].every((id) => all.find((w) => w.id === id)?.locked), 'built-in FA26 V0.1 and Tyre Deg load read-only');
+      out.push('INFO: workspaces: ' + all.map((w) => `${w.name}${w.locked ? ' (built-in)' : ''}`).join(', '));
+      // Track profiles: the built-ins load, and an edit is written to the Tracks folder as its own file
+      // (undoing it back to the built-in removes the file again).
+      const cota = 'cota_2022-layout_f1_2024';
+      ok(trackProfile(cota).corners.length === 12, 'built-in track corners load (COTA: 12 corners)');
+      setTrackProfile(cota, { mirror: true }, 'Check');
+      await new Promise((r) => setTimeout(r, 900));
+      const written = (await pt().listTracks())[cota];
+      ok(written?.mirror === true && written.corners.length === 12, 'editing a track saves it in the Tracks folder');
+      undo();
+      await new Promise((r) => setTimeout(r, 900));
+      ok(!(await pt().listTracks())[cota] && trackProfile(cota).mirror === false, 'undo goes back to the built-in track and removes the file');
+      out.push('INFO: tracks folder: ' + (await pt().tracksDir()));
       // Save / Save as: each way of saving shows the "Saved" pop-up and writes the file.
       const savedToast = () => useStore.getState().toasts.some((t) => t.kind === 'success' && t.text.startsWith('Saved'));
       const clearToasts = () => useStore.setState({ toasts: [] });
@@ -457,6 +484,7 @@ export function App() {
     initApp().catch((e) => toast(`Startup failed: ${e.message}`, 'error', 10000));
     const offMenu = pt().onMenu(handleMenuAction);
     const offWs = pt().onWorkspacesChanged(() => useStore.getState().ready && syncWorkspacesFromFolder());
+    const offTracks = pt().onTracksChanged(() => useStore.getState().ready && syncTracksFromFolder());
     const offFs = pt().onFullscreen((on) => document.documentElement.classList.toggle('fullscreen', on));
     const offOpen = pt().onOpenFiles((files) => openFiles(files, 'replace'));
     const offLive = startLive();
@@ -464,6 +492,7 @@ export function App() {
     window.addEventListener('error', (e) => useStore.setState((s) => ({ errors: [...s.errors, String(e.message)] })));
     return () => {
       offMenu();
+      offTracks();
       offWs();
       offFs();
       offOpen();

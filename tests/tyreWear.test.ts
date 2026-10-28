@@ -9,6 +9,7 @@ import { applyMathChannels } from '../src/core/math/evaluate';
 import { lapWear, TYRES } from '../src/core/tyreWear';
 import { DEFAULT_MATH_CHANNELS } from '../src/state/defaultMath';
 import { allTyreWearSheets } from '../src/state/tyreWearSheets';
+import { tyreDegSheets } from '../src/state/tyreDegWorkspace';
 import { gameFactor } from '../src/charts/wearShared';
 
 const dir = path.join(__dirname, '..', 'sample-data');
@@ -98,7 +99,7 @@ describe('tyre wear model', () => {
   it('every channel the tyre-wear worksheets use exists (logged or default math)', () => {
     const known = new Set([...s.channels.keys(), ...DEFAULT_MATH_CHANNELS.map((m) => m.name)]);
     const used = new Set<string>();
-    for (const sh of allTyreWearSheets())
+    for (const sh of [...allTyreWearSheets(), ...tyreDegSheets()])
       for (const c of Object.values(sh.components) as any[]) {
         for (const p of c.panes ?? []) for (const n of p.channels) used.add(n);
         if (c.type === 'trackmap' && c.colorBy !== 'lap' && c.colorBy !== 'delta') used.add(c.colorBy);

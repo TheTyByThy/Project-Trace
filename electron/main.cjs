@@ -23,6 +23,14 @@ if (SCREENSHOT_DIR) {
   const tmpProfile = path.join(app.getPath('temp'), 'project-trace-screenshot-profile');
   fs.rmSync(tmpProfile, { recursive: true, force: true });
   app.setPath('userData', tmpProfile);
+  // Optional: PT_SCREENSHOT_WORKSPACE=<workspace .json> to capture that workspace's sheets (opened as the active one).
+  const wsFile = process.env.PT_SCREENSHOT_WORKSPACE;
+  if (wsFile && fs.existsSync(wsFile)) {
+    const ws = JSON.parse(fs.readFileSync(wsFile, 'utf8'));
+    fs.mkdirSync(path.join(tmpProfile, 'Workspaces'), { recursive: true });
+    fs.writeFileSync(path.join(tmpProfile, 'Workspaces', path.basename(wsFile)), JSON.stringify(ws));
+    fs.writeFileSync(path.join(tmpProfile, 'settings.json'), JSON.stringify({ activeWorkspaceId: ws.id }));
+  }
 }
 
 protocol.registerSchemesAsPrivileged([
@@ -40,6 +48,8 @@ const settingsFile = () => path.join(userDir(), 'settings.json');
 // the hidden userData folder; they are copied across once (see migrateLegacyWorkspaces).
 const legacyWorkspacesDir = () => path.join(userDir(), 'workspaces');
 const workspacesDir = () => (SCREENSHOT_DIR ? path.join(userDir(), 'Workspaces') : path.join(app.getPath('documents'), 'Project-Trace', 'Workspaces'));
+// Track profiles (corners, splits, rotation) — one readable file per circuit, so they're easy to share.
+const tracksDir = () => (SCREENSHOT_DIR ? path.join(userDir(), 'Tracks') : path.join(app.getPath('documents'), 'Project-Trace', 'Tracks'));
 const cacheFile = () => path.join(userDir(), 'session-cache.json');
 const notesFile = () => path.join(userDir(), 'session-notes.json');
 const libraryFile = () => path.join(userDir(), 'worksheet-library.json');
@@ -55,6 +65,13 @@ function defaultWorkspacesDir() {
   const packaged = path.join(process.resourcesPath || '', 'default-workspaces');
   if (app.isPackaged && fs.existsSync(packaged)) return packaged;
   return path.join(__dirname, '..', 'default-workspaces');
+}
+
+/** Built-in track profiles shipped with the app (default-tracks/); a file in the Tracks folder overrides one. */
+function defaultTracksDir() {
+  const packaged = path.join(process.resourcesPath || '', 'default-tracks');
+  if (app.isPackaged && fs.existsSync(packaged)) return packaged;
+  return path.join(__dirname, '..', 'default-tracks');
 }
 
 function defaultTelemetryRoot() {
@@ -239,6 +256,7 @@ function buildMenu() {
         { label: 'Save Workspace', ...acc('ws-save'), click: () => sendMenu('ws-save') },
         { label: 'Save Workspace As…', click: () => sendMenu('ws-save-as') },
         { label: 'Open Workspaces Folder', click: () => sendMenu('ws-open-folder') },
+        { label: 'Open Tracks Folder', click: () => sendMenu('tracks-open-folder') },
         { type: 'separator' },
         { label: 'New Workspace from Starter…', click: () => sendMenu('ws-new-starter') },
         { label: 'New Blank Workspace…', click: () => sendMenu('ws-new-blank') },
@@ -373,6 +391,16 @@ function registerIpc() {
   ipcMain.handle('workspaces:openDir', async () => {
     await fsp.mkdir(workspacesDir(), { recursive: true });
     return shell.openPath(workspacesDir());
+  });
+
+  ipcMain.handle('tracks:list', () => listTracks(tracksDir(), true));
+  ipcMain.handle('tracks:defaults', () => listTracks(defaultTracksDir(), false));
+  ipcMain.handle('tracks:save', (_e, venue, profile) => saveTrackFile(venue, profile));
+  ipcMain.handle('tracks:delete', (_e, venue) => deleteTrackFile(venue));
+  ipcMain.handle('tracks:dir', () => tracksDir());
+  ipcMain.handle('tracks:openDir', async () => {
+    await fsp.mkdir(tracksDir(), { recursive: true });
+    return shell.openPath(tracksDir());
   });
 
   ipcMain.handle('cache:get', () => readJson(cacheFile(), {}));
@@ -617,6 +645,69 @@ async function deleteWorkspaceFile(id) {
   wsFiles.delete(id);
   const file = path.join(workspacesDir(), name);
   return queued(file, () => fsp.rm(file, { force: true }));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Track profiles: <Tracks folder>/<venue>.json, each holding { venue, rotation, mirror, sections, corners, … }.
+// The venue inside the file is what counts, so a shared file can be renamed freely.
+// ---------------------------------------------------------------------------------------------
+
+const trackFiles = new Map(); // venue → file name in the Tracks folder
+const trackFileName = (venue) => String(venue).replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').slice(0, 120) + '.json';
+
+/** Every track profile in a folder, keyed by venue. */
+async function listTracks(dir, own) {
+  const out = {};
+  if (own) trackFiles.clear();
+  try {
+    if (own) await fsp.mkdir(dir, { recursive: true });
+    for (const f of (await fsp.readdir(dir)).filter((x) => x.toLowerCase().endsWith('.json')).sort()) {
+      const t = await readJson(path.join(dir, f), null);
+      if (!t || typeof t !== 'object' || Array.isArray(t)) continue;
+      const venue = typeof t.venue === 'string' && t.venue ? t.venue : f.replace(/\.json$/i, '');
+      const { venue: _v, ...profile } = t;
+      out[venue] = profile;
+      if (own) trackFiles.set(venue, f);
+    }
+  } catch (e) {
+    if (own) {
+      console.error('[tracks] could not read', dir, e);
+      throw e;
+    }
+  }
+  return out;
+}
+
+async function saveTrackFile(venue, profile) {
+  const dir = tracksDir();
+  const name = trackFiles.get(venue) || trackFileName(venue);
+  trackFiles.set(venue, name);
+  await writeJson(path.join(dir, name), { venue, ...profile });
+  return path.join(dir, name);
+}
+
+async function deleteTrackFile(venue) {
+  const name = trackFiles.get(venue);
+  if (!name) return;
+  trackFiles.delete(venue);
+  const file = path.join(tracksDir(), name);
+  return queued(file, () => fsp.rm(file, { force: true }));
+}
+
+let tracksWatcher = null;
+let tracksWatchTimer = null;
+/** Tell the renderer when the Tracks folder changes (e.g. a track file someone shared). */
+function watchTracksDir() {
+  try {
+    fs.mkdirSync(tracksDir(), { recursive: true });
+    tracksWatcher = fs.watch(tracksDir(), { persistent: false }, (_ev, f) => {
+      if (f && !String(f).toLowerCase().endsWith('.json')) return;
+      clearTimeout(tracksWatchTimer);
+      tracksWatchTimer = setTimeout(() => mainWindow && mainWindow.webContents.send('tracks:changed'), 800);
+    });
+  } catch {
+    tracksWatcher = null;
+  }
 }
 
 let wsWatcher = null;
@@ -878,6 +969,7 @@ if (!gotLock) {
     buildMenu();
     createWindow();
     watchWorkspacesDir();
+    watchTracksDir();
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();

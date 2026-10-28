@@ -27,6 +27,7 @@ import {
   openFiles,
   openProperties,
   openWorkspacesFolder,
+  openTracksFolder,
   redo,
   renameWorkspace,
   resetView,
@@ -303,6 +304,7 @@ const SHORTCUT_ACTIONS: Record<string, () => void> = {
   // No default key (bind them in the shortcut editor).
   'ws-save-as': () => saveWorkspaceAs(),
   'ws-open-folder': openWorkspacesFolder,
+  'tracks-open-folder': openTracksFolder,
   'ws-import': () => importWorkspace(),
   'ws-export': () => exportWorkspace(),
   'open-properties': () => openProperties(),
@@ -508,6 +510,8 @@ export async function handleMenuAction(action: string) {
       return saveWorkspaceAs();
     case 'ws-open-folder':
       return openWorkspacesFolder();
+    case 'tracks-open-folder':
+      return openTracksFolder();
     case 'ws-new-starter': {
       const n = await promptText('Name the new workspace', 'My Workspace');
       if (n) createWorkspace('starter', n);

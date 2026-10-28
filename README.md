@@ -218,12 +218,12 @@ A wear model fitted to Assetto Corsa's own grip channel across 35 stints (median
 
 ## Default workspaces
 
-Project-Trace ships with two built-in, **read-only default workspaces**: the **Starter** (the layout you see on first launch, described below) and **Basic FA26**, a compact Formula Alpha 2026 layout (Overview, Driver, Toggles, PU, Tyres, Stint Analysis, Session & Setup). Your own workspace (**My Workspace**) starts as a copy of the Starter. If you edit a default, your change is saved into a new personal copy, so the defaults never change. To get the original back:
+Project-Trace ships with three built-in, **read-only default workspaces**: the **Starter** (the layout you see on first launch, described below), **FA26 V0.1**, the Formula Alpha 2026 layout (Overview, Driver, Toggles, Power Unit, Tyres, Aero & Platform, Stint, Session & Setup, Lap Replay), and **Tyre Deg**, tyre degradation in five sheets (Lap, Lap Corners, Stint, Stint Corners, Corner Traces). Your own workspace (**My Workspace**) starts as a copy of the Starter. If you edit a default, your change is saved into a new personal copy, so the defaults never change. To get the original back:
 
 - **Workspace → Revert Current Workspace to Starter**, or **Worksheet → Reset Worksheet to Starter Version** for one tab;
 - or simply switch to a default in the workspace menu (top bar or menu bar).
 
-Your workspaces are files in **Documents/Project-Trace/Workspaces** — see [03 · Workspaces & layout](docs/03-workspaces-and-layout.md#the-workspaces-folder).
+Your workspaces are files in **Documents/Project-Trace/Workspaces**; see [03 · Workspaces & layout](docs/03-workspaces-and-layout.md#the-workspaces-folder). Track corners, splits and rotation are one file per circuit in **Documents/Project-Trace/Tracks**, so they're easy to share. COTA, Hungaroring, Singapore, Montreal and Sepang come built in; see [05 · Track map](docs/05-track-map.md#the-tracks-folder-sharing-tracks).
 
 | Worksheet | What's on it |
 |---|---|
@@ -290,6 +290,8 @@ Project-Trace/
 │  └─ workers/        background CSV/.ld parsing
 ├─ tests/             parser, math engine and .ld↔CSV cross-check tests
 ├─ sample-data/       a real Telemetrick export to try
+├─ default-workspaces/ built-in read-only workspaces (FA26 V0.1, Tyre Deg)
+├─ default-tracks/    built-in track profiles (corners, splits, rotation), one .json per venue
 ├─ docs/              these guides + screenshots
 └─ scripts/           launchers, install check, dev server, screenshot automation, icon
 ```

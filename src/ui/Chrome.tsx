@@ -286,55 +286,101 @@ export function SheetTabs() {
     window.addEventListener('pt-rename-sheet', h);
     return () => window.removeEventListener('pt-rename-sheet', h);
   }, []);
+  // Tabs keep their size and scroll sideways; a fade + arrow on either edge says there are more that way.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState({ left: false, right: false });
+  const updateMore = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const left = el.scrollLeft > 1;
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+    setMore((m) => (m.left === left && m.right === right ? m : { left, right }));
+  };
+  const count = ws?.worksheets.length ?? 0;
+  const active = ws?.activeSheet ?? 0;
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    // The selected tab scrolls into view (switching with keys, or a new worksheet at the end).
+    (el.children[active] as HTMLElement | undefined)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    updateMore();
+    const ro = new ResizeObserver(updateMore);
+    ro.observe(el);
+    // A plain mouse wheel scrolls the tabs sideways.
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX) || el.scrollWidth <= el.clientWidth) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      ro.disconnect();
+      el.removeEventListener('wheel', onWheel);
+    };
+  }, [active, count]);
+  const nudge = (dir: -1 | 1) => scrollRef.current?.scrollBy({ left: dir * Math.max(160, (scrollRef.current?.clientWidth ?? 400) * 0.6), behavior: 'smooth' });
   if (!ws) return null;
   return (
     <div className="sheet-tabs">
-      {ws.worksheets.map((sh, i) => (
-        <div
-          key={sh.id}
-          className={'sheet-tab' + (i === ws.activeSheet ? ' on' : '')}
-          onClick={() => setActiveSheet(i)}
-          onDoubleClick={() => setEditing(i)}
-          draggable={editing !== i}
-          onDragStart={(e) => {
-            setDragFrom(i);
-            e.dataTransfer.setData('application/x-pt-sheet', String(i));
-          }}
-          onDragOver={(e) => e.dataTransfer.types.includes('application/x-pt-sheet') && e.preventDefault()}
-          onDrop={() => {
-            if (dragFrom != null && dragFrom !== i) moveWorksheet(dragFrom, i);
-            setDragFrom(null);
-          }}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            openMenu(e, sheetMenuItems(i, () => setEditing(i)));
-          }}
-          title={i < 9 && keyHint(`sheet-${i + 1}`) ? `Worksheet ${i + 1} (${keyHint(`sheet-${i + 1}`)})` : undefined}
-        >
-          {editing === i ? (
-            <input
-              className="input"
-              autoFocus
-              defaultValue={sh.name}
-              onBlur={(e) => {
-                const v = e.target.value.trim();
-                if (v && v !== sh.name) renameWorksheet(i, v);
-                setEditing(null);
+      <div className="sheet-tabs-scroll">
+        {more.left && (
+          <button className="sheet-tabs-more left" title="More worksheets to the left" onClick={() => nudge(-1)}>
+            ‹
+          </button>
+        )}
+        <div className="sheet-tabs-strip" ref={scrollRef} onScroll={updateMore}>
+          {ws.worksheets.map((sh, i) => (
+            <div
+              key={sh.id}
+              className={'sheet-tab' + (i === ws.activeSheet ? ' on' : '')}
+              onClick={() => setActiveSheet(i)}
+              onDoubleClick={() => setEditing(i)}
+              draggable={editing !== i}
+              onDragStart={(e) => {
+                setDragFrom(i);
+                e.dataTransfer.setData('application/x-pt-sheet', String(i));
               }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                if (e.key === 'Escape') setEditing(null);
+              onDragOver={(e) => e.dataTransfer.types.includes('application/x-pt-sheet') && e.preventDefault()}
+              onDrop={() => {
+                if (dragFrom != null && dragFrom !== i) moveWorksheet(dragFrom, i);
+                setDragFrom(null);
               }}
-            />
-          ) : (
-            sh.name
-          )}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                openMenu(e, sheetMenuItems(i, () => setEditing(i)));
+              }}
+              title={i < 9 && keyHint(`sheet-${i + 1}`) ? `Worksheet ${i + 1} (${keyHint(`sheet-${i + 1}`)})` : undefined}
+            >
+              {editing === i ? (
+                <input
+                  className="input"
+                  autoFocus
+                  defaultValue={sh.name}
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    if (v && v !== sh.name) renameWorksheet(i, v);
+                    setEditing(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                    if (e.key === 'Escape') setEditing(null);
+                  }}
+                />
+              ) : (
+                sh.name
+              )}
+            </div>
+          ))}
+          <div className="sheet-tab" title="New worksheet" onClick={() => addWorksheet()}>
+            ＋
+          </div>
         </div>
-      ))}
-      <div className="sheet-tab" title="New worksheet" onClick={() => addWorksheet()}>
-        ＋
+        {more.right && (
+          <button className="sheet-tabs-more right" title="More worksheets to the right" onClick={() => nudge(1)}>
+            ›
+          </button>
+        )}
       </div>
-      <span className="grow" />
       <div className="sheet-tab" onClick={(e) => addMenu(e, null)} title="Add a component to this worksheet">
         ＋ Component
       </div>

@@ -1,0 +1,64 @@
+{
+  "venue": "cota_2022-layout_f1_2024",
+  "rotation": 168.5,
+  "mirror": false,
+  "sections": [],
+  "corners": [
+    {
+      "name": "T1",
+      "dist": 642
+    },
+    {
+      "name": "T5",
+      "dist": 1346,
+      "end": 1390,
+      "start": 1250
+    },
+    {
+      "name": "T6",
+      "dist": 1539,
+      "start": 1390,
+      "end": 1610
+    },
+    {
+      "name": "T7",
+      "dist": 1703,
+      "start": 1610
+    },
+    {
+      "name": "T8+9",
+      "dist": 1916
+    },
+    {
+      "name": "T11",
+      "dist": 2551
+    },
+    {
+      "name": "T12",
+      "dist": 3743
+    },
+    {
+      "name": "T13",
+      "dist": 3958
+    },
+    {
+      "name": "T15",
+      "dist": 4238
+    },
+    {
+      "name": "T16-18",
+      "dist": 4556,
+      "start": 4400,
+      "end": 4800
+    },
+    {
+      "name": "T19",
+      "dist": 4975,
+      "end": 5100
+    },
+    {
+      "name": "T20",
+      "dist": 5288
+    }
+  ]
+}

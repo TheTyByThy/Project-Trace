@@ -15,6 +15,26 @@ Project-Trace estimates **how much rubber each tyre loses, where on the lap it h
 
 ## Using it
 
+### The Tyre Deg workspace (start here)
+
+**Tyre Deg** is a clean workspace built for tyre degradation. It has five worksheets, each answering one question, read in order. Comparisons use bars rather than rings, so you compare straight lengths. Each sheet has at most four components.
+
+| Sheet | The question | What's on it |
+|---|---|---|
+| **1 · Lap** | How much did this lap wear the tyres, and how is it split? | Whole-car summary (the comparison lap as a difference) · each tyre as bars · front vs rear and left vs right · where on the track the comparison lap wears more (red) or less (green) |
+| **2 · Lap corners** | Which corners cost rubber on this lap, and why? | The corner table (click a corner) · that corner's bars per tyre |
+| **3 · Stint** | How did the wear build up, and how do the stints compare? | Average lap per stint for the whole car and per tyre · lap times with the **107%** filter · wear through the stint (per lap or cumulative) |
+| **4 · Stint corners** | Where does each stint wear more on average? | The corner table in **stint average** mode · that corner's bars per tyre, averaged · lap times with the 107% filter, which decides the laps averaged |
+| **5 · Corner traces** | Why does this corner wear more? | Speed · steering · throttle and brake · brake-steer combination · front and rear wear by cause (lock-up / wheelspin / slide) · a corner picker that zooms the traces · racing lines |
+
+How to use it:
+- **Pick laps:** select a reference lap and a comparison lap (Ctrl/⌘ + click). For stints, select a lap in each stint you want to compare.
+- **Follow one corner:** clicking a corner on sheet 2, 4 or 5 makes it the corner everywhere. The bars follow it, and the traces on sheet 5 zoom to it.
+- **On sheet 5:** look for the cause that's higher in the wear panes, then read up the traces. More cornering slide often lines up with more steering at the same speed, or with braking deeper while turning (the brake-steer pane).
+
+The older **FA26 Tyre Deg** workspace still has the longer set of sheets described below.
+
+
 ### The worksheets
 
 There are nine tyre-wear worksheets, going from a quick look to scrubbing through one corner. The **FA26 Tyre Deg** workspace has them; the Starter has the first two. To put any of them in another workspace, right-click the tab → **Copy worksheet**, then paste it there. Any math channels it needs come along with it.
@@ -80,7 +100,8 @@ A component that shows each tyre as a wheel. Its **rubber is a ring split into l
 - **m / % switch** (top right of the component, no need for Properties):
   - **m** (default): the causes and the comparison's difference in metres.
   - **%**: each cause as a share of that lap's wear on the tyre, and the difference as % of the reference, e.g. *REF 12% · 0% · 88% = 30 m*, *CMP 34% · 0% · 66% = 40 m (Δ +30%)*. The centre shows *CMP +30%*. Totals always stay in metres.
-- **Rings** (Properties):
+- **Shape** (Properties): **Rings** (default), or **Bars**. Bars draw each tyre as one straight horizontal bar per lap, split into lock-up / wheelspin / slide, with REF on top and CMP below. Each tyre stays in its corner of the car (FL top-left … RR bottom-right). Comparing straight lengths is easier than comparing rings of different radii. With *the amount*, every bar on every tyre shares one scale. Each bar shows its metres, and the comparison's difference in m or % (per the m / % switch).
+- **Rings / bars** (Properties):
   - **The mix** (default): every ring goes all the way round, so you compare *what causes* the wear.
   - **The amount**: ring length is the wear itself (the longest goes all the way round), so a tyre or lap that wears less has a shorter ring. The Wear by Corner sheet uses this.
 - **Tyres:** all four (default), **the front or rear axle** (the deep dives show just their axle), one tyre, or the average of the four. Up to two comparison laps can be shown as inner rings.

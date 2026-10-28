@@ -17,6 +17,7 @@ import { chartTheme, prepCanvas, useElementSize } from './canvas';
 import { channelDps, channelLabel, conv } from './data';
 import { drawFitLine, drawFitNotes, fitMenuItems } from './fitLines';
 import { openMenu } from '../ui/overlays';
+import { sessionCompounds } from '../core/compound';
 
 function lapStat(s: Session, lap: Lap, cfg: TrendConfig): number {
   if (!cfg.channel) return lap.complete ? lap.time : NaN;
@@ -85,7 +86,12 @@ function drawSelRing(ctx: CanvasRenderingContext2D, x: number, y: number, color:
 /** Trends that can show a running total: per-lap wear (end-of-lap value of a "Tyre Wear Lap …" channel), or any trend set to cumulative. */
 const canCumulate = (c: TrendConfig) => !!c.channel && (c.cumulative !== undefined || (/^Tyre Wear Lap\b/.test(c.channel) && (c.stat ?? 'last') === 'last'));
 
-const seriesName = (s: Session) => `${prettyTrack(s.meta.venue).track} ${new Date(s.meta.savedAt ?? 0).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+/** A stint's name in keys and fit notes: track, time, and its tyres ("COTA 2022 12:54 · M · C2"). */
+const seriesName = (s: Session) =>
+  `${prettyTrack(s.meta.venue).track} ${new Date(s.meta.savedAt ?? 0).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` +
+  sessionCompounds(s)
+    .map((c) => ` · ${c.short}`)
+    .join('');
 
 export function TrendView({ config }: { config: TrendConfig }) {
   const [wrapRef, size] = useElementSize<HTMLDivElement>();

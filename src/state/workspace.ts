@@ -140,6 +140,8 @@ export interface WearBalanceConfig extends Base {
 /** Tyre wear wheels: each tyre's rubber as a ring split into lock-up / wheelspin / slide (ref outside, comparisons inside). */
 export interface WearWheelsConfig extends Base {
   type: 'wearwheels';
+  /** 'rings' (default): each tyre a ring per lap; 'bars': one straight bar per lap, same layout (easier to compare lengths). */
+  shape?: 'rings' | 'bars';
   /** 'stints': one average lap per selected stint (complete laps, minus those over the worksheet's 107% filter) instead of each selected lap. */
   source?: WearSource;
   /** 'share' (default): every ring goes all the way round, showing the mix; 'amount': ring length = wear. */

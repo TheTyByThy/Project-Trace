@@ -8,7 +8,8 @@ import { hasWearChannels, TYRES, WEAR_CAUSES, type Tyre } from '../core/tyreWear
 import { selectedLaps, updateComponent, useStore } from '../state/store';
 import type { WearWheelsConfig } from '../state/workspace';
 import { useElementSize } from './canvas';
-import { causeColors, itemFourWear, pctDelta, pick, setWearFocus, sharePct, useWearFocus, useWearItems, WearWheel, type FourWear, type WearItem } from './wearShared';
+import { causeColors, itemFourWear, pctDelta, pick, setWearFocus, sharePct, useWearFocus, useWearItems, WearBars, WearWheel, type FourWear, type WearItem } from './wearShared';
+import { LapsCompounds } from '../ui/CompoundBadge';
 
 /** Which tyres a wheels view shows. */
 export type WheelTyres = 'all' | 'avg' | 'front' | 'rear' | Tyre;
@@ -24,18 +25,23 @@ function RingTag({ i, color }: { i: number; color: string }) {
 }
 
 /** Key: a mini wheel with the reference as the outer ring and the comparison laps inside, each named. */
-export function RingKey({ laps }: { laps: WearItem[] }) {
+export function RingKey({ laps, bars = false }: { laps: WearItem[]; bars?: boolean }) {
   const r = [11, 7.5, 4.5];
   return (
-    <span className="ring-key" title="Outer ring = the reference lap; inner ring(s) = comparison lap(s)">
+    <span className="ring-key" title={bars ? 'Top bar = the reference lap; bars below = comparison lap(s)' : 'Outer ring = the reference lap; inner ring(s) = comparison lap(s)'}>
       <svg viewBox="0 0 26 26" width={26} height={26}>
-        {laps.map((l, i) => (
-          <circle key={l.key} cx={13} cy={13} r={r[i]} fill="none" stroke={l.color} strokeWidth={i === 0 ? 3 : 2.2} />
-        ))}
+        {laps.map((l, i) =>
+          bars ? (
+            <rect key={l.key} x={2} y={4 + i * 7} width={22 - i * 4} height={4.5} rx={1} fill={l.color} />
+          ) : (
+            <circle key={l.key} cx={13} cy={13} r={r[i]} fill="none" stroke={l.color} strokeWidth={i === 0 ? 3 : 2.2} />
+          ),
+        )}
       </svg>
       {laps.map((l, i) => (
         <span key={l.key}>
-          {i === 0 ? 'outer' : i === 1 ? 'inner' : 'innermost'} <RingTag i={i} color={l.color} /> {l.stint ? l.short : l.long}
+          {bars ? (i === 0 ? 'top' : 'below') : i === 0 ? 'outer' : i === 1 ? 'inner' : 'innermost'} <RingTag i={i} color={l.color} /> {l.stint ? l.short : l.long}
+          <LapsCompounds s={l.session} laps={l.laps} label="none" />
         </span>
       ))}
     </span>
@@ -53,6 +59,8 @@ export function WheelsGrid({
   size,
   showShares = true,
   units = 'm',
+  shape = 'rings',
+  barWidth,
 }: {
   /** The selected laps, or stints' average laps (see useWearItems); the first is the reference. */
   items: WearItem[];
@@ -66,6 +74,10 @@ export function WheelsGrid({
   showShares?: boolean;
   /** 'm': causes and differences in metres; 'pct': each cause's share of that lap's wear, and the difference as % of the reference. */
   units?: 'm' | 'pct';
+  /** Each tyre as a ring per lap (default), or as straight bars (easier to compare lengths). */
+  shape?: 'rings' | 'bars';
+  /** Width of each tyre's bars (defaults to `size`). */
+  barWidth?: number;
 }) {
   const colors = causeColors(theme);
   const shown = laps.slice(0, 1 + maxCompare);
@@ -87,7 +99,11 @@ export function WheelsGrid({
         return (
           <div key={t} className="wheel-cell">
             <div className="wheel-name">{t === 'avg' ? 'Average of 4' : t}</div>
-            <WearWheel rings={rings} colors={colors} mode={mode} max={max} size={size} title={t} units={units} />
+            {shape === 'bars' ? (
+              <WearBars rings={rings} colors={colors} mode={mode} max={max} size={size} width={barWidth} title={t} units={units} />
+            ) : (
+              <WearWheel rings={rings} colors={colors} mode={mode} max={max} size={size} title={t} units={units} />
+            )}
             {showShares && (
               <div className="wheel-shares">
                 {rings.map((r, i) => (
@@ -153,12 +169,15 @@ export function WearWheelsView({ config }: { config: WearWheelsConfig }) {
   const rowsN = tyre === 'all' ? 2 : 1;
   // Below each wheel: its name and one line of metres per lap shown.
   const below = 26 + 17 * Math.min(laps.length, 1 + maxCompare);
+  const bars = config.shape === 'bars';
+  // Bars use the cell's width (up to twice their height); rings are square.
+  const barWidth = Math.max(110, Math.floor((size.w - 8) / cols - 28));
   const wheel = Math.max(70, Math.min(420, Math.floor(Math.min((size.w - 8) / cols - 28, (size.h - 4 - 6 * (rowsN - 1)) / rowsN - below))));
 
   return (
     <div className="html-panel wear-wheels">
       <div className="subtabs">
-        <RingKey laps={laps.slice(0, 1 + maxCompare)} />
+        <RingKey laps={laps.slice(0, 1 + maxCompare)} bars={config.shape === 'bars'} />
         {useFocus ? (
           <span className="tag focus-tag" title="Set by clicking a row in a Tyre Wear table">
             {focus!.name}
@@ -185,7 +204,7 @@ export function WearWheelsView({ config }: { config: WearWheelsConfig }) {
         </span>
       </div>
       <div ref={gridRef} className="wheels-wrap">
-        {size.w > 0 && <WheelsGrid items={laps} range={range} tyre={tyre} mode={mode} theme={theme} maxCompare={maxCompare} size={wheel} units={units} />}
+        {size.w > 0 && <WheelsGrid items={laps} range={range} tyre={tyre} mode={mode} theme={theme} maxCompare={maxCompare} size={wheel} units={units} shape={config.shape} barWidth={bars ? Math.min(barWidth, wheel * 2.2) : undefined} />}
       </div>
     </div>
   );

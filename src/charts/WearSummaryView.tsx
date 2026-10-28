@@ -11,6 +11,7 @@ import { selectedLaps, sessionsWithSelection, updateComponent, useStore } from '
 import type { WearSummaryConfig } from '../state/workspace';
 import { slowLaps, useSheetCutoff } from './TrendView';
 import { causeColors, lapFourWear, pctDelta } from './wearShared';
+import { LapsCompounds } from '../ui/CompoundBadge';
 
 const KEYS = ['lock', 'spin', 'slide', 'total'] as const;
 
@@ -83,6 +84,7 @@ export function WearSummaryView({ config }: { config: WearSummaryConfig }) {
           short: (
             <>
               {color && <span className="legend-swatch" style={{ background: color }} />} {s.meta.driver || 'Stint'}
+              <LapsCompounds s={s} laps={used.map((u) => u.l)} />
               <div className="muted wear-summary-sub">
                 avg {used.length} lap{used.length > 1 ? 's' : ''}
               </div>
@@ -91,6 +93,7 @@ export function WearSummaryView({ config }: { config: WearSummaryConfig }) {
           label: (
             <>
               {color && <span className="legend-swatch" style={{ background: color }} />} {s.meta.driver || 'Stint'}
+              <LapsCompounds s={s} laps={used.map((u) => u.l)} />
               <div className="muted wear-summary-sub">
                 {formatDateTime(s.meta.savedAt)} · avg of {used.length} lap{used.length > 1 ? 's' : ''}
                 {cutoff != null ? ` ≤ ${cutoff}%` : ''}
@@ -122,12 +125,14 @@ export function WearSummaryView({ config }: { config: WearSummaryConfig }) {
           short: (
             <>
               <span className="legend-swatch" style={{ background: l.color }} /> {lapLabel(l.lap)}
+              <LapsCompounds s={l.session} laps={[l.lap]} label="none" />
             </>
           ),
           label: (
             <>
               <span className="legend-swatch" style={{ background: l.color }} /> {lapLabel(l.lap)}
               <span className="muted"> {i === 0 ? 'ref' : 'vs ref'}</span>
+              <LapsCompounds s={l.session} laps={[l.lap]} />
             </>
           ),
         },

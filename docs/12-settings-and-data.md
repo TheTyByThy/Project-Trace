@@ -16,6 +16,7 @@ Open **Settings** with **Ctrl/⌘ + ,** or **File → Settings…** (also in the
 | Reference lap colours | Per channel · Single lap colour | overlay laps are always solid in their lap colour; toggle with **J** |
 | Smoothing | Off (raw) · On + amount (30 ms – 1 s) | **on at 50 ms by default**; also in the top bar; **S** toggles |
 | Workspaces folder | — | where your workspace files live; **Open** shows it (see [03](03-workspaces-and-layout.md#the-workspaces-folder)) |
+| Tracks folder | — | one file per circuit: corners, splits, rotation; **Open** shows it (see [05](05-track-map.md#the-tracks-folder-sharing-tracks)) |
 | In-game clock | Track local time · Raw UTC | see [02](02-session-browser.md#in-game-time-of-day) |
 | On launch | open the session browser | |
 | Session browser double-click | Add to open · Replace | switch in the browser header; also applies to drag & drop |
@@ -54,7 +55,7 @@ Your **workspaces** are in a visible folder so you can find, back up and share t
 
 | File | Contents |
 |---|---|
-| `settings.json` | settings, recent files, track sort, keyboard shortcuts, per-track profiles (saved rotation, mirror, corners and their ranges, splits) and in-game time zones |
+| `settings.json` | settings, recent files, track sort, keyboard shortcuts and in-game time zones (track profiles are in **Documents/Project-Trace/Tracks**; see [05](05-track-map.md#the-tracks-folder-sharing-tracks)) |
 | `workspaces/` | only in older versions: workspaces are copied to the Documents folder once and the originals left here as a backup |
 | `worksheet-library.json` | worksheets you saved with *Worksheet → Save Worksheet to Library…* |
 | `session-notes.json` | your notes, keyed by session file name |

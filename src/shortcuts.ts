@@ -54,6 +54,7 @@ export const SHORTCUTS: ShortcutDef[] = [
   // ---- No default key: available to bind in the shortcut editor ----
   { id: 'ws-save-as', label: 'Save workspace as…', group: 'Workspace', keys: [] },
   { id: 'ws-open-folder', label: 'Open the workspaces folder', group: 'Workspace', keys: [] },
+  { id: 'tracks-open-folder', label: 'Open the tracks folder', group: 'Workspace', keys: [] },
   { id: 'ws-import', label: 'Import workspace…', group: 'Workspace', keys: [] },
   { id: 'ws-export', label: 'Export workspace…', group: 'Workspace', keys: [] },
   { id: 'open-properties', label: 'Properties pop-out for the selected component', group: 'View', keys: [] },

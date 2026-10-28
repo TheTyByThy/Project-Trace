@@ -247,7 +247,14 @@ function debounce(key: string, ms: number, fn: () => void) {
   clearTimeout(timers.get(key));
   timers.set(key, setTimeout(fn, ms));
 }
-const saveSettings = () => debounce('settings', 400, () => pt().setSettings(get().settings));
+// Track profiles live in the Tracks folder (one file per circuit), not in settings.json — unless moving
+// them there failed, in which case settings.json keeps them so nothing is lost.
+let tracksInSettings = false;
+const saveSettings = () =>
+  debounce('settings', 400, () => {
+    const { trackProfiles, ...rest } = get().settings;
+    pt().setSettings(tracksInSettings ? { ...rest, trackProfiles } : rest);
+  });
 const saveWorkspace = (ws: Workspace) => {
   if (!ws.locked) debounce('ws:' + ws.id, 600, () => writeWorkspace(ws, true));
 };
@@ -507,6 +514,7 @@ function applySnapshot(snap: Snapshot) {
   }));
   restoring = false;
   saveSettings();
+  persistTracks();
   for (const ws of snap.workspaces) if (!prevWs.includes(ws) && !ws.locked) void writeWorkspace(ws);
   for (const ws of prevWs)
     if (!snap.workspaces.some((w) => w.id === ws.id) && !ws.locked) {
@@ -546,11 +554,72 @@ export function redo() {
 // Track profiles
 // ---------------------------------------------------------------------------------------------
 
+/** Built-in profiles (default-tracks/) and what the Tracks folder holds, to save only what changed. */
+let builtInTracks: Record<string, TrackProfile> = {};
+let savedTracks: Record<string, TrackProfile> = {};
+
+function normalizeTrack(p: Partial<TrackProfile>): TrackProfile {
+  return { rotation: p.rotation ?? 0, mirror: !!p.mirror, sections: p.sections ?? [], corners: p.corners ?? [], ...(p.sectionNames ? { sectionNames: p.sectionNames } : {}) };
+}
+
+function normalizeTracks(raw: unknown): Record<string, TrackProfile> {
+  const out: Record<string, TrackProfile> = {};
+  for (const [venue, p] of Object.entries((raw ?? {}) as Record<string, Partial<TrackProfile>>)) if (p && typeof p === 'object') out[venue] = normalizeTrack(p);
+  return out;
+}
+
+/** Write changed track profiles to the Tracks folder (one file each); back to a built-in removes the file. */
+function persistTracks() {
+  debounce('tracks', 400, () => {
+    const cur = get().settings.trackProfiles;
+    const fail = (e: unknown) => toast(`Couldn't save the track: ${fileError(e)}`, 'error', 10000);
+    for (const [venue, p] of Object.entries(cur)) {
+      if (savedTracks[venue] === p) continue;
+      if (p === builtInTracks[venue]) pt().deleteTrack(venue).catch(fail);
+      else pt().saveTrack(venue, p).catch(fail);
+    }
+    for (const venue of Object.keys(savedTracks)) if (!cur[venue]) pt().deleteTrack(venue).catch(fail);
+    savedTracks = cur;
+  });
+}
+
+/**
+ * Pick up track files added, changed or removed in the Tracks folder (e.g. a track someone shared). Only
+ * what differs from what the app last wrote counts, so its own saves (and a quick undo) aren't undone.
+ */
+export async function syncTracksFromFolder() {
+  const user = await pt()
+    .listTracks()
+    .catch(() => null);
+  if (!user) return;
+  const disk = { ...builtInTracks, ...normalizeTracks(user) };
+  const same = (a?: TrackProfile, b?: TrackProfile) => JSON.stringify(a) === JSON.stringify(b);
+  const changed = [...new Set([...Object.keys(disk), ...Object.keys(savedTracks)])].filter((v) => !same(disk[v], savedTracks[v]));
+  if (!changed.length) return;
+  const next = { ...get().settings.trackProfiles };
+  const saved = { ...savedTracks };
+  for (const v of changed) {
+    if (disk[v]) {
+      next[v] = saved[v] = disk[v];
+    } else {
+      delete next[v];
+      delete saved[v];
+    }
+  }
+  savedTracks = saved;
+  set((s) => ({ settings: { ...s.settings, trackProfiles: next }, dataVersion: s.dataVersion + 1 }));
+}
+
+export function openTracksFolder() {
+  pt().openTracksDir();
+}
+
 export function setTrackProfile(venue: string, patch: Partial<TrackProfile>, label = 'Track profile') {
   if (!venue) return;
   recordHistory(label);
   const cur = trackProfile(venue);
   updateSettings({ trackProfiles: { ...get().settings.trackProfiles, [venue]: { ...cur, ...patch } } });
+  persistTracks();
   set((s) => ({ dataVersion: s.dataVersion + 1 }));
 }
 
@@ -615,7 +684,7 @@ export async function syncWorkspacesFromFolder() {
 
 export async function initApp() {
   const bridge = pt();
-  const [info, rawSettings, list, defaults, cache, notes, library] = await Promise.all([
+  const [info, rawSettings, list, defaults, cache, notes, library, userTracks, defaultTracks] = await Promise.all([
     bridge.appInfo(),
     bridge.getSettings(),
     bridge.listWorkspaces().catch((e) => {
@@ -626,6 +695,11 @@ export async function initApp() {
     bridge.getCache(),
     bridge.getNotes(),
     bridge.getLibrary(),
+    bridge.listTracks().catch((e) => {
+      toast(`Couldn't read your tracks folder: ${fileError(e)}`, 'error', 15000);
+      return null;
+    }),
+    bridge.defaultTracks().catch(() => ({})),
   ]);
   const raw = rawSettings ?? {};
   const settings: Settings = {
@@ -641,12 +715,21 @@ export async function initApp() {
   };
   // v2: smoothing is on by default at 50 ms (older settings files saved it switched off).
   if ((raw.settingsVersion ?? 1) < 2) settings.smoothing = { ...DEFAULT_SETTINGS.smoothing };
-  // Migrate track profiles from older versions (auto-corner renames → manual corners).
-  const profiles: Record<string, TrackProfile> = {};
-  for (const [venue, p] of Object.entries((raw.trackProfiles ?? {}) as Record<string, Partial<TrackProfile>>)) {
-    profiles[venue] = { rotation: p.rotation ?? 0, mirror: !!p.mirror, sections: p.sections ?? [], corners: p.corners ?? [], sectionNames: p.sectionNames };
+  // Track profiles: the built-ins (default-tracks/), overridden by the files in the Tracks folder. Older
+  // versions kept them in settings.json — any track not in the folder yet is moved there once.
+  builtInTracks = normalizeTracks(defaultTracks);
+  const mine = normalizeTracks(userTracks);
+  const legacy = normalizeTracks(raw.trackProfiles);
+  const moving = userTracks ? Object.keys(legacy).filter((v) => !mine[v]) : [];
+  try {
+    await Promise.all(moving.map((v) => bridge.saveTrack(v, legacy[v])));
+  } catch (e) {
+    toast(`Couldn't move your tracks to the Tracks folder: ${fileError(e)}`, 'error', 15000);
+    tracksInSettings = true;
   }
-  settings.trackProfiles = profiles;
+  if (!userTracks) tracksInSettings = true;
+  settings.trackProfiles = { ...builtInTracks, ...legacy, ...mine };
+  savedTracks = settings.trackProfiles;
   if (!settings.telemetryRoot && info.defaultTelemetryRoot) settings.telemetryRoot = info.defaultTelemetryRoot;
 
   // Built-in defaults: the Starter (rebuilt from code every launch) and the workspaces shipped in
@@ -675,7 +758,7 @@ export async function initApp() {
     ready: true,
     ui: { ...get().ui, browser: !info.automation && settings.showBrowserOnLaunch },
   });
-  bridge.setSettings(settings);
+  saveSettings();
 }
 
 // ---------------------------------------------------------------------------------------------

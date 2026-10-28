@@ -13,8 +13,10 @@ export function SettingsDialog() {
   const s = useStore((st) => st.settings);
   const info = useStore((st) => st.appInfo);
   const [wsDir, setWsDir] = useState('');
+  const [tracksDir, setTracksDir] = useState('');
   useEffect(() => {
     pt().workspacesDir().then(setWsDir);
+    pt().tracksDir().then(setTracksDir);
   }, []);
   const close = () => setUi({ settings: false });
   const tab = useStore((st) => st.ui.settingsTab ?? 'general');
@@ -177,6 +179,16 @@ export function SettingsDialog() {
               </button>
             </div>,
             'Every workspace is a .json file here, named after it. Drop in a workspace someone shared and it appears in the Workspace menu.',
+          )}
+          {row(
+            'Tracks folder',
+            <div className="row">
+              <div className="code-path grow">{tracksDir || '…'}</div>
+              <button className="btn" onClick={() => pt().openTracksDir()}>
+                Open
+              </button>
+            </div>,
+            "Each track's corners, splits and map rotation are a .json file here. Drop in a track file someone shared and it's used straight away; delete one to go back to the built-in version.",
           )}
           {row(
             'Data folder',

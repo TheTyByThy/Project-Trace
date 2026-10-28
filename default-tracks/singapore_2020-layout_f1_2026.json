@@ -1,0 +1,63 @@
+{
+  "venue": "singapore_2020-layout_f1_2026",
+  "rotation": 179.9,
+  "mirror": false,
+  "sections": [],
+  "corners": [
+    {
+      "name": "T1",
+      "dist": 455
+    },
+    {
+      "name": "T3",
+      "dist": 591,
+      "end": 700
+    },
+    {
+      "name": "T5",
+      "dist": 965
+    },
+    {
+      "name": "T7",
+      "dist": 1812,
+      "end": 1910
+    },
+    {
+      "name": "T8",
+      "dist": 1994
+    },
+    {
+      "name": "T9",
+      "dist": 2205
+    },
+    {
+      "name": "T10",
+      "dist": 2657,
+      "end": 2730
+    },
+    {
+      "name": "T11+12",
+      "dist": 2814,
+      "end": 2920
+    },
+    {
+      "name": "T13",
+      "dist": 3104,
+      "start": 2920
+    },
+    {
+      "name": "T14",
+      "dist": 3589
+    },
+    {
+      "name": "T16+17",
+      "dist": 4352,
+      "end": 4465
+    },
+    {
+      "name": "T18",
+      "dist": 4699,
+      "end": 4820
+    }
+  ]
+}

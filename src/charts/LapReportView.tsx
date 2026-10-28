@@ -12,6 +12,8 @@ import { lapKey, type Lap, type Session } from '../core/types';
 import { convertUnit } from '../core/units';
 import { sectionNames, selectLap, selectedLaps, trackProfile, updateComponent, useStore } from '../state/store';
 import type { LapReportConfig, SelectedLapReportConfig } from '../state/workspace';
+import { lapCompound, sessionCompounds } from '../core/compound';
+import { CompoundBadge, SessionCompounds } from '../ui/CompoundBadge';
 
 function lapExtras(s: Session, lap: Lap) {
   let vmax = NaN;
@@ -125,7 +127,8 @@ export function LapReportView({ config }: { config: LapReportConfig | SelectedLa
   } else
     groups = shown.map((t) => ({
       id: t.s.id,
-      title: shown.length > 1 ? `${prettyTrack(t.s.meta.venue).track} · ${new Date(t.s.meta.savedAt ?? 0).toLocaleString()}` : null,
+      // A title row per stint, also for a single one when its tyres are known (so the compound is always shown).
+      title: shown.length > 1 || sessionCompounds(t.s).length ? `${prettyTrack(t.s.meta.venue).track} · ${new Date(t.s.meta.savedAt ?? 0).toLocaleString()}` : null,
       splitNames: t.splitNames,
       rows: t.rows.map((r) => ({ ...r, t })),
       t,
@@ -189,7 +192,10 @@ export function LapReportView({ config }: { config: LapReportConfig | SelectedLa
               <Fragment key={id}>
                 {title && (
                   <tr className="group-title">
-                    <td colSpan={colCount}>{title}</td>
+                    <td colSpan={colCount}>
+                      {title}
+                      {group && <SessionCompounds s={group.s} />}
+                    </td>
                   </tr>
                 )}
                 {rows.map(({ lap, key, splits, vmax, fuel, t }) => {
@@ -208,6 +214,10 @@ export function LapReportView({ config }: { config: LapReportConfig | SelectedLa
                       <td className="l">{sel && <span className="swatch" style={{ background: lapColors.get(key), outline: key === refKey ? '2px solid var(--text)' : undefined }} />}</td>
                       <td className="l" style={sel ? { background: lapTint(lapColors.get(key)!) } : undefined}>
                         {lap.number}{' '}
+                        {(() => {
+                          const c = lapCompound(s, lap);
+                          return c ? <CompoundBadge c={c} label="none" /> : null;
+                        })()}{' '}
                         {multiSession && (
                           <span className="muted" style={{ fontSize: 11 }} title={s.fileName}>
                             {s.meta.driver || prettyTrack(s.meta.venue).track} · {new Date(s.meta.savedAt ?? 0).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}{' '}

@@ -32,6 +32,8 @@ export interface SessionMeta {
   extra: Record<string, string>;
   /** In-game clock at the first sample (epoch seconds, UTC) if a "UTC Time" channel exists. */
   gameTimeUtc: number | null;
+  /** Names for a channel's numeric values, from the .ldx (e.g. 'Tyres Compound' → { 3: 'Piorani M (C2)' }). */
+  enums?: Record<string, Record<number, string>>;
 }
 
 export interface ParsedChannel {

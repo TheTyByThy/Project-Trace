@@ -90,3 +90,17 @@ Every "edit corners" link in the app leads here. On the **left** is the referenc
 **Splits** work like corners (**+ Add at cursor**, or right-click → **Add split at cursor…**): they're named lines across the track. The parts of the lap between them are **sections** — with two splits there are three: S/F → first split, first → second, second → S/F. Name each one in the **Sections** table under the splits (e.g. *Sector 1, Sector 2, Sector 3*); the names are the Lap and Stint Reports' *Custom sections* column headers. Empty = "Section n".
 
 Everything outside a corner counts as a straight. Corners appear on graphs (*Corner markers*), both maps (*Corner labels*) and in the **Corner Report**. Everything in the Track editor is saved per venue, shared by all workspaces, and undoable.
+
+### The tracks folder: sharing tracks
+
+Each circuit's corners, ranges, buckets, splits, section names, rotation and mirror are saved as one readable file, named after the venue, e.g. `cota_2022-layout_f1_2024.json`:
+
+| OS | Tracks folder |
+|---|---|
+| Windows | `Documents\Project-Trace\Tracks\` |
+| macOS | `~/Documents/Project-Trace/Tracks/` |
+
+Open it with **Workspace → Open Tracks Folder** or **Settings → Tracks folder → Open**.
+- **To share a track**, send the file. Whoever receives it drops it into their own Tracks folder. It's used straight away, even while the app is open. The venue inside the file is what counts, so the file can be renamed.
+- **Built-in tracks.** The app ships with some tracks already set up: COTA, Hungaroring, Singapore, Montreal, and Sepang (its rotation only). You don't need a file for these. Your first edit to a built-in track saves your own copy in the Tracks folder, and from then on your copy is used. Delete the file to go back to the built-in version.
+- **Upgrading from an older version.** Older versions kept tracks inside `settings.json`. They're moved into the Tracks folder automatically on first launch.

@@ -12,6 +12,7 @@ import { selectedLaps, setCursor, setHighlight, setXMode, setZoom, trackProfile,
 import type { TyreWearConfig } from '../state/workspace';
 import { WheelsGrid } from './WearWheelsView';
 import { CauseBar, causeColors, gameFactor, gameFactorText, itemWear, pctDelta, setWearFocus, useWearFocus, useWearItems, type WearItem } from './wearShared';
+import { LapsCompounds } from '../ui/CompoundBadge';
 
 /** Mini-sector length (m) when the track has no corners, or when chosen in the Properties. */
 export const MINI_SECTOR = 200;
@@ -225,7 +226,10 @@ export function TyreWearView({ config }: { config: TyreWearConfig }) {
                     style={{ background: lapTint(l.color, 0.12) }}
                     title={`${l.long}: ${formatValue(w.total.total, 0)} m of full sliding at 5 kN`}
                   >
-                    <span>{l.short}</span>
+                    <span>
+                      {l.short}
+                      {stints && <LapsCompounds s={l.session} laps={l.laps} label="none" />}
+                    </span>
                     <CauseBar w={w.total} max={maxTyre} colors={colors} />
                     <span className="num">{formatValue(w.total.total, 0)} m</span>
                     <span className="num" style={{ color: !Number.isFinite(d) ? undefined : d > 0 ? 'var(--loss)' : 'var(--gain)' }}>
@@ -252,10 +256,12 @@ export function TyreWearView({ config }: { config: TyreWearConfig }) {
               <th className="l">{byCorners ? 'Section' : 'Lap distance'}</th>
               <th style={{ background: lapHeaderTint(ref.color), color: 'var(--text)' }} colSpan={2}>
                 {ref.short} (ref) · {tyre === 'all' ? 'avg of 4 tyres' : tyre}
+                <LapsCompounds s={ref.session} laps={ref.laps} />
               </th>
               {cmp.map((l) => (
                 <th key={l.key} colSpan={cmpSpan} style={{ background: lapHeaderTint(l.color), color: 'var(--text)' }}>
                   {l.short} {breakdown ? '· Δ to ref' : 'Δ'}
+                  <LapsCompounds s={l.session} laps={l.laps} />
                 </th>
               ))}
             </tr>

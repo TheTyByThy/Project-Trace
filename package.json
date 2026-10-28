@@ -37,6 +37,10 @@
       {
         "from": "default-workspaces",
         "to": "default-workspaces"
+      },
+      {
+        "from": "default-tracks",
+        "to": "default-tracks"
       }
     ],
     "win": {

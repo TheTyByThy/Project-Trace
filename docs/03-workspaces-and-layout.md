@@ -14,18 +14,17 @@ Everything you change is **saved automatically**, and almost everything can be *
 
 ## Default workspaces
 
-Project-Trace ships with two **read-only default workspaces**:
+Project-Trace ships with three **read-only default workspaces**:
 
 | Default | What it is |
 |---|---|
 | **Starter** | The general layout: Overview, Driver, Racing Lines, Tyres, Tyre Wear, Tyre Wear Detail, Brakes, Suspension, Aero, Engine & ERS, Lap Analysis, Session & Setup. |
-| **Basic FA26** | A compact Formula Alpha 2026 layout: Overview (lap report, time breakdown, racing lines, corners, gain/loss map), Driver, Toggles, PU, Tyres, Stint Analysis, Session & Setup. |
-
-![Basic FA26](images/basic-fa26.png)
+| **FA26 V0.1** | The Formula Alpha 2026 layout: Overview, Driver, Toggles, Power Unit, Tyres, Aero & Platform, Stint, Session & Setup, Lap Replay. |
+| **Tyre Deg** | Tyre degradation in five sheets: Lap, Lap Corners, Stint, Stint Corners, Corner Traces (see [14 · Tyre wear](14-tyre-wear.md)). |
 
 - Defaults are rebuilt fresh on every launch, so they can never be lost or broken. They are marked *(default)* in the top bar.
 - On first launch you get **My Workspace**, a copy of the Starter that is yours to change.
-- If you edit a default, the change goes into a new personal workspace (e.g. *My Basic FA26*, with a short notice), and the default stays untouched. Or use **Save as…** to make your own copy first.
+- If you edit a default, the change goes into a new personal workspace (e.g. *My FA26 V0.1*, with a short notice), and the default stays untouched. Or use **Save as…** to make your own copy first.
 - To bring a workspace back to the original: **Workspace → Revert Current Workspace to Starter**. For one tab: **Worksheet → Reset Worksheet to Starter Version**, or right-click the tab → **Reset to Starter version**. Both can be undone.
 
 ## The workspaces folder
@@ -111,6 +110,7 @@ Tabs themselves:
 - **drag** to reorder;
 - **right-click** for Rename, Duplicate, **Copy worksheet**, **Paste worksheet after this**, Reset to Starter, Save to library, Export, Move, Delete;
 - **＋** adds a tab.
+- **More tabs than fit:** tabs keep their full size, and the row scrolls sideways. Scroll with the mouse wheel or trackpad over the tabs, or click the **‹ ›** arrows. A faint fade and arrow on an edge means there are more tabs that way. A hairline scrollbar appears while the pointer is over the tabs. The selected tab always scrolls into view, and **＋ Component** stays on the right.
 
 ## Components
 

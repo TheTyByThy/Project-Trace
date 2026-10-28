@@ -1,0 +1,53 @@
+{
+  "venue": "fn_hungaroring-layout_f1_2026",
+  "rotation": 144.9,
+  "mirror": false,
+  "sections": [],
+  "corners": [
+    {
+      "name": "T1",
+      "dist": 646
+    },
+    {
+      "name": "T2",
+      "dist": 1154
+    },
+    {
+      "name": "T4",
+      "dist": 1814,
+      "start": 1750,
+      "end": 1920
+    },
+    {
+      "name": "T5",
+      "dist": 2058
+    },
+    {
+      "name": "T6+7",
+      "dist": 2400
+    },
+    {
+      "name": "T8+9",
+      "dist": 2662
+    },
+    {
+      "name": "T11",
+      "dist": 3119,
+      "end": 3230
+    },
+    {
+      "name": "T12",
+      "dist": 3528,
+      "bucket": "low",
+      "start": 3400
+    },
+    {
+      "name": "T13",
+      "dist": 3778
+    },
+    {
+      "name": "T14",
+      "dist": 4072
+    }
+  ]
+}

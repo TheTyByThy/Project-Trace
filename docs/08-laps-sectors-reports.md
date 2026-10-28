@@ -71,6 +71,16 @@ Two components show lap and sector times:
 
 The Stint Report's last row is the **Ideal** lap. Switch the split columns between **Game sectors**, **Custom sections** (the sections between your splits, named in the Track editor — see [05](05-track-map.md)) and **None**. Columns (Δ, splits, ideal row, tags, max speed & fuel) can be switched off in Properties.
 
+## Tyre compound
+
+The tyre compound each stint ran on is shown by its number, e.g. **C3** or **C4** (**INT** and **WET** for inters and wets), on a ring in the usual tyre colour. It appears:
+- in the **Sessions & laps** list, under each session;
+- in the **Stint report**: in each stint's title row, plus a small ring on every lap, so a tyre change mid-session shows where it happened;
+- in the **lap-time and per-lap trends**: each stint's name in the key and fit notes, e.g. *COTA 2022 12:54 · C3*;
+- in the tyre-wear tables, summaries and wheels, next to each lap or stint average.
+
+**Where the names come from.** MoTeC logs (`.ld` + `.ldx`) name each compound value, e.g. 3 → *Piorani M (C2)*. Hover a badge to see the full name. CSV exports don't carry the names, so they show *Compound 2*.
+
 ## Lap colours in side-by-side data
 
 Wherever laps are compared side by side — the Channel Report, Corner Report, graph legends, histogram zone tables, gauges and the GPS track's offset readout — each lap's values sit on a **translucent background in that lap's colour** (blue reference, white first comparison, …), so you can tell the columns apart at a glance.
@@ -81,7 +91,7 @@ The **Time Breakdown** component is the overview of the same idea: the whole lap
 
 It uses your corners and the corner range / speed bucket settings (**Edit corners & buckets** opens the Track editor). It's on the **Overview** sheet of both default workspaces; add it anywhere with **＋ Component → Time Breakdown**. Options: gain/loss bars, and the reference lap's time per bucket.
 
-![Time breakdown on the Basic FA26 overview](images/basic-fa26.png)
+![Time breakdown](images/basic-fa26.png)
 
 ## Channel report
 

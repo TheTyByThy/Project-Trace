@@ -325,3 +325,83 @@ export function WearWheel({
     </svg>
   );
 }
+
+/**
+ * The same as WearWheel, as straight bars: one horizontal bar per lap (reference on top, comparisons below),
+ * split into lock-up / wheelspin / slide, inside the same square. 'amount' mode: bar length = wear against
+ * `max` (shared by every tyre and lap); 'share' mode: every bar is full length and shows the mix.
+ */
+export function WearBars({
+  rings,
+  colors,
+  mode,
+  max,
+  title,
+  size = 150,
+  width,
+  units = 'm',
+}: {
+  rings: WheelRing[];
+  colors: Record<Cause, string>;
+  mode: 'share' | 'amount';
+  max: number;
+  title?: string;
+  /** Height (and the width, unless `width` is given). */
+  size?: number;
+  /** Bars can be wider than tall, to use the tyre's whole cell. */
+  width?: number;
+  units?: 'm' | 'pct';
+}) {
+  const H = 200;
+  const W = Math.round(H * Math.max(1, (width ?? size) / size));
+  const pad = 8;
+  const n = Math.max(1, rings.length);
+  const slot = (H - 2 * pad) / n; // each lap: a label line and its bar
+  const barH = Math.min(46, slot * 0.5);
+  const ref = rings[0];
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width={width ?? size} height={size} className="wear-bars" role="img" aria-label={title}>
+      <title>
+        {rings
+          .map((r) => `${r.label}: ${formatValue(r.w.total, 0)} m — ${WEAR_CAUSES.map((k) => `${k.label} ${formatValue(r.w[k.key], 0)} m`).join(', ')}`)
+          .join('\n')}
+      </title>
+      <rect x={0.5} y={0.5} width={W - 1} height={H - 1} rx={10} className="wear-bars-box" />
+      {rings.map((r, i) => {
+        const top = pad + i * slot + (slot - barH - 22) / 2;
+        const y = top + 22;
+        const full = W - 2 * pad - 4;
+        const len = mode === 'amount' && max > 0 ? Math.min(1, r.w.total / max) * full : full;
+        let x = pad + 2;
+        const segs = WEAR_CAUSES.map((k) => {
+          const wdt = r.w.total > 0 ? (r.w[k.key] / r.w.total) * len : 0;
+          const el = wdt > 0.3 ? <rect key={k.key} x={x} y={y} width={wdt} height={barH} fill={colors[k.key]} /> : null;
+          x += wdt;
+          return el;
+        });
+        const d = r.w.total - ref.w.total;
+        const dp = pctDelta(r.w.total, ref.w.total);
+        const delta = units === 'pct' ? (Number.isFinite(dp) ? `${formatDelta(dp, 0)}%` : '—') : `${formatDelta(d, 0)} m`;
+        return (
+          <g key={i}>
+            <text x={pad + 2} y={top + 14} className="wear-bars-tag" style={{ fill: r.color }}>
+              {i === 0 ? 'REF' : i === 1 ? 'CMP' : 'CMP 2'}
+            </text>
+            <text x={W - pad - 2} y={top + 14} className="wear-bars-value">
+              {formatValue(r.w.total, 0)} m
+              {i > 0 && (
+                <tspan className="wear-bars-delta" style={{ fill: Math.abs(d) < 0.5 ? undefined : d > 0 ? 'var(--loss)' : 'var(--gain)' }}>
+                  {'  '}
+                  {delta}
+                </tspan>
+              )}
+            </text>
+            <rect x={pad + 2} y={y} width={full} height={barH} rx={3} fill={withAlpha(r.color, 0.13)} />
+            {segs}
+            <rect x={pad + 2} y={y} width={len} height={barH} rx={3} fill="none" stroke={r.color} strokeWidth={1.5} />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
