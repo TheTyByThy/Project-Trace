@@ -32,6 +32,7 @@ import {
   setSmoothing,
   setTrackProfile,
   setUi,
+  resetRotation,
   setWorkingRotation,
   setXMode,
   addComponent,
@@ -195,15 +196,16 @@ function installAutomation() {
       const ref = selectedLaps()[0];
       const venue = ref?.session.meta.venue ?? '';
       if (name === 'corners-and-gps') {
-        // Demonstrate user-defined corners (temporary screenshot profile only) and the GPS track.
-        if (ref) setTrackProfile(venue, { corners: suggestCorners(ref.session, ref.lap).slice(0, 12) });
+        // Demonstrate corners (suggested ones, temporary screenshot profile only, when the track has none
+        // built in) and the GPS track.
+        if (ref && !trackProfile(venue).corners.length) setTrackProfile(venue, { corners: suggestCorners(ref.session, ref.lap).slice(0, 12) });
         setWorkingRotation(venue, 35);
         setActiveSheet(sheetIndex('Racing Lines'));
         setZoom([360, 700]);
         setCursor(560);
       } else if (name === 'properties-graph') {
         setZoom(null);
-        setWorkingRotation(venue, 0);
+        resetRotation(venue);
         setActiveSheet(0);
         const g = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'graph');
         openProperties(g?.id ?? null);
@@ -218,7 +220,7 @@ function installAutomation() {
       } else if (name === 'track-profile') {
         setActiveSheet(0);
         // Two splits with named sections, to show the Sections table (screenshot profile only).
-        if (venue) setTrackProfile(venue, { sections: [{ name: 'Split A', dist: 1500 }, { name: 'Split B', dist: 3200 }], sectionNames: ['Sector 1', 'Sector 2', 'Sector 3'] });
+        if (venue && !trackProfile(venue).sections.length) setTrackProfile(venue, { sections: [{ name: 'Split A', dist: 1500 }, { name: 'Split B', dist: 3200 }], sectionNames: ['Sector 1', 'Sector 2', 'Sector 3'] });
         setUi({ trackProfile: true });
       } else if (name === 'track-sections') {
         setUi({ trackProfile: true });

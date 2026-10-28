@@ -89,9 +89,9 @@ Wherever laps are compared side by side — the Channel Report, Corner Report, g
 
 The **Time Breakdown** component is the overview of the same idea: the whole lap split into four buckets — **low-, medium- and high-speed corners** and **straights** — with, for each comparison lap, the time **gained (green, −)** or **lost (red, +)** against the reference in each, a diverging bar, and the whole-lap total. A line underneath sums it up, e.g. *"Lap 3 vs reference: most time lost in low-speed corners (+0.58 s)"*. The four buckets add up to the lap.
 
-It uses your corners and the corner range / speed bucket settings (**Edit corners & buckets** opens the Track editor). It's on the **Overview** sheet of both default workspaces; add it anywhere with **＋ Component → Time Breakdown**. Options: gain/loss bars, and the reference lap's time per bucket.
+It uses your corners and the corner range / speed bucket settings (**Edit corners & buckets** opens the Track editor). It's on the Starter's **Overview** sheet (bottom right); add it anywhere with **＋ Component → Time Breakdown**. Options: gain/loss bars, and the reference lap's time per bucket.
 
-![Time breakdown](images/basic-fa26.png)
+![Time breakdown](images/overview.png)
 
 ## Channel report
 
@@ -135,7 +135,7 @@ Every corner is classed by its **minimum speed on the reference lap** — shown 
 
 Any corner can be **set to Low, Medium or High by hand** in the Track editor (*Speed* column); that's saved with the track (its tag's tooltip says it was set by you). Move the **Low speed below** and **High speed from** sliders (same place as the range sliders, in your speed unit) to fit the car. Hover a tag to see the corner's minimum speed.
 
-![Corner report](images/basic-fa26.png)
+![Corner report](images/fa26-overview.png)
 
 | Metric | |
 |---|---|

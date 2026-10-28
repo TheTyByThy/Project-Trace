@@ -19,6 +19,44 @@ Project-Trace is a desktop data-analysis tool modelled on MoTeC i2 Pro. Point it
 
 It reads the CSV files Telemetrick writes, and also opens Telemetrick's MoTeC `.ld` logs, so your whole history is usable, not just recent CSV exports.
 
+## Download
+
+Get the latest installer from the **[Releases page](https://github.com/TheTyByThy/Project-Trace/releases/latest)**: `Project-Trace Setup x.y.z.exe` for Windows, `Project-Trace-x.y.z-arm64.dmg` for Apple Silicon Macs. Nothing else to install.
+
+The builds aren't code-signed, so the first launch shows a warning:
+- **Windows:** "Windows protected your PC" → **More info → Run anyway**.
+- **macOS:** right-click the app → **Open** → **Open**. On recent macOS you may need **System Settings → Privacy & Security → Open Anyway** instead.
+
+To update, install the new version over the old one. Your workspaces and tracks are kept.
+
+## Two ready-made workspaces for the Formula Alpha 2026
+
+Both come built in. Pick them from the workspace menu in the top bar. The screenshots are a COTA stint on the C4 tyre.
+
+### FA26 V0.1: the car, sheet by sheet
+
+Overview, Driver, Toggles, Power Unit, Tyres, Aero & Platform, Stint, Session & Setup and Lap Replay.
+
+![FA26 V0.1: Overview](docs/images/fa26-overview.png)
+
+| Driver | Tyres |
+|---|---|
+| ![FA26 V0.1: Driver](docs/images/fa26-driver.png) | ![FA26 V0.1: Tyres](docs/images/fa26-tyres.png) |
+| **Power Unit** | **Lap Replay** |
+| ![FA26 V0.1: Power Unit](docs/images/fa26-power-unit.png) | ![FA26 V0.1: Lap Replay](docs/images/fa26-lap-replay.png) |
+
+### Tyre Deg: where and why the tyres wear
+
+Five sheets, each answering one question: Lap, Lap Corners, Stint, Stint Corners and Corner Traces. Wear is measured as metres of full sliding, split into lock-up, wheelspin and cornering slide. See [14 · Tyre wear](docs/14-tyre-wear.md).
+
+![Tyre Deg: Lap Corners](docs/images/tyre-deg-lap-corners.png)
+
+| Lap | Stint |
+|---|---|
+| ![Tyre Deg: Lap](docs/images/tyre-deg-lap.png) | ![Tyre Deg: Stint](docs/images/tyre-deg-stint.png) |
+| **Stint Corners** | **Corner Traces** |
+| ![Tyre Deg: Stint Corners](docs/images/tyre-deg-stint-corners.png) | ![Tyre Deg: Corner Traces](docs/images/tyre-deg-corner-traces.png) |
+
 ---
 
 ## Make it a real app (Mac `.app` / Windows `.exe`)
@@ -55,6 +93,8 @@ Your settings, track profiles and workspaces are shared between the installed ap
 
 ## Contents
 
+- [Download](#download)
+- [Two ready-made workspaces for the Formula Alpha 2026](#two-ready-made-workspaces-for-the-formula-alpha-2026)
 - [Make it a real app](#make-it-a-real-app-mac-app--windows-exe)
 - [Quick start](#quick-start)
 - [What you can do](#what-you-can-do): a tour of every feature
@@ -271,7 +311,16 @@ npm run dist:win    # on Windows → release/Project-Trace Setup 1.0.0.exe + por
 npm run dist:mac    # on a Mac   → release/Project-Trace-1.0.0.dmg + .zip
 ```
 
-macOS installers must be built on a Mac. The included GitHub Actions workflow (`.github/workflows/build.yml`) builds both: push the repo to GitHub, open **Actions → Build installers → Run workflow**, and download the installers from the run's artifacts. Builds are unsigned, so on macOS right-click → **Open** the first time.
+macOS installers must be built on a Mac. The GitHub Actions workflow (`.github/workflows/build.yml`) builds both on GitHub's machines.
+
+**To publish a release:** set the version in `package.json` (e.g. `npm version 0.2.0 --no-git-tag-version`), commit, then tag and push:
+
+```bash
+git tag v0.2.0
+git push origin main --tags
+```
+
+The workflow then type-checks, tests and builds both installers, and publishes them as the **v0.2.0** release on the Releases page (about 10 minutes). **Actions → Build installers → Run workflow** builds without releasing; download the installers from the run's artifacts. Builds are unsigned, so users see a warning on first launch (see [Download](#download)).
 
 ---
 
@@ -296,7 +345,7 @@ Project-Trace/
 └─ scripts/           launchers, install check, dev server, screenshot automation, icon
 ```
 
-Useful commands: `npm test`, `npm run typecheck`, `npm run dev` (hot reload), and `npm run screenshots`. The last one captures every worksheet and runs end-to-end undo checks.
+Useful commands: `npm test`, `npm run typecheck`, `npm run dev` (hot reload), and `npm run screenshots`, which captures every worksheet and runs end-to-end checks. `npm run doc-images` regenerates every image in `docs/images` from one real session: by default the latest COTA stint in `myTelemData/` (set `PT_DOC_SESSION` to use another). It covers the Starter's sheets and dialogs for the guides, and every sheet of FA26 V0.1 and Tyre Deg for this README.
 
 ---
 

@@ -21,16 +21,22 @@ Project-Trace estimates **how much rubber each tyre loses, where on the lap it h
 
 | Sheet | The question | What's on it |
 |---|---|---|
-| **1 · Lap** | How much did this lap wear the tyres, and how is it split? | Whole-car summary (the comparison lap as a difference) · each tyre as bars · front vs rear and left vs right · where on the track the comparison lap wears more (red) or less (green) |
-| **2 · Lap corners** | Which corners cost rubber on this lap, and why? | The corner table (click a corner) · that corner's bars per tyre |
-| **3 · Stint** | How did the wear build up, and how do the stints compare? | Average lap per stint for the whole car and per tyre · lap times with the **107%** filter · wear through the stint (per lap or cumulative) |
-| **4 · Stint corners** | Where does each stint wear more on average? | The corner table in **stint average** mode · that corner's bars per tyre, averaged · lap times with the 107% filter, which decides the laps averaged |
-| **5 · Corner traces** | Why does this corner wear more? | Speed · steering · throttle and brake · brake-steer combination · front and rear wear by cause (lock-up / wheelspin / slide) · a corner picker that zooms the traces · racing lines |
+| **Lap** | How much did this lap wear the tyres, and how is it split? | Whole-car summary (the comparison lap as a difference) · each tyre as bars · front vs rear and left vs right · where on the track the comparison lap wears more (red) or less (green) |
+| **Lap Corners** | Which corners cost rubber on this lap, and why? | The corner table (click a corner) · that corner's bars per tyre |
+| **Stint** | How did the wear build up, and how do the stints compare? | Average lap per stint for the whole car and per tyre · lap times with the **107%** filter · wear through the stint (per lap or cumulative) |
+| **Stint Corners** | Where does each stint wear more on average? | The corner table in **stint average** mode · that corner's bars per tyre, averaged · lap times with the 107% filter, which decides the laps averaged |
+| **Corner Traces** | Why does this corner wear more? | Speed · steering · throttle and brake · brake-steer combination · front and rear wear by cause (lock-up / wheelspin / slide) · a corner picker that zooms the traces · racing lines |
 
 How to use it:
 - **Pick laps:** select a reference lap and a comparison lap (Ctrl/⌘ + click). For stints, select a lap in each stint you want to compare.
-- **Follow one corner:** clicking a corner on sheet 2, 4 or 5 makes it the corner everywhere. The bars follow it, and the traces on sheet 5 zoom to it.
-- **On sheet 5:** look for the cause that's higher in the wear panes, then read up the traces. More cornering slide often lines up with more steering at the same speed, or with braking deeper while turning (the brake-steer pane).
+- **Follow one corner:** clicking a corner on Lap Corners, Stint Corners or Corner Traces makes it the corner everywhere. The bars follow it, and the traces on Corner Traces zoom to it.
+- **On Corner Traces:** look for the cause that's higher in the wear panes, then read up the traces. More cornering slide often lines up with more steering at the same speed, or with braking deeper while turning (the brake-steer pane).
+
+| Lap | Lap Corners |
+|---|---|
+| ![Tyre Deg: Lap](images/tyre-deg-lap.png) | ![Tyre Deg: Lap Corners](images/tyre-deg-lap-corners.png) |
+| **Stint** | **Corner Traces** |
+| ![Tyre Deg: Stint](images/tyre-deg-stint.png) | ![Tyre Deg: Corner Traces](images/tyre-deg-corner-traces.png) |
 
 The older **FA26 Tyre Deg** workspace still has the longer set of sheets described below.
 

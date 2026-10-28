@@ -901,7 +901,8 @@ async function runScreenshotAutomation() {
     await evalJs(`window.__ptAutomation.showBrowser(${JSON.stringify(process.env.PT_SCREENSHOT_BROWSE)})`);
     await shot('00-session-browser-tracks');
   }
-  await evalJs(`window.__ptAutomation.showBrowser(${JSON.stringify(sampleDir)})`);
+  // The session list: the folder of the sessions being captured (the sample folder by default).
+  await evalJs(`window.__ptAutomation.showBrowser(${JSON.stringify(process.env.PT_SCREENSHOT_OPEN && files[0] ? path.dirname(files[0]) : sampleDir)})`);
   await shot('00-session-browser');
   await evalJs(`window.__ptAutomation.openFiles(${JSON.stringify(files)})`);
   for (let i = 0; i < 300; i++) {

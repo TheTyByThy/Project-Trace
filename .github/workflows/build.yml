@@ -1,5 +1,6 @@
 # Builds installers for Windows (.exe + .zip) and macOS (.dmg + .zip).
-# Run it from the Actions tab ("Run workflow") or by pushing a tag like v1.0.0.
+# Pushing a tag like v0.1.0 also publishes a GitHub Release with the installers attached.
+# "Run workflow" on the Actions tab only builds them (download from the run's artifacts).
 name: Build installers
 
 on:
@@ -39,3 +40,32 @@ jobs:
             release/*.dmg
             release/*.zip
           if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: installers
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Project-Trace ${{ github.ref_name }}
+          generate_release_notes: true
+          body: |
+            **Download:** `Project-Trace Setup *.exe` for Windows, or `Project-Trace-*-arm64.dmg` for Apple Silicon Macs. Nothing else to install.
+
+            The builds aren't code-signed, so the first launch shows a warning:
+            - **Windows:** "Windows protected your PC" → **More info → Run anyway**.
+            - **macOS:** right-click the app → **Open** → **Open** (or **System Settings → Privacy & Security → Open Anyway**).
+
+            The `.zip` files are the same apps without an installer (portable).
+          files: |
+            installers/*.exe
+            installers/*.dmg
+            installers/*.zip
+          fail_on_unmatched_files: true
