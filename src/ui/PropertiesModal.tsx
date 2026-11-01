@@ -616,6 +616,21 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
           </div>
         </div>
       );
+    case 'phases':
+      return (
+        <div className="props-grid">
+          <div>
+            <G title="Pedal phases">
+              <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+                Every moment of the lap is in one phase: braking (brake ≥ 2%, even with the throttle pressed), full throttle (the corner settings’ full-throttle level), part throttle, or rolling (neither pedal). The four add up to the lap time. Switch seconds / % and absolute / Δ to ref on the component itself.
+              </div>
+            </G>
+          </div>
+          <div>
+            <TrackEditorLink />
+          </div>
+        </div>
+      );
     case 'breakdown':
       return (
         <div className="props-grid">

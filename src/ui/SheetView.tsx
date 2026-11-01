@@ -146,7 +146,7 @@ function ComponentFrame({ config, maximized, onMaximize }: { config: ComponentCo
           else openMenu(e, frameItems());
         }}
       >
-        <ErrorBoundary label={config.type}>{View ? <View config={config} /> : null}</ErrorBoundary>
+        <ErrorBoundary label={config.type}>{View ? <View config={config} /> : <div className="empty-state">This component ({config.type}) needs a newer version of Project-Trace.</div>}</ErrorBoundary>
       </div>
       {zone && (
         <div className="drop-overlay">

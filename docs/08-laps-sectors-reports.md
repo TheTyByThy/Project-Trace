@@ -93,6 +93,26 @@ It uses your corners and the corner range / speed bucket settings (**Edit corner
 
 ![Time breakdown](images/overview.png)
 
+## Pedal phases
+
+The **Pedal Phases** component shows where each selected lap's time goes. It has one row per lap and seven narrow columns, so four laps fit on a laptop screen without scrolling sideways. The FA26 V0.1 workspace has it on its own **Pedal Phases** sheet.
+
+| Column | What it is |
+|---|---|
+| **Lap time** | The lap. The next four columns add up to it. |
+| **Braking** | Brake at 2% or more, whatever the throttle does. While braking, the throttle channel also records the downshift blips. |
+| **Full throttle** | Throttle at the corner settings' full-throttle level (98% by default), no brake. |
+| **Part throttle** | Throttle between 2% and full, no brake. |
+| **Rolling** | Neither pedal: brake and throttle both under 2%. A foot resting lightly on the brake (under 2%) counts as rolling. |
+| **Straights** | Time outside your corners, using the reference lap's corner ranges, as in the Time Breakdown. This is a different way of splitting the lap, so it overlaps the four phases. |
+
+- **s | %** switches between seconds and each phase's share of its own lap.
+- **Absolute | Δ to ref** shows comparison laps as their own values, or as the difference to the reference lap. In seconds, the four phase differences add up to the lap-time difference. In %, the differences are in percentage points.
+- **Hover** any value to see it in seconds, as a %, and in metres covered.
+- The thin bar under each lap's name shows its four phases in proportion.
+
+**Why time and not distance.** The phases are measured in time because time is what the lap is made of: the four add up to the lap time, and their differences add up to the lap-time difference. Distance would weight the fast parts of the lap more. On a COTA lap, full throttle is about 50% of the time but about 62% of the distance, and a lap's length barely changes from lap to lap, so distance differences say little about pace. The metres are still there when you hover a value.
+
 ## Channel report
 
 A table of statistics for chosen channels for every selected lap (or only the zoomed range), each lap's columns tinted in its colour.

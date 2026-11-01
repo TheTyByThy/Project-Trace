@@ -15,6 +15,7 @@ import { LapReportView } from './LapReportView';
 import { MixtureView } from './MixtureView';
 import { ScatterView } from './ScatterView';
 import { TrackMapView } from './TrackMapView';
+import { PedalPhasesView } from './PedalPhasesView';
 import { TimeBreakdownView } from './TimeBreakdownView';
 import { TrendView } from './TrendView';
 import { TyreWearView } from './TyreWearView';
@@ -29,6 +30,7 @@ export const VIEWS: Record<ComponentType, FC<{ config: any }>> = {
   gpstrack: GpsTrackView,
   bars: BarsView,
   breakdown: TimeBreakdownView,
+  phases: PedalPhasesView,
   scatter: ScatterView,
   histogram: HistogramView,
   mixture: MixtureView,
@@ -84,6 +86,8 @@ export function defaultTitle(c: ComponentConfig): string {
       return 'GPS track — racing lines';
     case 'breakdown':
       return 'Time breakdown';
+    case 'phases':
+      return 'Pedal phases — where the lap time goes';
     case 'tyrewear':
       return 'Tyre wear';
     case 'wearwheels':

@@ -71,11 +71,12 @@ export function chartTheme(): ChartTheme {
   return theme;
 }
 
-export function useElementSize<T extends HTMLElement>(): [React.RefObject<T | null>, { w: number; h: number }] {
-  const ref = useRef<T>(null);
+// A callback ref, so the element is measured whenever it appears: a component that first renders an empty
+// state ("Select a lap…") and only later the measured element would otherwise stay at 0×0 and draw nothing.
+export function useElementSize<T extends HTMLElement>(): [(el: T | null) => void, { w: number; h: number }] {
+  const [el, setEl] = useState<T | null>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   useLayoutEffect(() => {
-    const el = ref.current;
     if (!el) return;
     const ro = new ResizeObserver((entries) => {
       const r = entries[0].contentRect;
@@ -83,8 +84,8 @@ export function useElementSize<T extends HTMLElement>(): [React.RefObject<T | nu
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
-  return [ref, size];
+  }, [el]);
+  return [setEl, size];
 }
 
 /** Subscribe to store changes imperatively (no React re-render). */

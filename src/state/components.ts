@@ -14,6 +14,7 @@ export const COMPONENT_CATALOG: { type: ComponentType; label: string; icon: stri
   { type: 'laps', label: 'Stint Report', icon: '☷', description: 'Every lap of every open session: lap and sector times, best sectors, ideal lap and validity.' },
   { type: 'channels', label: 'Channel Report', icon: '☰', description: 'Min / max / mean / std of chosen channels for every selected lap.' },
   { type: 'breakdown', label: 'Time Breakdown', icon: '◧', description: 'Time gained / lost against the reference in low, medium and high-speed corners and on the straights.' },
+  { type: 'phases', label: 'Pedal Phases', icon: '◑', description: 'Each lap\'s time split into braking, full throttle, part throttle and rolling, plus the time on the straights — in seconds or % of the lap, absolute or Δ to the reference.' },
   { type: 'corners', label: 'Corner Report', icon: '↺', description: 'Your corners and the straights between them: speeds, time and total gain/loss per lap.' },
   { type: 'trend', label: 'Lap Trend', icon: '📈', description: 'A per-lap statistic across the session (lap time, max temp, fuel…).' },
   { type: 'gauges', label: 'Gauges', icon: '◔', description: 'Dial, bar and digital gauges showing values at the cursor.' },
@@ -46,6 +47,9 @@ export function createComponent(type: ComponentType, patch: Partial<ComponentCon
       break;
     case 'breakdown':
       c = { id, type, showBars: true, showTimes: true };
+      break;
+    case 'phases':
+      c = { id, type, units: 's', mode: 'absolute' };
       break;
     case 'bars':
       c = {

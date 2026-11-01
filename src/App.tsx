@@ -187,6 +187,9 @@ function installAutomation() {
       'shortcuts',
       'default-fa26',
       'compare-lap',
+      'phases-4',
+      'phases-4-delta',
+      'phases-4-pct-delta',
       'time-axis',
       'light-theme',
     ],
@@ -341,6 +344,20 @@ function installAutomation() {
           prevWorkspace = useStore.getState().settings.activeWorkspaceId;
           setActiveWorkspace('default-fa26');
           setActiveSheet(0);
+        }
+      } else if (name.startsWith('phases-4')) {
+        // The Pedal Phases sheet (when the workspace has one) with the session's four fastest complete laps.
+        const s = useStore.getState().sessions[0];
+        const idx = sheetIndex('Pedal Phases');
+        if (s && idx >= 0) {
+          setActiveSheet(idx);
+          s.laps
+            .filter((l) => l.complete)
+            .sort((a, b) => a.time - b.time)
+            .slice(0, 4)
+            .forEach((l, i) => selectLap(lapKey({ sessionId: s.id, lapIndex: l.index }), i ? 'add' : 'replace'));
+          const ph = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'phases');
+          if (ph) updateComponent(ph.id, { mode: name === 'phases-4' ? 'absolute' : 'delta', units: name === 'phases-4-pct-delta' ? 'pct' : 's' });
         }
       } else if (name === 'compare-lap') {
         // A third lap selected; the Driver sheet's gain/loss map compares it instead of the first overlay.

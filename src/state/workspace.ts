@@ -24,6 +24,7 @@ export type ComponentType =
   | 'gpstrack'
   | 'bars'
   | 'breakdown'
+  | 'phases'
   | 'tyrewear'
   | 'wearwheels'
   | 'wearbalance'
@@ -108,6 +109,15 @@ export interface BreakdownConfig extends Base {
   showBars?: boolean;
   /** The reference lap's time in each bucket (default on). */
   showTimes?: boolean;
+}
+
+/** Pedal phases: each selected lap's time split into braking, full throttle, part throttle and rolling, plus the straights. */
+export interface PedalPhasesConfig extends Base {
+  type: 'phases';
+  /** 's': seconds (default); 'pct': % of each lap. */
+  units?: 's' | 'pct';
+  /** Comparison laps as their own values (default) or as the difference to the reference. */
+  mode?: 'absolute' | 'delta';
 }
 
 /** Tyre wear summary: the whole car's wear over the lap (four tyres added up) and its split by cause; comparison laps as differences. */
@@ -483,6 +493,7 @@ export type ComponentConfig =
   | GpsTrackConfig
   | BarsConfig
   | BreakdownConfig
+  | PedalPhasesConfig
   | TyreWearConfig
   | WearWheelsConfig
   | WearBalanceConfig

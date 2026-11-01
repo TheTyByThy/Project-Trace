@@ -2240,3 +2240,35 @@ table.grid tr.group-title td {
   font-weight: 600;
   color: var(--text-2);
 }
+
+/* Pedal phases: one row per lap, sized to fit several laps on a laptop without scrolling sideways. */
+.phases-table {
+  width: 100%;
+  table-layout: auto;
+}
+.phases-table th,
+.phases-table td {
+  white-space: nowrap;
+}
+.phases-table td.num {
+  font-size: 14px;
+}
+.phases-table .phases-straights {
+  border-left: 1px solid var(--border);
+}
+.phases-sub {
+  font-size: 11px;
+}
+.phases-bar {
+  display: flex;
+  height: 4px;
+  margin-top: 5px;
+  border-radius: 2px;
+  overflow: hidden;
+  min-width: 120px;
+}
+.phases-note {
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+}
