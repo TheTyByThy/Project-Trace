@@ -219,6 +219,8 @@ No telemetry yet? Click **Bundled sample session** to explore a 6-lap Singapore 
 - **Channel report** (min/max/avg/std per lap) and a **corner report** built from your corners — ranges found from your braking and throttle (adjustable with sliders), each corner tagged low / medium / high speed, plus the straights between them.
 - **Lap playback** (▶ / Space, 0.25×–4×), **PDF printout** of any worksheet (Ctrl/⌘+P), **fuel-corrected lap times**, a **grip envelope** on the G-G diagram, and a **Corner Radius** channel.
 - **Pedal phases**: each lap's time split into braking, full throttle, part throttle and rolling, plus the time on the straights. Shown in seconds or % of the lap, absolute or Δ to the reference, with several laps side by side.
+- **Optimum corners** (its own workspace): the best time through each corner across the laps you pick (whole stints, single laps or a lap-time range, any driver), against the fastest of them. Shows the time to find corner by corner from real laps, with a map of where it is and the Driver traces of the best lap in each corner.
+- **Sort stints** in the sidebar by date / time or best lap.
 - **Time breakdown**: time gained or lost against the reference in low, medium and high-speed corners and on the straights — the whole lap in four buckets. Side-by-side lap data is tinted in each lap's colour.
 
 → [Laps & reports guide](docs/08-laps-sectors-reports.md)

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { focusCorner, optimumData, setEligible, useOptimum } from './charts/OptimumView';
 import { handleGlobalKey, handleMenuAction } from './actions';
 import { bindings } from './shortcuts';
 import { pt } from './core/bridge';
@@ -191,6 +192,9 @@ function installAutomation() {
       'phases-4',
       'phases-4-delta',
       'phases-4-pct-delta',
+      'optimum-corners',
+      'optimum-driver',
+      'optimum-dialog',
       'invalid-counts',
       'invalid-excluded',
       'time-axis',
@@ -199,6 +203,7 @@ function installAutomation() {
     runExtra: (name: string) => {
       setUi({ math: name === 'math-editor', palette: name === 'command-palette', settings: name === 'settings' || name === 'live-mode' || name === 'settings-masters',
         settingsTab: name === 'settings-masters' ? 'masters' : 'general', shortcuts: name === 'shortcuts', properties: false, trackProfile: false });
+      if (name !== 'optimum-dialog') useOptimum.setState({ dialogOwner: null });
       if (name !== 'invalid-excluded') for (const o of useStore.getState().sessions) setInvalidCounts(o.id, true);
       const ref = selectedLaps()[0];
       const venue = ref?.session.meta.venue ?? '';
@@ -362,6 +367,23 @@ function installAutomation() {
             .forEach((l, i) => selectLap(lapKey({ sessionId: s.id, lapIndex: l.index }), i ? 'add' : 'replace'));
           const ph = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'phases');
           if (ph) updateComponent(ph.id, { mode: name === 'phases-4' ? 'absolute' : 'delta', units: name === 'phases-4-pct-delta' ? 'pct' : 's' });
+        }
+      } else if (name.startsWith('optimum-')) {
+        // The Optimum Corners sheets (when the workspace has them): the corner with the most time to find in focus.
+        useOptimum.setState({ dialogOwner: null });
+        const sheet = sheetIndex(name === 'optimum-driver' ? 'Corner Driver' : 'Corners');
+        // With several stints open at this track, compare all their laps (shows each lap's stint).
+        const d0 = optimumData();
+        if (name === 'optimum-corners' && d0 && d0.pool.length > 1) setEligible(d0.venue, d0.candidates.map((l) => l.key));
+        const d = optimumData();
+        if (sheet >= 0 && d?.opt) {
+          setActiveSheet(sheet);
+          const top = d.opt.corners.reduce((a, b) => ((b.gain || 0) > (a.gain || 0) ? b : a));
+          focusCorner(d.opt, top);
+          if (name === 'optimum-dialog') {
+            const table = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'optimum' && (c.view ?? 'table') === 'table');
+            if (table) useOptimum.setState({ dialogOwner: table.id });
+          }
         }
       } else if (name === 'invalid-counts' || name === 'invalid-excluded') {
         // The lap report and session card with the stint's invalid laps counting for bests (default), then left out.

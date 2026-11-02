@@ -16,6 +16,7 @@ import { MixtureView } from './MixtureView';
 import { ScatterView } from './ScatterView';
 import { TrackMapView } from './TrackMapView';
 import { PedalPhasesView } from './PedalPhasesView';
+import { OptimumView } from './OptimumView';
 import { TimeBreakdownView } from './TimeBreakdownView';
 import { TrendView } from './TrendView';
 import { TyreWearView } from './TyreWearView';
@@ -31,6 +32,7 @@ export const VIEWS: Record<ComponentType, FC<{ config: any }>> = {
   bars: BarsView,
   breakdown: TimeBreakdownView,
   phases: PedalPhasesView,
+  optimum: OptimumView,
   scatter: ScatterView,
   histogram: HistogramView,
   mixture: MixtureView,
@@ -88,6 +90,8 @@ export function defaultTitle(c: ComponentConfig): string {
       return 'Time breakdown';
     case 'phases':
       return 'Pedal phases — where the lap time goes';
+    case 'optimum':
+      return c.view === 'map' ? 'Time to find — by corner' : c.view === 'picker' ? 'Corner' : 'Optimum corners — the best of each corner';
     case 'tyrewear':
       return 'Tyre wear';
     case 'wearwheels':

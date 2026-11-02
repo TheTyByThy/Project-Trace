@@ -861,6 +861,34 @@ export function moveSession(id: string, toIndex: number) {
   });
 }
 
+/** How the open sessions can be ordered: by when they were driven, or by their best lap (fastest first). */
+export type SessionSort = 'date' | 'best';
+const sessionSortKey = (s: Session, by: SessionSort) => (by === 'date' ? s.meta.savedAt ?? s.loadedAt : fastestLap(s)?.time ?? Infinity);
+
+/** Order the open sessions (the Sessions & laps list, stint reports…); `desc` reverses it. Dragging still works afterwards. */
+export function sortSessions(by: SessionSort, desc = false) {
+  set((s) => {
+    const sessions = s.sessions.slice().sort((a, b) => {
+      const ka = sessionSortKey(a, by);
+      const kb = sessionSortKey(b, by);
+      // Sessions without a complete lap stay at the end either way.
+      if (!Number.isFinite(ka) || !Number.isFinite(kb)) return Number.isFinite(ka) ? -1 : Number.isFinite(kb) ? 1 : 0;
+      return desc ? kb - ka : ka - kb;
+    });
+    return { sessions, dataVersion: s.dataVersion + 1 };
+  });
+}
+
+/** The order the sessions are in now, if it's one of the sorts (for showing which is active). */
+export function currentSessionSort(sessions: Session[]): { by: SessionSort; desc: boolean } | null {
+  for (const by of ['date', 'best'] as const)
+    for (const desc of [false, true]) {
+      const ks = sessions.map((s) => sessionSortKey(s, by)).filter(Number.isFinite);
+      if (ks.length > 1 && ks.every((k, i) => i === 0 || (desc ? k <= ks[i - 1] : k >= ks[i - 1]))) return { by, desc };
+    }
+  return null;
+}
+
 export function closeSession(id: string) {
   set((s) => {
     const laps = s.laps.filter((l) => parseLapKey(l.key).sessionId !== id);

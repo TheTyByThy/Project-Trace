@@ -1,0 +1,1106 @@
+{
+  "id": "default-optimum",
+  "name": "Optimum Corners",
+  "version": 1,
+  "worksheets": [
+    {
+      "id": "woptf107vmccmpt",
+      "name": "Corners",
+      "layout": {
+        "kind": "split",
+        "id": "sopth750nlydsyh",
+        "dir": "row",
+        "children": [
+          {
+            "kind": "leaf",
+            "id": "loptwb6lm3sh2x4",
+            "componentId": "coptftar78znimu"
+          },
+          {
+            "kind": "split",
+            "id": "sopt8ctwhraa69t",
+            "dir": "col",
+            "children": [
+              {
+                "kind": "leaf",
+                "id": "loptiwteaxd04qr",
+                "componentId": "copt67nyiniej30"
+              },
+              {
+                "kind": "leaf",
+                "id": "lopt1ypaktavbso",
+                "componentId": "copt112itl3fufx"
+              }
+            ],
+            "sizes": [
+              0.55,
+              0.45
+            ]
+          }
+        ],
+        "sizes": [
+          0.56,
+          0.44
+        ]
+      },
+      "components": {
+        "coptftar78znimu": {
+          "id": "coptftar78znimu",
+          "type": "optimum",
+          "view": "table"
+        },
+        "copt67nyiniej30": {
+          "id": "copt67nyiniej30",
+          "type": "optimum",
+          "view": "map"
+        },
+        "copt112itl3fufx": {
+          "id": "copt112itl3fufx",
+          "type": "gpstrack",
+          "lineWidth": 1.5,
+          "fitToZoom": true,
+          "followCursor": false,
+          "showRoad": true,
+          "showSectors": false,
+          "showCorners": true,
+          "showSplits": false,
+          "title": "Racing lines \u2014 the reference and the best lap through the corner"
+        }
+      }
+    },
+    {
+      "id": "woptz8snbgkgmws",
+      "name": "Corner Driver",
+      "layout": {
+        "kind": "split",
+        "id": "soptu7xagvlm4t0",
+        "dir": "row",
+        "children": [
+          {
+            "kind": "split",
+            "id": "soptm9doysxgiot",
+            "dir": "col",
+            "children": [
+              {
+                "kind": "leaf",
+                "id": "loptw5nb5mwyxid",
+                "componentId": "coptb6gy4vex0qk"
+              },
+              {
+                "kind": "leaf",
+                "id": "loptj8h7omr0fck",
+                "componentId": "copt5b6un0izcpu"
+              },
+              {
+                "kind": "leaf",
+                "id": "lopth1bl8buvj3t",
+                "componentId": "copt6w4w90yxp46"
+              }
+            ],
+            "sizes": [
+              0.06,
+              0.7581124676736387,
+              0.18188753232636126
+            ]
+          },
+          {
+            "kind": "split",
+            "id": "soptdaqh4fnm4qg",
+            "dir": "col",
+            "children": [
+              {
+                "kind": "leaf",
+                "id": "loptisy6n9jlz8d",
+                "componentId": "coptc2labamaae1"
+              },
+              {
+                "kind": "leaf",
+                "id": "loptm25zb0h1jlu",
+                "componentId": "copt0lmd049f0bf"
+              }
+            ],
+            "sizes": [
+              0.4644050350971922,
+              0.5355949649028078
+            ]
+          }
+        ],
+        "sizes": [
+          0.64,
+          0.35999999999999993
+        ]
+      },
+      "components": {
+        "copt5b6un0izcpu": {
+          "id": "copt5b6un0izcpu",
+          "type": "graph",
+          "panes": [
+            {
+              "id": "pmvmr5t8h4bidw6",
+              "channels": [
+                "Ground Speed"
+              ],
+              "weight": 1.2685578377016133,
+              "scale": "auto"
+            },
+            {
+              "id": "pmvmwrq9651byuk",
+              "channels": [
+                "Brake Pos"
+              ],
+              "weight": 1,
+              "scale": "auto"
+            },
+            {
+              "id": "pmvmr5t8h4czp3o",
+              "channels": [
+                "Throttle Pedal"
+              ],
+              "weight": 1.1,
+              "scale": "auto",
+              "hidden": []
+            },
+            {
+              "id": "pmvmr5t8h4e8j12",
+              "channels": [
+                "Steering Angle"
+              ],
+              "weight": 1.0164774386682243,
+              "scale": "auto",
+              "hidden": []
+            },
+            {
+              "id": "pmvmr5t8h4d1hje",
+              "channels": [
+                "Gear"
+              ],
+              "weight": 0.6835225613317757,
+              "scale": "auto"
+            }
+          ],
+          "showVariance": true,
+          "showSectors": false,
+          "showCorners": false,
+          "yRange": "full",
+          "title": "Driver channels",
+          "varianceWeight": 0.8814421622983871,
+          "showSplits": false
+        },
+        "coptc2labamaae1": {
+          "id": "coptc2labamaae1",
+          "type": "trackmap",
+          "colorBy": "delta",
+          "ramp": "blue",
+          "showSectors": false,
+          "showCorners": false,
+          "showZoom": true,
+          "lineWidth": 4,
+          "rotation": 0,
+          "title": "Track map \u2014 speed",
+          "deltaSensitivity": 1,
+          "deltaSmoothing": 24,
+          "showSplits": false
+        },
+        "copt0lmd049f0bf": {
+          "id": "copt0lmd049f0bf",
+          "type": "gpstrack",
+          "lineWidth": 1.5,
+          "fitToZoom": true,
+          "followCursor": false,
+          "showRoad": true,
+          "showSectors": false,
+          "showCorners": false,
+          "showSplits": false
+        },
+        "copt6w4w90yxp46": {
+          "id": "copt6w4w90yxp46",
+          "type": "bars",
+          "rows": [
+            {
+              "id": "rmvnn7fa84rmyeo",
+              "channel": "Braking",
+              "op": "eq",
+              "value": 1,
+              "label": "Braking",
+              "color": "#e66767"
+            },
+            {
+              "id": "rmvnn7fa84sxsyn",
+              "channel": "Full Throttle",
+              "op": "eq",
+              "value": 1,
+              "label": "Full throttle",
+              "color": "#199e70"
+            },
+            {
+              "id": "rmvnn8jcl4wgd0v",
+              "channel": "Rolling",
+              "op": "eq",
+              "value": 1,
+              "label": "Rolling",
+              "color": "#c98500"
+            },
+            {
+              "id": "rmvnn8rcb4xwlsh",
+              "channel": "Partial Throttle",
+              "op": "eq",
+              "value": 1,
+              "label": "Partial Throttle",
+              "color": "#9085e9"
+            }
+          ],
+          "laps": "all",
+          "showLabels": true,
+          "showAxis": false,
+          "showSectors": false,
+          "showCorners": false,
+          "combined": true,
+          "showSplits": false
+        },
+        "coptb6gy4vex0qk": {
+          "id": "coptb6gy4vex0qk",
+          "type": "optimum",
+          "view": "picker"
+        }
+      }
+    }
+  ],
+  "activeSheet": 0,
+  "math": [
+    {
+      "id": "mmvse078u3p4m2a",
+      "name": "Combined G",
+      "expr": "hypot('CG Accel Lateral', 'CG Accel Longitudinal')",
+      "unit": "G",
+      "dps": 2,
+      "description": "Total horizontal acceleration \u2014 the radius of the friction circle.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u3q4axd",
+      "name": "Steering Rate",
+      "expr": "derivative('Steering Angle')",
+      "unit": "deg/s",
+      "dps": 0,
+      "description": "How fast the driver turns the wheel; spikes show corrections.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u3rd19u",
+      "name": "Rolling",
+      "expr": "choose('Throttle Pedal' < 2 and 'Brake Pos' < 2 and 'Ground Speed' > 30, 1, 0)",
+      "unit": "",
+      "dps": 0,
+      "description": "1 while neither pedal is used (lost time!).",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u3s4n1z",
+      "name": "Full Throttle",
+      "expr": "choose('Throttle Pedal' > 98, 1, 0)",
+      "unit": "",
+      "dps": 0,
+      "description": "1 at full throttle. Mean over a lap = full-throttle fraction.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u3tx15t",
+      "name": "Braking Time Lap",
+      "expr": "integrate_lap(choose('Brake Pos' > 5, 1, 0))",
+      "unit": "s",
+      "dps": 1,
+      "description": "Accumulated braking time within the lap.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u3u3oih",
+      "name": "Damper Velocity FL",
+      "expr": "derivative('Damper Travel FL')",
+      "unit": "mm/s",
+      "dps": 0,
+      "description": "Damper speed (FL). Positive = bump, negative = rebound.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u3vnxn6",
+      "name": "Damper Velocity FR",
+      "expr": "derivative('Damper Travel FR')",
+      "unit": "mm/s",
+      "dps": 0,
+      "description": "Damper speed (FR). Positive = bump, negative = rebound.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u3wi0s5",
+      "name": "Damper Velocity RL",
+      "expr": "derivative('Damper Travel RL')",
+      "unit": "mm/s",
+      "dps": 0,
+      "description": "Damper speed (RL). Positive = bump, negative = rebound.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u3x0xjm",
+      "name": "Damper Velocity RR",
+      "expr": "derivative('Damper Travel RR')",
+      "unit": "mm/s",
+      "dps": 0,
+      "description": "Damper speed (RR). Positive = bump, negative = rebound.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u3y1fic",
+      "name": "Tyre Temp Avg FL",
+      "expr": "('Tire Temp Inner FL' + 'Tire Temp Middle FL' + 'Tire Temp Outer FL') / 3",
+      "unit": "C",
+      "dps": 1,
+      "description": "Average surface temperature across the FL tread.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u3z0pri",
+      "name": "Tyre Temp Avg FR",
+      "expr": "('Tire Temp Inner FR' + 'Tire Temp Middle FR' + 'Tire Temp Outer FR') / 3",
+      "unit": "C",
+      "dps": 1,
+      "description": "Average surface temperature across the FR tread.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u40d7pn",
+      "name": "Tyre Temp Avg RL",
+      "expr": "('Tire Temp Inner RL' + 'Tire Temp Middle RL' + 'Tire Temp Outer RL') / 3",
+      "unit": "C",
+      "dps": 1,
+      "description": "Average surface temperature across the RL tread.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4106sa",
+      "name": "Tyre Temp Avg RR",
+      "expr": "('Tire Temp Inner RR' + 'Tire Temp Middle RR' + 'Tire Temp Outer RR') / 3",
+      "unit": "C",
+      "dps": 1,
+      "description": "Average surface temperature across the RR tread.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u42rlub",
+      "name": "Tyre Temp Spread FL",
+      "expr": "'Tire Temp Inner FL' - 'Tire Temp Outer FL'",
+      "unit": "C",
+      "dps": 1,
+      "description": "Inner minus outer temperature (FL) \u2014 a camber indicator.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u43o4xq",
+      "name": "Tyre Temp Spread FR",
+      "expr": "'Tire Temp Inner FR' - 'Tire Temp Outer FR'",
+      "unit": "C",
+      "dps": 1,
+      "description": "Inner minus outer temperature (FR) \u2014 a camber indicator.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u44c8jm",
+      "name": "Tyre Temp Spread RL",
+      "expr": "'Tire Temp Inner RL' - 'Tire Temp Outer RL'",
+      "unit": "C",
+      "dps": 1,
+      "description": "Inner minus outer temperature (RL) \u2014 a camber indicator.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u45a2vu",
+      "name": "Tyre Temp Spread RR",
+      "expr": "'Tire Temp Inner RR' - 'Tire Temp Outer RR'",
+      "unit": "C",
+      "dps": 1,
+      "description": "Inner minus outer temperature (RR) \u2014 a camber indicator.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u46hvut",
+      "name": "Rake",
+      "expr": "'Ride Height Rear' - 'Ride Height Front'",
+      "unit": "mm",
+      "dps": 1,
+      "description": "Rear minus front ride height.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u47ym5m",
+      "name": "Total Downforce",
+      "expr": "'Aero Downforce F' + 'Aero Downforce R'",
+      "unit": "N",
+      "dps": 0,
+      "description": "Front + rear downforce.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u48yl1x",
+      "name": "Aero Balance",
+      "expr": "choose('Aero Downforce F' + 'Aero Downforce R' > 500, 100 * 'Aero Downforce F' / ('Aero Downforce F' + 'Aero Downforce R'), invalid())",
+      "unit": "%",
+      "dps": 1,
+      "description": "Front share of total downforce (invalid at low speed).",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u49hlv8",
+      "name": "Aero Efficiency",
+      "expr": "choose('Aero Drag' > 100, ('Aero Downforce F' + 'Aero Downforce R') / 'Aero Drag', invalid())",
+      "unit": "",
+      "dps": 2,
+      "description": "Downforce / drag (L/D).",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4ahyu9",
+      "name": "Front Load Share",
+      "expr": "100 * ('Tire Load FL' + 'Tire Load FR') / max('Tire Load FL' + 'Tire Load FR' + 'Tire Load RL' + 'Tire Load RR', 1)",
+      "unit": "%",
+      "dps": 1,
+      "description": "Share of vertical load on the front axle.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4bx9fe",
+      "name": "Lateral Load Transfer",
+      "expr": "100 * (('Tire Load FR' + 'Tire Load RR') - ('Tire Load FL' + 'Tire Load RL')) / max('Tire Load FL' + 'Tire Load FR' + 'Tire Load RL' + 'Tire Load RR', 1)",
+      "unit": "%",
+      "dps": 1,
+      "description": "Right-minus-left load as a share of total (positive = loaded on the right).",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4cutha",
+      "name": "Rear Wheelspin",
+      "expr": "max('Tire Slip Ratio RL', 'Tire Slip Ratio RR')",
+      "unit": "%",
+      "dps": 1,
+      "description": "Largest rear slip ratio \u2014 traction loss on exits.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4dnol4",
+      "name": "Front Lockup",
+      "expr": "min('Tire Slip Ratio FL', 'Tire Slip Ratio FR')",
+      "unit": "%",
+      "dps": 1,
+      "description": "Most negative front slip ratio \u2014 lock-ups under braking.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4e2zz4",
+      "name": "Brake Temp Front Avg",
+      "expr": "('Brake Temp FL' + 'Brake Temp FR') / 2",
+      "unit": "C",
+      "dps": 0,
+      "description": "Mean front disc temperature.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4f3sbl",
+      "name": "Brake Temp Rear Avg",
+      "expr": "('Brake Temp RL' + 'Brake Temp RR') / 2",
+      "unit": "C",
+      "dps": 0,
+      "description": "Mean rear disc temperature.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4g6muj",
+      "name": "Lap Fuel Used",
+      "expr": "stat_max('Fuel Level') - 'Fuel Level'",
+      "unit": "l",
+      "dps": 2,
+      "description": "Fuel burned since the start of the lap.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4hofkb",
+      "name": "Speed Smoothed",
+      "expr": "smooth('Ground Speed', 0.3)",
+      "unit": "kph",
+      "dps": 1,
+      "description": "Ground speed with a 0.3 s moving average.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4iynj9",
+      "name": "Tyre Temp Avg",
+      "expr": "('Tyre Temp Avg FL' + 'Tyre Temp Avg FR' + 'Tyre Temp Avg RL' + 'Tyre Temp Avg RR') / 4",
+      "unit": "C",
+      "dps": 2,
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4jhldm",
+      "name": "Tyre Deg Avg",
+      "expr": "('Tire Rubber Grip FL' + 'Tire Rubber Grip FR' + 'Tire Rubber Grip RL' + 'Tire Rubber Grip RR') / 4",
+      "unit": "%",
+      "dps": 2,
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4k5x6z",
+      "name": "Partial Throttle",
+      "expr": "choose('Full Throttle' = 0 and 'Braking' = 0 and 'Rolling' = 0, 1, 0)",
+      "unit": "",
+      "dps": 0,
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4l8n5q",
+      "name": "Braking",
+      "expr": "choose('Brake Pos' > 2, 1, 0)",
+      "unit": "",
+      "dps": 0,
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4mb7cr",
+      "name": "Corner Radius",
+      "expr": "gate(min(('Ground Speed' [m/s]) ^ 2 / (abs('CG Accel Lateral') * 9.81), 2000), abs('CG Accel Lateral') > 0.3)",
+      "unit": "m",
+      "dps": 0,
+      "description": "Radius of the path the car is on (speed\u00b2 \u00f7 lateral acceleration), shown while cornering (> 0.3 G). Smaller = tighter line; compare laps to see who opened the corner up.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4nego0",
+      "name": "Throttle Brake Overlap",
+      "expr": "choose('Throttle Pos' > 5 and 'Brake Pos' > 5, 1, 0)",
+      "unit": "",
+      "dps": 2,
+      "description": "1 while throttle and brake are both applied.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4o3uwv",
+      "name": "Coasting",
+      "expr": "choose('Throttle Pos' < 2 and 'Brake Pos' < 2 and 'Ground Speed' > 30, 1, 0)",
+      "unit": "",
+      "dps": 2,
+      "description": "1 while neither pedal is used (lost time!).",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4prib8",
+      "name": "Brake Steer Combination",
+      "expr": "100 * sqrt(clamp(('Brake Pos' - 2) / 98, 0, 1) * clamp((abs('Steering Angle') - 5) / 85, 0, 1))",
+      "unit": "%",
+      "dps": 1,
+      "description": "How much braking and steering are combined at once (trail braking): the geometric mean of brake (2\u2013100 %) and steering lock (5\u201390\u00b0). 0 = either input alone, 100 = full brake at 90\u00b0 lock. Edit the 85/90\u00b0 scale to suit the car.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4qdlk0",
+      "name": "Brake Steer Combination Lap",
+      "expr": "integrate_lap('Brake Steer Combination' / 100)",
+      "unit": "s",
+      "dps": 2,
+      "description": "Accumulated brake\u2013steer combining in the lap, in seconds of 'full brake at full lock'. Use the lap's last value (Trend: stat = last) to compare how much each lap trail-brakes.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4rtwn5",
+      "name": "Trail Braking Time Lap",
+      "expr": "integrate_lap(choose('Brake Pos' > 5 and abs('Steering Angle') > 10, 1, 0))",
+      "unit": "s",
+      "dps": 1,
+      "description": "Time in the lap spent braking (> 5 %) with steering lock on (> 10\u00b0).",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4s3r3w",
+      "name": "Tyre Wear Rate FL",
+      "expr": "clamp(smooth('Ground Speed' [m/s] * 'ndSlip FL' * max('Tire Load FL', 0), 0.2) / 5000, 0, 100)",
+      "unit": "",
+      "dps": 0,
+      "description": "How fast the FL tyre is wearing right now, 0\u2013100 (speed \u00d7 normalised slip \u00d7 load). Colour a track map by it to see where the rubber goes: lock-ups, wheelspin and slides light up.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4t6mfl",
+      "name": "Tyre Wear Rate FR",
+      "expr": "clamp(smooth('Ground Speed' [m/s] * 'ndSlip FR' * max('Tire Load FR', 0), 0.2) / 5000, 0, 100)",
+      "unit": "",
+      "dps": 0,
+      "description": "How fast the FR tyre is wearing right now, 0\u2013100 (speed \u00d7 normalised slip \u00d7 load). Colour a track map by it to see where the rubber goes: lock-ups, wheelspin and slides light up.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4ujams",
+      "name": "Tyre Wear Rate RL",
+      "expr": "clamp(smooth('Ground Speed' [m/s] * 'ndSlip RL' * max('Tire Load RL', 0), 0.2) / 5000, 0, 100)",
+      "unit": "",
+      "dps": 0,
+      "description": "How fast the RL tyre is wearing right now, 0\u2013100 (speed \u00d7 normalised slip \u00d7 load). Colour a track map by it to see where the rubber goes: lock-ups, wheelspin and slides light up.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4vk6a5",
+      "name": "Tyre Wear Rate RR",
+      "expr": "clamp(smooth('Ground Speed' [m/s] * 'ndSlip RR' * max('Tire Load RR', 0), 0.2) / 5000, 0, 100)",
+      "unit": "",
+      "dps": 0,
+      "description": "How fast the RR tyre is wearing right now, 0\u2013100 (speed \u00d7 normalised slip \u00d7 load). Colour a track map by it to see where the rubber goes: lock-ups, wheelspin and slides light up.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4wn7z5",
+      "name": "Tyre Wear Lap FL",
+      "expr": "integrate_lap('Ground Speed' [m/s] * 'ndSlip FL' * max('Tire Load FL', 0) / 5000)",
+      "unit": "m",
+      "dps": 0,
+      "description": "FL tyre wear accumulated in the lap: metres of full sliding at 5 kN. Proportional to the grip the game takes off (Tire Rubber Grip); use the lap's last value in a Lap Trend to compare laps, stints and drivers.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4xzekr",
+      "name": "Tyre Wear Lap FR",
+      "expr": "integrate_lap('Ground Speed' [m/s] * 'ndSlip FR' * max('Tire Load FR', 0) / 5000)",
+      "unit": "m",
+      "dps": 0,
+      "description": "FR tyre wear accumulated in the lap: metres of full sliding at 5 kN. Proportional to the grip the game takes off (Tire Rubber Grip); use the lap's last value in a Lap Trend to compare laps, stints and drivers.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4yfht3",
+      "name": "Tyre Wear Lap RL",
+      "expr": "integrate_lap('Ground Speed' [m/s] * 'ndSlip RL' * max('Tire Load RL', 0) / 5000)",
+      "unit": "m",
+      "dps": 0,
+      "description": "RL tyre wear accumulated in the lap: metres of full sliding at 5 kN. Proportional to the grip the game takes off (Tire Rubber Grip); use the lap's last value in a Lap Trend to compare laps, stints and drivers.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u4zi7g0",
+      "name": "Tyre Wear Lap RR",
+      "expr": "integrate_lap('Ground Speed' [m/s] * 'ndSlip RR' * max('Tire Load RR', 0) / 5000)",
+      "unit": "m",
+      "dps": 0,
+      "description": "RR tyre wear accumulated in the lap: metres of full sliding at 5 kN. Proportional to the grip the game takes off (Tire Rubber Grip); use the lap's last value in a Lap Trend to compare laps, stints and drivers.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u50n6n2",
+      "name": "Tyre Wear Lock-up FL",
+      "expr": "clamp(smooth('Ground Speed' [m/s] * 'ndSlip FL' * max('Tire Load FL', 0) * choose('Tire Slip Ratio FL' < 0, sqr('Tire Slip Ratio FL' / 100) / max(sqr('Tire Slip Ratio FL' / 100) + sqr(rad('Tire Slip Angle FL')), 0.000000001), 0), 0.2) / 5000, 0, 100)",
+      "unit": "",
+      "dps": 0,
+      "description": "Part of the FL wear rate from lock-ups / braking slip (negative slip ratio), 0\u2013100.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u5102co",
+      "name": "Tyre Wear Wheelspin FL",
+      "expr": "clamp(smooth('Ground Speed' [m/s] * 'ndSlip FL' * max('Tire Load FL', 0) * choose('Tire Slip Ratio FL' > 0, sqr('Tire Slip Ratio FL' / 100) / max(sqr('Tire Slip Ratio FL' / 100) + sqr(rad('Tire Slip Angle FL')), 0.000000001), 0), 0.2) / 5000, 0, 100)",
+      "unit": "",
+      "dps": 0,
+      "description": "Part of the FL wear rate from wheelspin / traction slip (positive slip ratio), 0\u2013100.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u52pr37",
+      "name": "Tyre Wear Slide FL",
+      "expr": "clamp(smooth('Ground Speed' [m/s] * 'ndSlip FL' * max('Tire Load FL', 0) * (1 - sqr('Tire Slip Ratio FL' / 100) / max(sqr('Tire Slip Ratio FL' / 100) + sqr(rad('Tire Slip Angle FL')), 0.000000001)), 0.2) / 5000, 0, 100)",
+      "unit": "",
+      "dps": 0,
+      "description": "Part of the FL wear rate from cornering slide (slip angle), 0\u2013100.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u53cuha",
+      "name": "Tyre Wear Lock-up FR",
+      "expr": "clamp(smooth('Ground Speed' [m/s] * 'ndSlip FR' * max('Tire Load FR', 0) * choose('Tire Slip Ratio FR' < 0, sqr('Tire Slip Ratio FR' / 100) / max(sqr('Tire Slip Ratio FR' / 100) + sqr(rad('Tire Slip Angle FR')), 0.000000001), 0), 0.2) / 5000, 0, 100)",
+      "unit": "",
+      "dps": 0,
+      "description": "Part of the FR wear rate from lock-ups / braking slip (negative slip ratio), 0\u2013100.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u54f8xy",
+      "name": "Tyre Wear Wheelspin FR",
+      "expr": "clamp(smooth('Ground Speed' [m/s] * 'ndSlip FR' * max('Tire Load FR', 0) * choose('Tire Slip Ratio FR' > 0, sqr('Tire Slip Ratio FR' / 100) / max(sqr('Tire Slip Ratio FR' / 100) + sqr(rad('Tire Slip Angle FR')), 0.000000001), 0), 0.2) / 5000, 0, 100)",
+      "unit": "",
+      "dps": 0,
+      "description": "Part of the FR wear rate from wheelspin / traction slip (positive slip ratio), 0\u2013100.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u55lhjk",
+      "name": "Tyre Wear Slide FR",
+      "expr": "clamp(smooth('Ground Speed' [m/s] * 'ndSlip FR' * max('Tire Load FR', 0) * (1 - sqr('Tire Slip Ratio FR' / 100) / max(sqr('Tire Slip Ratio FR' / 100) + sqr(rad('Tire Slip Angle FR')), 0.000000001)), 0.2) / 5000, 0, 100)",
+      "unit": "",
+      "dps": 0,
+      "description": "Part of the FR wear rate from cornering slide (slip angle), 0\u2013100.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u5624lm",
+      "name": "Tyre Wear Lock-up RL",
+      "expr": "clamp(smooth('Ground Speed' [m/s] * 'ndSlip RL' * max('Tire Load RL', 0) * choose('Tire Slip Ratio RL' < 0, sqr('Tire Slip Ratio RL' / 100) / max(sqr('Tire Slip Ratio RL' / 100) + sqr(rad('Tire Slip Angle RL')), 0.000000001), 0), 0.2) / 5000, 0, 100)",
+      "unit": "",
+      "dps": 0,
+      "description": "Part of the RL wear rate from lock-ups / braking slip (negative slip ratio), 0\u2013100.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u573505",
+      "name": "Tyre Wear Wheelspin RL",
+      "expr": "clamp(smooth('Ground Speed' [m/s] * 'ndSlip RL' * max('Tire Load RL', 0) * choose('Tire Slip Ratio RL' > 0, sqr('Tire Slip Ratio RL' / 100) / max(sqr('Tire Slip Ratio RL' / 100) + sqr(rad('Tire Slip Angle RL')), 0.000000001), 0), 0.2) / 5000, 0, 100)",
+      "unit": "",
+      "dps": 0,
+      "description": "Part of the RL wear rate from wheelspin / traction slip (positive slip ratio), 0\u2013100.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u581us5",
+      "name": "Tyre Wear Slide RL",
+      "expr": "clamp(smooth('Ground Speed' [m/s] * 'ndSlip RL' * max('Tire Load RL', 0) * (1 - sqr('Tire Slip Ratio RL' / 100) / max(sqr('Tire Slip Ratio RL' / 100) + sqr(rad('Tire Slip Angle RL')), 0.000000001)), 0.2) / 5000, 0, 100)",
+      "unit": "",
+      "dps": 0,
+      "description": "Part of the RL wear rate from cornering slide (slip angle), 0\u2013100.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u591e4a",
+      "name": "Tyre Wear Lock-up RR",
+      "expr": "clamp(smooth('Ground Speed' [m/s] * 'ndSlip RR' * max('Tire Load RR', 0) * choose('Tire Slip Ratio RR' < 0, sqr('Tire Slip Ratio RR' / 100) / max(sqr('Tire Slip Ratio RR' / 100) + sqr(rad('Tire Slip Angle RR')), 0.000000001), 0), 0.2) / 5000, 0, 100)",
+      "unit": "",
+      "dps": 0,
+      "description": "Part of the RR wear rate from lock-ups / braking slip (negative slip ratio), 0\u2013100.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u5ag4zk",
+      "name": "Tyre Wear Wheelspin RR",
+      "expr": "clamp(smooth('Ground Speed' [m/s] * 'ndSlip RR' * max('Tire Load RR', 0) * choose('Tire Slip Ratio RR' > 0, sqr('Tire Slip Ratio RR' / 100) / max(sqr('Tire Slip Ratio RR' / 100) + sqr(rad('Tire Slip Angle RR')), 0.000000001), 0), 0.2) / 5000, 0, 100)",
+      "unit": "",
+      "dps": 0,
+      "description": "Part of the RR wear rate from wheelspin / traction slip (positive slip ratio), 0\u2013100.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u5bazh7",
+      "name": "Tyre Wear Slide RR",
+      "expr": "clamp(smooth('Ground Speed' [m/s] * 'ndSlip RR' * max('Tire Load RR', 0) * (1 - sqr('Tire Slip Ratio RR' / 100) / max(sqr('Tire Slip Ratio RR' / 100) + sqr(rad('Tire Slip Angle RR')), 0.000000001)), 0.2) / 5000, 0, 100)",
+      "unit": "",
+      "dps": 0,
+      "description": "Part of the RR wear rate from cornering slide (slip angle), 0\u2013100.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u5c8lrf",
+      "name": "Tyre Wear Lock-up Avg",
+      "expr": "('Tyre Wear Lock-up FL' + 'Tyre Wear Lock-up FR' + 'Tyre Wear Lock-up RL' + 'Tyre Wear Lock-up RR') / 4",
+      "unit": "",
+      "dps": 0,
+      "description": "Lock-up part of the wear rate, averaged over the four tyres.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u5d460x",
+      "name": "Tyre Wear Wheelspin Avg",
+      "expr": "('Tyre Wear Wheelspin FL' + 'Tyre Wear Wheelspin FR' + 'Tyre Wear Wheelspin RL' + 'Tyre Wear Wheelspin RR') / 4",
+      "unit": "",
+      "dps": 0,
+      "description": "Wheelspin part of the wear rate, averaged over the four tyres.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u5eapj5",
+      "name": "Tyre Wear Slide Avg",
+      "expr": "('Tyre Wear Slide FL' + 'Tyre Wear Slide FR' + 'Tyre Wear Slide RL' + 'Tyre Wear Slide RR') / 4",
+      "unit": "",
+      "dps": 0,
+      "description": "Cornering-slide part of the wear rate, averaged over the four tyres.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u5fui92",
+      "name": "Tyre Wear Lock-up Front",
+      "expr": "('Tyre Wear Lock-up FL' + 'Tyre Wear Lock-up FR') / 2",
+      "unit": "",
+      "dps": 0,
+      "description": "Lock-up part of the wear rate, front axle (FL and FR averaged), 0\u2013100.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u5gluz3",
+      "name": "Tyre Wear Wheelspin Front",
+      "expr": "('Tyre Wear Wheelspin FL' + 'Tyre Wear Wheelspin FR') / 2",
+      "unit": "",
+      "dps": 0,
+      "description": "Wheelspin part of the wear rate, front axle (FL and FR averaged), 0\u2013100.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u5h2vig",
+      "name": "Tyre Wear Slide Front",
+      "expr": "('Tyre Wear Slide FL' + 'Tyre Wear Slide FR') / 2",
+      "unit": "",
+      "dps": 0,
+      "description": "Cornering-slide part of the wear rate, front axle (FL and FR averaged), 0\u2013100.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u5ij0tf",
+      "name": "Tyre Wear Left-Right Front",
+      "expr": "'Tyre Wear Rate FL' - 'Tyre Wear Rate FR'",
+      "unit": "",
+      "dps": 0,
+      "description": "Front axle wear-rate balance: FL minus FR. Above 0 = the left tyre is wearing faster there, below 0 = the right.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u5jj7nn",
+      "name": "Tyre Wear Lock-up Rear",
+      "expr": "('Tyre Wear Lock-up RL' + 'Tyre Wear Lock-up RR') / 2",
+      "unit": "",
+      "dps": 0,
+      "description": "Lock-up part of the wear rate, rear axle (RL and RR averaged), 0\u2013100.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u5kwxqn",
+      "name": "Tyre Wear Wheelspin Rear",
+      "expr": "('Tyre Wear Wheelspin RL' + 'Tyre Wear Wheelspin RR') / 2",
+      "unit": "",
+      "dps": 0,
+      "description": "Wheelspin part of the wear rate, rear axle (RL and RR averaged), 0\u2013100.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u5l013v",
+      "name": "Tyre Wear Slide Rear",
+      "expr": "('Tyre Wear Slide RL' + 'Tyre Wear Slide RR') / 2",
+      "unit": "",
+      "dps": 0,
+      "description": "Cornering-slide part of the wear rate, rear axle (RL and RR averaged), 0\u2013100.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u5mej96",
+      "name": "Tyre Wear Left-Right Rear",
+      "expr": "'Tyre Wear Rate RL' - 'Tyre Wear Rate RR'",
+      "unit": "",
+      "dps": 0,
+      "description": "Rear axle wear-rate balance: RL minus RR. Above 0 = the left tyre is wearing faster there, below 0 = the right.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u5nljub",
+      "name": "Tyre Wear Front-Rear",
+      "expr": "('Tyre Wear Rate FL' + 'Tyre Wear Rate FR') / 2 - ('Tyre Wear Rate RL' + 'Tyre Wear Rate RR') / 2",
+      "unit": "",
+      "dps": 0,
+      "description": "Front minus rear wear rate (each axle averaged). Above 0 = the fronts are wearing faster there, below 0 = the rears.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u5oxkr9",
+      "name": "Tyre Wear Left-Right",
+      "expr": "('Tyre Wear Rate FL' + 'Tyre Wear Rate RL') / 2 - ('Tyre Wear Rate FR' + 'Tyre Wear Rate RR') / 2",
+      "unit": "",
+      "dps": 0,
+      "description": "Left minus right wear rate (each side averaged). Above 0 = the left tyres are wearing faster there (right-hand corners load the left), below 0 = the right.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u5pkdvb",
+      "name": "Tyre Wear Front Share",
+      "expr": "100 * ('Tyre Wear Lap FL' + 'Tyre Wear Lap FR') / max('Tyre Wear Lap FL' + 'Tyre Wear Lap FR' + 'Tyre Wear Lap RL' + 'Tyre Wear Lap RR', 1)",
+      "unit": "%",
+      "dps": 1,
+      "description": "The fronts' share of the wear so far in the lap (50 = even). Its end-of-lap value in a Lap Trend is the front / rear balance per lap.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u5qef18",
+      "name": "Tyre Wear Left Share",
+      "expr": "100 * ('Tyre Wear Lap FL' + 'Tyre Wear Lap RL') / max('Tyre Wear Lap FL' + 'Tyre Wear Lap FR' + 'Tyre Wear Lap RL' + 'Tyre Wear Lap RR', 1)",
+      "unit": "%",
+      "dps": 1,
+      "description": "The left tyres' share of the wear so far in the lap (50 = even). Its end-of-lap value in a Lap Trend is the left / right balance per lap.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u5rhvlk",
+      "name": "Tyre Wear Rate Avg",
+      "expr": "('Tyre Wear Rate FL' + 'Tyre Wear Rate FR' + 'Tyre Wear Rate RL' + 'Tyre Wear Rate RR') / 4",
+      "unit": "",
+      "dps": 0,
+      "description": "Wear rate averaged over the four tyres, 0\u2013100. Colour a track map by its difference to the reference to see where a lap uses more rubber.",
+      "enabled": true
+    },
+    {
+      "id": "mmvse078u5suiga",
+      "name": "Tyre Wear Lap Avg",
+      "expr": "('Tyre Wear Lap FL' + 'Tyre Wear Lap FR' + 'Tyre Wear Lap RL' + 'Tyre Wear Lap RR') / 4",
+      "unit": "m",
+      "dps": 0,
+      "description": "Wear accumulated in the lap, averaged over the four tyres. Its end-of-lap value in a Lap Trend is the stint's tyre-wear figure per lap.",
+      "enabled": true
+    },
+    {
+      "id": "mmvy2je6y6c4sca",
+      "name": "Tyre Pressure Avg",
+      "expr": "('Tire Pressure FL' + 'Tire Pressure FR' + 'Tire Pressure RL' + 'Tire Pressure RR') / 4",
+      "unit": "psi",
+      "dps": 1,
+      "enabled": true
+    }
+  ],
+  "constants": [],
+  "channelProps": {
+    "Tyre Wear Lock-up FL": {
+      "color": "#e66767"
+    },
+    "Tyre Wear Wheelspin FL": {
+      "color": "#c98500"
+    },
+    "Tyre Wear Slide FL": {
+      "color": "#3987e5"
+    },
+    "Tyre Wear Left-Right FL": {
+      "color": "#9085e9"
+    },
+    "Tyre Wear Lock-up FR": {
+      "color": "#e66767"
+    },
+    "Tyre Wear Wheelspin FR": {
+      "color": "#c98500"
+    },
+    "Tyre Wear Slide FR": {
+      "color": "#3987e5"
+    },
+    "Tyre Wear Left-Right FR": {
+      "color": "#9085e9"
+    },
+    "Tyre Wear Lock-up RL": {
+      "color": "#e66767"
+    },
+    "Tyre Wear Wheelspin RL": {
+      "color": "#c98500"
+    },
+    "Tyre Wear Slide RL": {
+      "color": "#3987e5"
+    },
+    "Tyre Wear Left-Right RL": {
+      "color": "#9085e9"
+    },
+    "Tyre Wear Lock-up RR": {
+      "color": "#e66767"
+    },
+    "Tyre Wear Wheelspin RR": {
+      "color": "#c98500"
+    },
+    "Tyre Wear Slide RR": {
+      "color": "#3987e5"
+    },
+    "Tyre Wear Left-Right RR": {
+      "color": "#9085e9"
+    },
+    "Tyre Wear Lock-up Avg": {
+      "color": "#e66767"
+    },
+    "Tyre Wear Wheelspin Avg": {
+      "color": "#c98500"
+    },
+    "Tyre Wear Slide Avg": {
+      "color": "#3987e5"
+    },
+    "Tyre Wear Left-Right Avg": {
+      "color": "#9085e9"
+    },
+    "Tyre Wear Lock-up Front": {
+      "color": "#e66767"
+    },
+    "Tyre Wear Wheelspin Front": {
+      "color": "#c98500"
+    },
+    "Tyre Wear Slide Front": {
+      "color": "#3987e5"
+    },
+    "Tyre Wear Left-Right Front": {
+      "color": "#9085e9"
+    },
+    "Tyre Wear Lock-up Rear": {
+      "color": "#e66767"
+    },
+    "Tyre Wear Wheelspin Rear": {
+      "color": "#c98500"
+    },
+    "Tyre Wear Slide Rear": {
+      "color": "#3987e5"
+    },
+    "Tyre Wear Left-Right Rear": {
+      "color": "#9085e9"
+    },
+    "Tyre Wear Front-Rear": {
+      "color": "#9085e9",
+      "min": -30,
+      "max": 30
+    },
+    "Tyre Wear Left-Right": {
+      "color": "#199e70",
+      "min": -30,
+      "max": 30
+    },
+    "Tyre Wear Front Share": {
+      "color": "#9085e9"
+    },
+    "Tyre Wear Left Share": {
+      "color": "#199e70"
+    },
+    "KERS Deploy MJ": {
+      "color": "#199e70"
+    },
+    "KERS Regen MJ": {
+      "color": "#ff0000"
+    },
+    "Engine RPM": {
+      "color": "#f0dc05"
+    },
+    "MGU-K Rear Power": {
+      "color": "#c98500"
+    },
+    "Diff Entry": {
+      "color": "#ff0000"
+    },
+    "Diff Mid": {
+      "color": "#3987e5"
+    },
+    "Diff Exit": {
+      "color": "#199e70"
+    },
+    "EB Setting": {
+      "color": "#c98500"
+    },
+    "Full Throttle": {
+      "color": "#199e70"
+    },
+    "Brake Active": {
+      "color": "#ff0000"
+    },
+    "Rolling": {
+      "color": "#c98500"
+    },
+    "Partial Throttle": {
+      "color": "#9085e9"
+    },
+    "Braking": {
+      "color": "#ff0000"
+    },
+    "Throttle Pedal": {
+      "color": "#199e70"
+    }
+  },
+  "createdAt": 0,
+  "updatedAt": 0
+}

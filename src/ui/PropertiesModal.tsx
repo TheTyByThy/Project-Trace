@@ -616,6 +616,36 @@ export function ComponentForm({ c }: { c: ComponentConfig }) {
           </div>
         </div>
       );
+    case 'optimum':
+      return (
+        <div className="props-grid">
+          <div>
+            <G title="Optimum corners">
+              <div className="row" style={{ gap: 6, marginBottom: 10 }}>
+                {(
+                  [
+                    ['table', 'Corner table'],
+                    ['map', 'Track map'],
+                    ['picker', 'Corner picker'],
+                  ] as const
+                ).map(([v, label]) => (
+                  <button key={v} className={'btn small' + ((c.view ?? 'table') === v ? ' active' : '')} onClick={() => up({ view: v })}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+                The best time through each of the track's corners across the eligible laps (Choose laps… on the component; the current stint until you pick), against
+                the fastest of them. Corners only, from real laps: nothing is stitched into a lap. Click a corner to select the reference and the lap that drove it best,
+                zoomed to the corner, so the graphs and maps on every sheet show how.
+              </div>
+            </G>
+          </div>
+          <div>
+            <TrackEditorLink />
+          </div>
+        </div>
+      );
     case 'phases':
       return (
         <div className="props-grid">

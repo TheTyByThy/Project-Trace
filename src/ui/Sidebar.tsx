@@ -17,6 +17,9 @@ import {
   fastestAsReference,
   moveSession,
   setInvalidCounts,
+  sortSessions,
+  currentSessionSort,
+  type SessionSort,
   refLap,
   selectLap,
   selectWholeSession,
@@ -206,6 +209,33 @@ function SessionCard({ s }: { s: Session }) {
   );
 }
 
+/** Quick ordering of the session cards: by date / time driven, or by best lap. Click again to reverse. */
+function SessionSortBar() {
+  const sessions = useStore((s) => s.sessions);
+  const cur = currentSessionSort(sessions);
+  const btn = (by: SessionSort, label: string, asc: string, desc: string) => {
+    const on = cur?.by === by;
+    return (
+      <button
+        className={on ? 'on' : ''}
+        title={on ? `Sorted ${cur!.desc ? desc : asc} — click to reverse` : `Sort the stints by ${label.toLowerCase()} (${asc})`}
+        onClick={() => sortSessions(by, on ? !cur!.desc : false)}
+      >
+        {label} {on ? (cur!.desc ? '↓' : '↑') : ''}
+      </button>
+    );
+  };
+  return (
+    <div className="row session-sort">
+      <span className="muted">Sort stints</span>
+      <div className="seg">
+        {btn('date', 'Date / time', 'oldest first', 'newest first')}
+        {btn('best', 'Best lap', 'fastest first', 'slowest first')}
+      </div>
+    </div>
+  );
+}
+
 function LapsPanel() {
   const sessions = useStore((s) => s.sessions);
   const loading = useStore((s) => s.loading);
@@ -228,6 +258,7 @@ function LapsPanel() {
           </div>
         </div>
       ))}
+      {sessions.length > 1 && <SessionSortBar />}
       {sessions.map((s) => (
         <SessionCard key={s.id} s={s} />
       ))}

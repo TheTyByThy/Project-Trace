@@ -25,6 +25,7 @@ export type ComponentType =
   | 'bars'
   | 'breakdown'
   | 'phases'
+  | 'optimum'
   | 'tyrewear'
   | 'wearwheels'
   | 'wearbalance'
@@ -109,6 +110,13 @@ export interface BreakdownConfig extends Base {
   showBars?: boolean;
   /** The reference lap's time in each bucket (default on). */
   showTimes?: boolean;
+}
+
+/** Optimum corners: each corner's best time across the eligible laps against the fastest of them. */
+export interface OptimumConfig extends Base {
+  type: 'optimum';
+  /** 'table': the corners with their time to find (default); 'map': the track shaded by it; 'picker': a slim corner switcher. */
+  view?: 'table' | 'map' | 'picker';
 }
 
 /** Pedal phases: each selected lap's time split into braking, full throttle, part throttle and rolling, plus the straights. */
@@ -494,6 +502,7 @@ export type ComponentConfig =
   | BarsConfig
   | BreakdownConfig
   | PedalPhasesConfig
+  | OptimumConfig
   | TyreWearConfig
   | WearWheelsConfig
   | WearBalanceConfig
