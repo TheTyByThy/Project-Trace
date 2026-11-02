@@ -6,7 +6,7 @@
 import { Fragment, useMemo } from 'react';
 import { lapTint } from '../core/colors';
 import { formatDelta, formatLapTime, formatValue, prettyTrack } from '../core/format';
-import { fastestLap, segmentTimes, theoreticalBest } from '../core/session';
+import { fastestLap, lapCounts, segmentTimes, theoreticalBest } from '../core/session';
 import { rangeStats } from '../core/stats';
 import { lapKey, type Lap, type Session } from '../core/types';
 import { convertUnit } from '../core/units';
@@ -81,7 +81,7 @@ export function LapReportView({ config }: { config: LapReportConfig | SelectedLa
           let b = Infinity;
           for (const r of rows) {
             const v = r.splits[i];
-            if (!r.lap.invalid && valid(v) && v < b) b = v;
+            if (lapCounts(s, r.lap) && valid(v) && v < b) b = v;
           }
           return b;
         });
@@ -229,7 +229,7 @@ export function LapReportView({ config }: { config: LapReportConfig | SelectedLa
                         {show.tags && lap.invalid && <span className="tag bad">invalid</span>}
                         {show.tags && onlySelected && key === refKey && <span className="tag">ref</span>}
                       </td>
-                      <td className={'num' + (isBest && fl ? bestClass(lap.time, fl.time, overallLap) : '') + (lap.invalid ? ' bad' : '')}>
+                      <td className={'num' + (isBest && fl ? bestClass(lap.time, fl.time, overallLap) : '') + (lapCounts(s, lap) ? '' : ' bad')}>
                         {lap.complete ? formatLapTime(lap.time) : <span className="muted">{formatLapTime(lap.time)}</span>}
                       </td>
                       {show.delta && <td className="num muted">{delta}</td>}
@@ -245,7 +245,7 @@ export function LapReportView({ config }: { config: LapReportConfig | SelectedLa
                             );
                           }
                           return (
-                            <td key={i} className={'num' + (lap.invalid ? '' : bestClass(v, best[i], overallSplits[i]))}>
+                            <td key={i} className={'num' + (lapCounts(s, lap) ? bestClass(v, best[i], overallSplits[i]) : '')}>
                               {valid(v) ? formatLapTime(v) : <span className="muted">—</span>}
                             </td>
                           );

@@ -8,7 +8,7 @@ import { lapColor, type Theme } from '../core/colors';
 import { DEFAULT_CORNER_SETTINGS, type CornerSettings, type TrackCorner } from '../core/corners';
 import { applyMathChannels, type MathChannelDef, type MathConstant } from '../core/math/evaluate';
 import { applyChannelMasters, DEFAULT_CHANNEL_MASTERS, type ChannelMaster } from '../core/channelMasters';
-import { fastestLap, getLap, theoreticalBest } from '../core/session';
+import { fastestLap, getLap, lapCounts, theoreticalBest } from '../core/session';
 import { lapKey, parseLapKey, type Lap, type Session, type XMode } from '../core/types';
 import { DEFAULT_UNITS, type UnitPrefs } from '../core/units';
 import { DEFAULT_LIVE, type LiveSettings } from '../core/sims';
@@ -65,6 +65,8 @@ export interface Settings {
   activeWorkspaceId: string;
   trackProfiles: Record<string, TrackProfile>;
   hideConstant: boolean;
+  /** Sessions (file paths) whose invalid laps are left out of their bests; by default invalid laps count. */
+  excludeInvalid: string[];
   sidebarWidth: number;
   inspectorWidth: number;
   /** Reference lap drawn in per-channel colours, or entirely in its lap colour (toggle: J). */
@@ -100,6 +102,7 @@ export const DEFAULT_SETTINGS: Settings = {
   activeWorkspaceId: '',
   trackProfiles: {},
   hideConstant: false,
+  excludeInvalid: [],
   sidebarWidth: 300,
   inspectorWidth: 340,
   refColors: 'channel',
@@ -782,6 +785,7 @@ export async function openFiles(paths: string[], mode: 'replace' | 'add' = 'repl
       );
       const ws = activeWorkspace();
       applyChannelMasters(session, get().settings.channelMasters);
+      session.invalidCounts = !(get().settings.excludeInvalid ?? []).includes(session.path);
       const res = applyMathChannels(session, ws.math, ws.constants);
       set((s) => ({
         sessions: [...s.sessions, session],
@@ -811,9 +815,23 @@ function rememberRecent(path: string) {
   updateSettings({ recent, lastBrowsePath: dirName(path) });
 }
 
+/**
+ * Per stint: whether its invalid laps count for its bests (best lap, purple / green sectors, ideal lap).
+ * They count by default; the choice is remembered per file. Nothing else looks at validity.
+ */
+export function setInvalidCounts(id: string, counts: boolean) {
+  const s = get().sessions.find((o) => o.id === id);
+  if (!s || s.invalidCounts === counts) return;
+  s.invalidCounts = counts;
+  const others = (get().settings.excludeInvalid ?? []).filter((p) => p !== s.path);
+  set((st) => ({ sessions: [...st.sessions], dataVersion: st.dataVersion + 1 }));
+  updateSettings({ excludeInvalid: counts ? others : [...others, s.path] });
+  cacheSessionInfo(s);
+}
+
 function cacheSessionInfo(s: Session) {
   const fl = fastestLap(s, true);
-  const valid = fl && !fl.invalid ? fl : undefined;
+  const valid = fl && lapCounts(s, fl) ? fl : undefined;
   const ideal = theoreticalBest(s);
   set((st) => ({
     sessionCache: {

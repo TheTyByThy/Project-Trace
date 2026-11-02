@@ -30,6 +30,7 @@ import {
   setCursor,
   setMeasure,
   setSmoothing,
+  setInvalidCounts,
   setTrackProfile,
   setUi,
   resetRotation,
@@ -190,12 +191,15 @@ function installAutomation() {
       'phases-4',
       'phases-4-delta',
       'phases-4-pct-delta',
+      'invalid-counts',
+      'invalid-excluded',
       'time-axis',
       'light-theme',
     ],
     runExtra: (name: string) => {
       setUi({ math: name === 'math-editor', palette: name === 'command-palette', settings: name === 'settings' || name === 'live-mode' || name === 'settings-masters',
         settingsTab: name === 'settings-masters' ? 'masters' : 'general', shortcuts: name === 'shortcuts', properties: false, trackProfile: false });
+      if (name !== 'invalid-excluded') for (const o of useStore.getState().sessions) setInvalidCounts(o.id, true);
       const ref = selectedLaps()[0];
       const venue = ref?.session.meta.venue ?? '';
       if (name === 'corners-and-gps') {
@@ -358,6 +362,14 @@ function installAutomation() {
             .forEach((l, i) => selectLap(lapKey({ sessionId: s.id, lapIndex: l.index }), i ? 'add' : 'replace'));
           const ph = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'phases');
           if (ph) updateComponent(ph.id, { mode: name === 'phases-4' ? 'absolute' : 'delta', units: name === 'phases-4-pct-delta' ? 'pct' : 's' });
+        }
+      } else if (name === 'invalid-counts' || name === 'invalid-excluded') {
+        // The lap report and session card with the stint's invalid laps counting for bests (default), then left out.
+        const s = useStore.getState().sessions[0];
+        const idx = sheetIndex('Stint');
+        if (s) {
+          setInvalidCounts(s.id, name === 'invalid-counts');
+          setActiveSheet(idx >= 0 ? idx : 0);
         }
       } else if (name === 'compare-lap') {
         // A third lap selected; the Driver sheet's gain/loss map compares it instead of the first overlay.

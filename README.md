@@ -214,7 +214,7 @@ No telemetry yet? Click **Bundled sample session** to explore a 6-lap Singapore 
 ![Lap analysis](docs/images/lap-analysis.png)
 
 - **Exact lap and sector times** matching the game.
-- **Out, in, partial and invalid laps** flagged.
+- **Out, in, partial and invalid laps** flagged. Invalid laps still count for bests, purple sectors and the ideal lap unless you turn that off per stint.
 - **Lap report** (selected laps; sectors as times or **Δ to the reference**) and **stint report** (every lap of the selected stints, with the **ideal lap**). Bests fill the cell: green = stint best, purple = best of everything open.
 - **Channel report** (min/max/avg/std per lap) and a **corner report** built from your corners — ranges found from your braking and throttle (adjustable with sliders), each corner tagged low / medium / high speed, plus the straights between them.
 - **Lap playback** (▶ / Space, 0.25×–4×), **PDF printout** of any worksheet (Ctrl/⌘+P), **fuel-corrected lap times**, a **grip envelope** on the G-G diagram, and a **Corner Radius** channel.

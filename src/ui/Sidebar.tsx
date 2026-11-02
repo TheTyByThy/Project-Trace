@@ -16,6 +16,7 @@ import {
   closeSession,
   fastestAsReference,
   moveSession,
+  setInvalidCounts,
   refLap,
   selectLap,
   selectWholeSession,
@@ -37,11 +38,12 @@ function SessionCard({ s }: { s: Session }) {
   const refKey = useStore((st) => st.refKey);
   useStore((st) => st.settings.theme);
   const colorOf = new Map(selectedLaps().map((l) => [l.key, l.color]));
-  // The best lap may be an invalid one (it's still the fastest you went); it keeps its INV tag.
-  const fl = fastestLap(s, false);
+  // The best lap may be an invalid one (it's still the fastest you went) unless this stint leaves invalid
+  // laps out of its bests; it keeps its INV tag either way.
+  const fl = fastestLap(s);
   // Best of every open session at this track: the stint best is purple only when it is also this.
   const sessions = useStore((st) => st.sessions);
-  const overallBest = Math.min(...sessions.filter((o) => o.meta.venue === s.meta.venue).map((o) => fastestLap(o, false)?.time ?? Infinity));
+  const overallBest = Math.min(...sessions.filter((o) => o.meta.venue === s.meta.venue).map((o) => fastestLap(o)?.time ?? Infinity));
   const tr = prettyTrack(s.meta.venue);
   const wholeKey = lapKey({ sessionId: s.id, lapIndex: -1 });
   const index = sessions.findIndex((o) => o.id === s.id);
@@ -55,6 +57,13 @@ function SessionCard({ s }: { s: Session }) {
       { label: 'Move down', disabled: index >= sessions.length - 1, onClick: () => moveSession(s.id, index + 1) },
       { label: 'Move to top', disabled: index <= 0, onClick: () => moveSession(s.id, 0) },
       { label: 'Move to bottom', disabled: index >= sessions.length - 1, onClick: () => moveSession(s.id, sessions.length - 1) },
+      { separator: true },
+      {
+        label: 'Invalid laps count for bests',
+        checked: s.invalidCounts,
+        detail: s.laps.some((l) => l.invalid) ? undefined : 'none in this stint',
+        onClick: () => setInvalidCounts(s.id, !s.invalidCounts),
+      },
       { separator: true },
       { label: 'Close session', onClick: () => closeSession(s.id) },
     ]);
@@ -102,6 +111,16 @@ function SessionCard({ s }: { s: Session }) {
             <div className="muted" style={{ fontSize: 11 }}>
               {s.meta.savedAt ? new Date(s.meta.savedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : ''}
               <SessionCompounds s={s} />
+              {!s.invalidCounts && (
+                <span
+                  className="tag bad"
+                  style={{ marginLeft: 6, cursor: 'pointer' }}
+                  title="Invalid laps are left out of this stint's best lap, best sectors and ideal lap. Click to count them again."
+                  onClick={() => setInvalidCounts(s.id, true)}
+                >
+                  inv excluded
+                </span>
+              )}
             </div>
           </div>
           <button className="btn icon ghost" title="Close session" onClick={() => closeSession(s.id)}>

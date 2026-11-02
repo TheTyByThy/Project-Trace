@@ -21,6 +21,8 @@ Project-Trace uses the best evidence in the file, in this order:
 | **INV** | AC's `Lap Invalidated` flag was set during the lap (track limits, cuts) |
 | **BEST** | fastest complete lap in the sidebar, **even if it's invalid** (it keeps its INV tag); green = stint best, purple = best of everything open |
 
+**Invalid laps are only marked.** By default an invalid lap counts like any other: it can be the BEST lap, set a purple or green sector and go into the Ideal lap, and it keeps its INV tag. To leave a stint's invalid laps out of its bests, **right-click the session card's header → Invalid laps count for bests** (untick). The card then shows an **INV EXCLUDED** tag (click it to count them again). The choice is remembered per file. Nothing else looks at validity (the Lap Trend's own *Valid laps only* option still works as before).
+
 ## Reference and overlay laps
 
 | In the sidebar or lap report | Effect |
@@ -59,7 +61,7 @@ Two components show lap and sector times:
 | Column | |
 |---|---|
 | swatch / Lap | the lap's colour if selected (outlined = reference); the lap cell is tinted in the lap's colour |
-| Time | lap time (grey if incomplete; invalid laps are marked by their *invalid* tag, not crossed out) |
+| Time | lap time (grey if incomplete; invalid laps are marked by their *invalid* tag, not crossed out, and greyed only when their stint leaves invalid laps out of its bests) |
 | Δ ref / Δ best | Lap Report: gap to the reference · Stint Report: gap to the fastest lap |
 | S1…Sn | sector or section times |
 | V max | maximum speed (in your speed unit) |

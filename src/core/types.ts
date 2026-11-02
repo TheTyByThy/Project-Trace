@@ -133,6 +133,12 @@ export interface Session {
   loadedAt: number;
   fileSize: number;
   fileMtime: number;
+  /**
+   * Whether invalid laps count like valid ones for the session's bests (best lap, purple / green sectors,
+   * ideal lap). Default true; false leaves them out (per stint, from the session card's menu). Either way
+   * they keep their INV tag.
+   */
+  invalidCounts: boolean;
 }
 
 export interface LapRef {

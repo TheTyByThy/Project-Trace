@@ -98,6 +98,7 @@ export function buildSession(parsed: ParsedFile, src: SourceInfo): Session {
     loadedAt: Date.now(),
     fileSize: src.size,
     fileMtime: src.mtime,
+    invalidCounts: true,
   };
 
   buildLaps(session);
@@ -422,10 +423,14 @@ export function getLap(s: Session, index: number): Lap | undefined {
   return index === -1 ? s.sessionLap : s.laps[index];
 }
 
+/** Whether a lap can set the session's bests: valid laps always, invalid ones unless the stint leaves them out. */
+export const lapCounts = (s: Session, l: Lap) => !l.invalid || s.invalidCounts !== false;
+
+/** The fastest complete lap; with `validOnly`, only laps that count for bests (see lapCounts). */
 export function fastestLap(s: Session, validOnly = true): Lap | undefined {
   let best: Lap | undefined;
   for (const l of s.laps) {
-    if (!l.complete || (validOnly && l.invalid)) continue;
+    if (!l.complete || (validOnly && !lapCounts(s, l))) continue;
     if (!best || l.time < best.time) best = l;
   }
   if (!best && validOnly) return fastestLap(s, false);
@@ -442,13 +447,13 @@ export function lapLabel(lap: Lap): string {
   return `Lap ${lap.number}${tag}`;
 }
 
-/** Ideal lap: sum of best sector times across complete laps. */
+/** Ideal lap: sum of best sector times across the laps that count for bests. */
 export function theoreticalBest(s: Session): { time: number; sectors: number[] } | null {
   const k = s.sectorSplits.length + 1;
   if (k < 2) return null;
   const best = new Array(k).fill(Infinity);
   for (const l of s.laps) {
-    if (l.invalid) continue;
+    if (!lapCounts(s, l)) continue;
     l.sectors.forEach((v, i) => {
       if (Number.isFinite(v) && v > 0 && v < best[i]) best[i] = v;
     });
