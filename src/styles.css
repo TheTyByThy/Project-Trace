@@ -24,6 +24,8 @@
   --serious: #ec835a;
   --critical: #d03b3b;
   --best: #9085e9;
+  /* Straights in the corner tables: a calm slate, apart from the lap, bucket and gain/loss colours. */
+  --straight: #7d93b2;
   --pb: #14a05a;
   --gain: #3fbf7a;
   --loss: #e66767;
@@ -49,6 +51,7 @@
   --cursor: #0b0b0b;
   --road: #e2e0db;
   --best: #6250d6;
+  --straight: #5a7090;
   --pb: #0f8a4a;
   --gain: #0f8a4a;
   --loss: #e34948;
@@ -1621,7 +1624,15 @@ table.grid td.bad {
   background: color-mix(in srgb, #d55181 55%, transparent);
 }
 .bucket-chip.straight {
-  background: color-mix(in srgb, var(--text-3) 45%, transparent);
+  background: color-mix(in srgb, var(--straight) 55%, transparent);
+}
+/* Straight rows in the Corner Report: a slate stripe and tint, so they stand apart from the corners. */
+table.grid tr.straight-row > td {
+  background-color: color-mix(in srgb, var(--straight) 11%, transparent);
+  color: var(--text-2);
+}
+table.grid tr.straight-row > td:first-child {
+  box-shadow: inset 3px 0 0 var(--straight);
 }
 /* Corner range & speed bucket sliders. */
 .corner-settings {
@@ -2422,4 +2433,8 @@ table.grid tr.group-title td {
 }
 .session-sort .seg button {
   font-size: 11.5px;
+}
+
+.opt-dialog .session-sort {
+  padding: 2px 0 0;
 }

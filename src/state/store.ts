@@ -274,7 +274,9 @@ let lastSaveError = 0;
 /** Write a workspace file. A failure is always shown (autosave failures at most every 15 s). Resolves to the path, or null. */
 async function writeWorkspace(ws: Workspace, autosave = false): Promise<string | null> {
   try {
-    return await pt().saveWorkspace(ws);
+    const file = await pt().saveWorkspace(ws);
+    onDisk.add(ws.id);
+    return file;
   } catch (e) {
     if (!autosave || Date.now() - lastSaveError > 15000) toast(`Couldn't save "${ws.name}": ${fileError(e)}`, 'error', 12000);
     lastSaveError = Date.now();
@@ -673,16 +675,44 @@ function normalizeBuiltIn(w: Workspace): Workspace {
   return { ...normalizeWorkspace(w), locked: true, createdAt: 0, updatedAt: 0 };
 }
 
-/** Pick up workspace files that appeared in the workspaces folder (e.g. one someone shared). */
+/**
+ * Personal workspaces that have been in the workspaces folder (listed from it, or saved to it). Only these
+ * are removed when their file disappears, so a new workspace whose first save is still on its way stays.
+ */
+const onDisk = new Set<string>();
+
+/**
+ * Keep the workspace list in step with the workspaces folder: pick up files that appeared (e.g. one someone
+ * shared) and drop workspaces whose file was deleted (e.g. in Finder / Explorer) — otherwise the app would
+ * keep showing them and write them back on the next save.
+ */
 export async function syncWorkspacesFromFolder() {
   const list = (await pt()
     .listWorkspaces()
-    .catch(() => [])) as Workspace[];
+    .catch(() => null)) as Workspace[] | null;
+  // Couldn't read the folder: change nothing (an empty answer here must not wipe the list).
+  if (!list) return;
+  const valid = list.filter((w) => w && Array.isArray(w.worksheets));
+  const inFolder = new Set(valid.map((w) => w.id));
   const known = new Set(get().workspaces.map((w) => w.id));
-  const added = list.filter((w) => w && Array.isArray(w.worksheets) && !known.has(w.id)).map(normalizeWorkspace);
-  if (!added.length) return;
-  set((s) => ({ workspaces: [...s.workspaces, ...added] }));
-  toast(`Added ${added.map((w) => `"${w.name}"`).join(', ')} from your workspaces folder — switch to it in the Workspace menu.`, 'success', 5000);
+  const added = valid.filter((w) => !known.has(w.id)).map(normalizeWorkspace);
+  const removed = get().workspaces.filter((w) => !w.locked && onDisk.has(w.id) && !inFolder.has(w.id));
+  for (const id of inFolder) onDisk.add(id);
+  if (!added.length && !removed.length) return;
+  for (const w of removed) {
+    onDisk.delete(w.id);
+    cancelSave(w.id);
+  }
+  const gone = new Set(removed.map((w) => w.id));
+  set((s) => ({ workspaces: [...s.workspaces.filter((w) => !gone.has(w.id)), ...added] }));
+  if (gone.has(get().settings.activeWorkspaceId)) {
+    // The open workspace was deleted: switch to another of yours, else a built-in one.
+    const ws = get().workspaces;
+    setActiveWorkspace((ws.find((w) => !w.locked) ?? ws.find((w) => w.id !== STARTER_ID && w.locked) ?? ws[0]).id);
+  }
+  if (removed.length)
+    toast(`Removed ${removed.map((w) => `"${w.name}"`).join(', ')}: ${removed.length > 1 ? 'their files were' : 'its file was'} deleted from your workspaces folder.`, 'info', 6000);
+  if (added.length) toast(`Added ${added.map((w) => `"${w.name}"`).join(', ')} from your workspaces folder — switch to it in the Workspace menu.`, 'success', 5000);
 }
 
 export async function initApp() {
@@ -740,6 +770,7 @@ export async function initApp() {
   const builtIns = [starterWorkspace(), ...(Array.isArray(defaults) ? defaults : []).map(normalizeBuiltIn)];
   const builtInIds = new Set(builtIns.map((w) => w.id));
   let workspaces = (list as Workspace[]).filter((w) => w && Array.isArray(w.worksheets) && !builtInIds.has(w.id)).map(normalizeWorkspace);
+  for (const w of workspaces) onDisk.add(w.id);
   if (!workspaces.length) {
     const mine = buildDefaultWorkspace('My Workspace');
     workspaces = [mine];
@@ -1492,6 +1523,7 @@ export function deleteWorkspace(id: string) {
   recordHistory('Delete workspace');
   set({ workspaces: workspaces.filter((w) => w.id !== id) });
   cancelSave(id);
+  onDisk.delete(id);
   pt().deleteWorkspace(id);
   if (get().settings.activeWorkspaceId === id) setActiveWorkspace(get().workspaces.find((w) => !w.locked)!.id);
 }

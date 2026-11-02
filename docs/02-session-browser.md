@@ -37,6 +37,7 @@ Project-Trace remembers the last folder you opened a session from. Next launch i
 | **Track** | Track name, with the layout underneath. |
 | **Driver** | Driver name from the file. |
 | **Car** | Car folder name prettified, plus the livery/team. |
+| **Tyre** | The tyre compound (badge with the compound number, e.g. C3), read from the log's `Tyres Compound` channel; two badges if the tyres were changed during the log. Click the header to group stints by compound. |
 | **Laps** | Complete laps / total laps (the first lap of a log is normally a partial out lap). |
 | **Best lap** | Fastest complete lap from the header, with its lap number. The fastest in the folder is highlighted. |
 | **Air / track** | Ambient and track temperatures at the start. |

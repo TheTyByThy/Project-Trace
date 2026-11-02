@@ -92,6 +92,10 @@ export interface SessionSummary {
   roadTemp: number | null;
   fuelStart: number | null;
   sky: string;
+  /** Tyre compound indexes ('Tyres Compound'), in order of use — sampled through the log; empty without the channel. */
+  compounds: number[];
+  /** The .ldx's names for them, if it has any. */
+  enums?: Record<string, Record<number, string>>;
 }
 
 const summaryCache = new Map<string, SessionSummary>();
@@ -123,6 +127,7 @@ export async function summarizeFile(f: DirFile): Promise<SessionSummary> {
     roadTemp: null,
     fuelStart: null,
     sky: '',
+    compounds: [],
   };
   try {
     if (isLd(f.path)) {
@@ -175,6 +180,7 @@ export async function summarizeFile(f: DirFile): Promise<SessionSummary> {
       roadTemp: firstNum(/^(road|track) temp$/i),
       fuelStart: firstNum(/^fuel level$/i),
       sky: m.details['Sky']?.value ?? '',
+      compounds: firstNum(/^tyres? compound$/i) != null ? [Math.round(firstNum(/^tyres? compound$/i)!)] : [],
     });
   } catch (e) {
     base.error = (e as Error).message;
@@ -203,6 +209,20 @@ async function summarizeLd(f: DirFile): Promise<Partial<SessionSummary>> {
       if (v > 1e8) gameTimeUtc = v;
     }
   }
+  // Tyre compound: a few samples through the log (out lap, middle, end), so a tyre change shows both.
+  const compounds: number[] = [];
+  const comp = chans.find((c) => /^tyres? compound$/i.test(c.name));
+  if (comp && comp.n > 0) {
+    const size = comp.dtype === 2 ? 2 : comp.dtype === 8 ? 8 : 4;
+    for (const f0 of [0.15, 0.5, 0.95]) {
+      const k = Math.min(comp.n - 1, Math.floor(comp.n * f0));
+      const bytes = await pt().readRange(f.path, comp.dataPtr + k * size, 8);
+      if (bytes.byteLength < size) continue;
+      const v = Math.round(ldSample(new DataView(bytes), { ...comp, dataPtr: 0 }, 0));
+      if (Number.isFinite(v) && v >= 0 && !compounds.includes(v)) compounds.push(v);
+    }
+  }
+  let enums: Record<string, Record<number, string>> | undefined;
   let lapTimes: number[] = [];
   let team = '';
   let sky = '';
@@ -220,6 +240,7 @@ async function summarizeLd(f: DirFile): Promise<Partial<SessionSummary>> {
         return d;
       });
     team = x.details['Team']?.value ?? '';
+    if (Object.keys(x.enums).length) enums = x.enums;
     sky = x.details['Sky']?.value ?? '';
     air = Number(x.details['Air Temp']?.value) || null;
     road = Number(x.details['Track Temp']?.value) || null;
@@ -253,5 +274,7 @@ async function summarizeLd(f: DirFile): Promise<Partial<SessionSummary>> {
     roadTemp: road,
     fuelStart: null,
     sky,
+    compounds,
+    enums,
   };
 }

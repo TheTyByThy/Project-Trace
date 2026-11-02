@@ -20,6 +20,7 @@ import { convertUnit } from '../core/units';
 import { selectedLaps, selectLap, setCursor, setHighlight, setXMode, setZoom, trackProfile, trackRotation, useStore } from '../state/store';
 import type { OptimumConfig } from '../state/workspace';
 import { SessionCompounds } from '../ui/CompoundBadge';
+import { SessionSortBar } from '../ui/Sidebar';
 import { openTrackEditor } from '../ui/TrackProfileEditor';
 import { chartTheme, prepCanvas, useElementSize } from './canvas';
 import { lapPath, makeProjector, positionAt } from './trackGeo';
@@ -115,6 +116,16 @@ export function focusCorner(o: Optimum, c: OptimumCorner) {
   setCursor(c.seg.apex);
 }
 
+/** Leave the corner: no corner in focus and the whole lap back in view (the selected laps stay). */
+export function unfocusCorner() {
+  useOptimum.setState({ active: null });
+  setHighlight(null);
+  setZoom(null);
+}
+
+/** Click on a corner: focus it, or leave it when it's the one in focus. */
+const toggleCorner = (o: Optimum, c: OptimumCorner) => (useOptimum.getState().active === c.seg.name ? unfocusCorner() : focusCorner(o, c));
+
 const inTrackOrder = (o: Optimum) => o.corners;
 const sorted = (o: Optimum, sort: OptimumState['sort']) =>
   sort === 'gain' ? o.corners.slice().sort((a, b) => (Number.isFinite(b.gain) ? b.gain : -1) - (Number.isFinite(a.gain) ? a.gain : -1)) : inTrackOrder(o);
@@ -206,7 +217,7 @@ function OptimumTable({ d, o, onChoose }: { d: OptimumData; o: Optimum; onChoose
         <div className="muted opt-sub">
           Reference <b style={{ color: 'var(--text)' }}>{lapName(o.ref, multi)}</b> {formatLapTime(o.ref.lap.time)}, the fastest of {o.laps.length} eligible lap
           {o.laps.length === 1 ? '' : 's'}. {found.length} of {o.corners.length} corners were driven faster on another lap{found.length ? ` (${fromLaps} lap${fromLaps === 1 ? '' : 's'})` : ''}. Click a corner
-          to see how.
+          to see how (click it again to leave it).
         </div>
       </div>
       <table className="grid opt-table">
@@ -219,7 +230,9 @@ function OptimumTable({ d, o, onChoose }: { d: OptimumData; o: Optimum; onChoose
             <th className="l" title="How much slower the reference is than the best through this corner">
               Δ ref to best
             </th>
-            <th title={`Minimum speed: reference / best (${speedUnit})`}>Min speed</th>
+            <th title={`Minimum speed of the best lap minus the reference's (${speedUnit}), on the corners with time to find. + = the best lap carried more speed; − = it was quicker despite less (the time came from entry or exit). Hover for both speeds.`}>
+              Δ min speed
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -231,7 +244,8 @@ function OptimumTable({ d, o, onChoose }: { d: OptimumData; o: Optimum; onChoose
               <tr
                 key={c.seg.name + c.seg.entry}
                 className={'click' + (active === c.seg.name ? ' sel' : '')}
-                onClick={() => focusCorner(o, c)}
+                onClick={() => toggleCorner(o, c)}
+                title={active === c.seg.name ? 'Click again to leave this corner' : undefined}
                 onMouseEnter={() => setHighlight({ entry: c.seg.entry, exit: c.seg.exit })}
                 onMouseLeave={() => setHighlight(null)}
               >
@@ -262,9 +276,7 @@ function OptimumTable({ d, o, onChoose }: { d: OptimumData; o: Optimum; onChoose
                     {Number.isFinite(c.gain) ? (c.gain > 0.0005 ? formatDelta(c.gain, 3) : '0.000') : '—'}
                   </span>
                 </td>
-                <td className="num muted">
-                  {spd(c.ref?.minSpeed)} / <span style={{ color: 'var(--text)' }}>{spd(c.bestM?.minSpeed)}</span>
-                </td>
+                <MinSpeedDelta c={c} sc={sc.k} unit={speedUnit} spd={spd} />
               </tr>
             );
           })}
@@ -275,6 +287,27 @@ function OptimumTable({ d, o, onChoose }: { d: OptimumData; o: Optimum; onChoose
         nothing is stitched into a lap, so there is no optimum lap time, just the time to find.
       </div>
     </div>
+  );
+}
+
+/**
+ * The best lap's minimum speed minus the reference's, only where there's time to find: where the reference
+ * is the best, the best lap is the reference itself and the difference is always nothing.
+ */
+function MinSpeedDelta({ c, sc, unit, spd }: { c: OptimumCorner; sc: number; unit: string; spd: (v: number | undefined) => string }) {
+  const title = `Min speed: ref ${spd(c.ref?.minSpeed)} · best ${spd(c.bestM?.minSpeed)} ${unit}`;
+  if (!(c.gain > 0.0005) || !c.ref || !c.bestM)
+    return (
+      <td className="num" title={title}>
+        <span className="muted">·</span>
+      </td>
+    );
+  const d = (c.bestM.minSpeed - c.ref.minSpeed) * sc;
+  const r = Math.round(d);
+  return (
+    <td className="num" title={title + (r < 0 ? ' — quicker with less minimum speed: the time came from entry or exit' : '')} style={{ color: r > 0 ? 'var(--gain)' : r < 0 ? 'var(--warning)' : 'var(--text-3)' }}>
+      {r === 0 ? '0' : `${r > 0 ? '+' : '−'}${Math.abs(r)}`}
+    </td>
   );
 }
 
@@ -460,7 +493,7 @@ function OptimumMap({ o }: { o: Optimum }) {
     ctx.fillStyle = best;
     ctx.fillRect(x2, y - 4, 22, 8);
     ctx.fillStyle = T.text2;
-    ctx.fillText('the reference is the best · click a corner', x2 + 28, y);
+    ctx.fillText('the reference is the best · click a corner (again to leave it)', x2 + 28, y);
   }, [size, o, active, theme]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(draw, [draw]);
@@ -481,7 +514,9 @@ function OptimumMap({ o }: { o: Optimum }) {
             hit = p.c;
           }
         }
-        if (hit) focusCorner(o, hit);
+        // A corner: focus it (or leave it if it's the one in focus); empty track: leave the corner.
+        if (hit) toggleCorner(o, hit);
+        else if (useOptimum.getState().active) unfocusCorner();
       }}
     >
       <canvas ref={canvasRef} />
@@ -529,7 +564,8 @@ function EligibleDialog({ d }: { d: OptimumData }) {
   const pct = (p: number) => d.candidates.filter((l) => l.lap.time <= fastest * (1 + p / 100) + 1e-9).map((l) => l.key);
   const ref = d.eligible.length ? d.eligible.reduce((a, b) => (b.lap.time < a.lap.time ? b : a)) : null;
   const multi = d.pool.length > 1;
-  const stints = d.pool.slice().sort((a, b) => (a.meta.savedAt ?? 0) - (b.meta.savedAt ?? 0));
+  // Same order as the Sessions & laps list (Sort stints here sorts both).
+  const stints = d.pool;
 
   return (
     <div className="modal-back" onMouseDown={close}>
@@ -577,6 +613,7 @@ function EligibleDialog({ d }: { d: OptimumData }) {
               Remove these
             </button>
           </div>
+          {stints.length > 1 && <SessionSortBar />}
           {stints.map((s) => {
             const laps = s.laps.filter((l) => l.index !== -1);
             const keys = d.candidates.filter((l) => l.session === s).map((l) => l.key);

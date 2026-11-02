@@ -160,8 +160,7 @@ export function CornerReportView({ config }: { config: CornersConfig }) {
             return (
               <tr
                 key={g.kind + g.name + g.entry}
-                className="click"
-                style={straight ? { color: 'var(--text-2)' } : undefined}
+                className={'click' + (straight ? ' straight-row' : '')}
                 onClick={() => {
                   setXMode('distance');
                   setZoom([g.entry - 40, g.exit + 40]);
@@ -173,6 +172,11 @@ export function CornerReportView({ config }: { config: CornersConfig }) {
                 onMouseLeave={() => setHighlight(null)}
               >
                 <td className="l">
+                  {straight && (
+                    <span className="bucket-chip straight" title="Straight: everything between two corners">
+                      S
+                    </span>
+                  )}
                   {!straight && (
                     <span className={'bucket-chip ' + g.bucket} title={`${BUCKETS.find((b) => b.key === g.bucket)!.label}${g.overridden ? ' (set by you in the track editor)' : ''} — min ${formatValue(g.refMinSpeed * sc.k + sc.b, 0)} ${speedUnit} on the reference`}>
                       {BUCKETS.find((b) => b.key === g.bucket)!.short}
@@ -187,7 +191,15 @@ export function CornerReportView({ config }: { config: CornersConfig }) {
                   const d = i === 0 ? 0 : v - refV;
                   const better = metric.higherIsBetter ? d > 0 : d < 0;
                   return (
-                    <td key={i} className="num" style={{ background: lapTint(laps[i].color) }}>
+                    <td
+                      key={i}
+                      className="num"
+                      style={{
+                        background: straight
+                          ? `linear-gradient(color-mix(in srgb, var(--straight) 11%, transparent), color-mix(in srgb, var(--straight) 11%, transparent)), ${lapTint(laps[i].color)}`
+                          : lapTint(laps[i].color),
+                      }}
+                    >
                       {metric.time ? fmtTime(v) : formatValue(v, 1)}
                       {i > 0 && Number.isFinite(d) && Math.abs(d) > (metric.time ? 0.005 : 0.05) && deltaSpan(d, better, metric.time ? 2 : 1)}
                     </td>

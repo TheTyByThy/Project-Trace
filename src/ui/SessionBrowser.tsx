@@ -8,8 +8,10 @@ import { COMMON_ZONES, guessTrackZone, zoneForVenue } from '../core/timezones';
 import { summarizeFile, type SessionSummary } from '../state/loader';
 import { closeSession, openFiles, setDefaultTelemetryFolder, setTelemetryFolders, setUi, telemetryFolders, updateSettings, useStore } from '../state/store';
 import { openMenu, promptText } from './overlays';
+import { CompoundBadge } from './CompoundBadge';
+import { compoundFromNames } from '../core/compound';
 
-type SortKey = 'savedAt' | 'track' | 'driver' | 'vehicle' | 'laps' | 'bestLap' | 'size';
+type SortKey = 'savedAt' | 'track' | 'driver' | 'vehicle' | 'tyre' | 'laps' | 'bestLap' | 'size';
 
 const sep = (p: string) => (p.includes('\\') ? '\\' : '/');
 const exportKey = (name: string) => name.replace(/\.(csv|txt|ld)$/i, '').toLowerCase();
@@ -150,6 +152,8 @@ export function SessionBrowser() {
           return r.driver ?? '';
         case 'vehicle':
           return r.vehicle ?? '';
+        case 'tyre':
+          return r.compounds?.length ? r.compounds[0] : Infinity;
         case 'laps':
           return r.completeLaps ?? 0;
         case 'bestLap':
@@ -451,6 +455,7 @@ export function SessionBrowser() {
                             {sortHead('track', 'Track', 'l')}
                             {sortHead('driver', 'Driver', 'l')}
                             {sortHead('vehicle', 'Car', 'l')}
+                            {sortHead('tyre', 'Tyre', 'l')}
                             {sortHead('laps', 'Laps')}
                             {sortHead('bestLap', 'Best lap')}
                             <th>Air / track</th>
@@ -497,6 +502,11 @@ export function SessionBrowser() {
                                       {prettyTeam(r.team)}
                                     </div>
                                   )}
+                                </td>
+                                <td className="l" style={{ whiteSpace: 'nowrap' }}>
+                                  {(r.compounds ?? []).map((i) => (
+                                    <CompoundBadge key={i} c={compoundFromNames(i, r.enums, r.vehicle)} />
+                                  ))}
                                 </td>
                                 <td className="num">{r.ok ? `${r.completeLaps} / ${r.lapCount}` : ''}</td>
                                 <td className={'num' + (isFastest ? ' best' : '')}>

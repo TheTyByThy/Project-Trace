@@ -168,7 +168,7 @@ Any corner can be **set to Low, Medium or High by hand** in the Track editor (*S
 | Entry speed | speed at the start of the range |
 | Exit speed | speed at the end of the range |
 
-At the top, **Total time** sums each lap's time in **low-, medium- and high-speed corners** and **on straights** (with how many of each), plus the **whole lap**, with the gain/loss against the reference — so you can see at once where time goes. Below, each corner and straight is listed with the chosen metric; each lap's column is tinted in its colour, and each comparison lap's delta to the reference is shown next to its value in green (better) or red (worse). The **Straights** button (top right of the report) shows or hides the straight rows; they're **hidden by default**, and the totals always include them; totals can be hidden in Properties. **Hover a row** to highlight that corner or straight on the track map (white outline, the rest dimmed); **click a row** to zoom all graphs to it in distance mode (it also points every Tyre Wear Wheels component at that corner — see [14 · Tyre wear](14-tyre-wear.md)).
+At the top, **Total time** sums each lap's time in **low-, medium- and high-speed corners** and **on straights** (with how many of each), plus the **whole lap**, with the gain/loss against the reference — so you can see at once where time goes. Below, each corner and straight is listed with the chosen metric; each lap's column is tinted in its colour, and each comparison lap's delta to the reference is shown next to its value in green (better) or red (worse). The **Straights** button (top right of the report) shows or hides the straight rows (marked with an **S** tag, a slate stripe and a light slate tint so they stand apart from the corners); they're **hidden by default**, and the totals always include them; totals can be hidden in Properties. **Hover a row** to highlight that corner or straight on the track map (white outline, the rest dimmed); **click a row** to zoom all graphs to it in distance mode (it also points every Tyre Wear Wheels component at that corner — see [14 · Tyre wear](14-tyre-wear.md)).
 
 ## Optimum corners
 
@@ -178,12 +178,13 @@ The **Optimum Corners** workspace (Workspace menu) answers: *how much time is th
 - tick or untick a **whole stint** (its checkbox), or **single laps**; every stint open at this track is listed, including other drivers', so the best corner can come from either of you;
 - keep only the laps **within 0.5 / 1 / 2 / 3 / 5 %** of the fastest, or the laps in a **lap-time range** (*Only these*, *Add these*, *Remove these*);
 - go back to **Current stint**, or take out the invalid laps.
+- order the stints with **Sort stints** (date / time or best lap, as in the sidebar; the two share one order).
 
 Out- and in-laps can't be ticked (they aren't full laps). The choice isn't saved: it resets when you restart.
 
 | Sheet | |
 |---|---|
-| **Corners** | the time to find, then every corner: the reference's time, the best time and which lap drove it (*REF* when nothing beat the reference), the difference as a bar, and the minimum speeds. **Most time** sorts the biggest first. On the right: the track with each corner coloured by its time to find (red, stronger for more; purple where the reference is already the best) and the GPS racing lines. |
+| **Corners** | the time to find, then every corner: the reference's time, the best time and which lap drove it (*REF* when nothing beat the reference), the difference as a bar, and **Δ min speed** (the best lap's minimum speed minus the reference's, only on corners with time to find: green = it carried more speed, amber = it was quicker with less, so the time came from entry or exit; hover for both speeds). **Most time** sorts the biggest first. On the right: the track with each corner coloured by its time to find (red, stronger for more; purple where the reference is already the best) and the GPS racing lines. |
 | **Corner Driver** | FA26 V0.1's Driver sheet (speed, brake, throttle, steering, gear with time variance, the gain/loss map, GPS lines and pedal bars) with a corner picker on top: **‹ ›** or the list step through the corners. |
 
 **Click a corner** (a row, the map, or the picker) to select the reference plus the lap that drove that corner best, and zoom every graph and map to the corner, so you see exactly where the time came from. The corner ranges are the ones the Corner Report uses (detected on the reference lap from your track's corners), so the two always agree, and each corner's time to find equals the change in the time variance across it.

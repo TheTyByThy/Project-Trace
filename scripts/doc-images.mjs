@@ -84,4 +84,5 @@ const starter = await run('starter', { PT_SCREENSHOT_BROWSE: browse });
 for (const [img, shot] of Object.entries(STARTER)) fs.copyFileSync(path.join(starter, shot + '.png'), path.join(images, img + '.png'));
 const fa26 = await workspaceShots('FA26 V0.1.json', 'fa26');
 const deg = await workspaceShots('Tyre Deg.json', 'tyre-deg');
-console.log(`[doc-images] updated ${Object.keys(STARTER).length} guide images, ${fa26} FA26 V0.1 and ${deg} Tyre Deg sheets → docs/images (from ${path.basename(session)})`);
+const opt = await workspaceShots('Optimum Corners.json', 'optimum');
+console.log(`[doc-images] updated ${Object.keys(STARTER).length} guide images, ${fa26} FA26 V0.1, ${deg} Tyre Deg and ${opt} Optimum Corners sheets → docs/images (from ${path.basename(session)})`);

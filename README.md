@@ -29,13 +29,13 @@ The builds aren't code-signed, so the first launch shows a warning:
 
 To update, install the new version over the old one. Your workspaces and tracks are kept.
 
-## Two ready-made workspaces for the Formula Alpha 2026
+## Three ready-made workspaces for the Formula Alpha 2026
 
-Both come built in. Pick them from the workspace menu in the top bar. The screenshots are a COTA stint on the C4 tyre.
+All three come built in. Pick them from the workspace menu in the top bar. The screenshots are a COTA stint on the C4 tyre.
 
 ### FA26 V0.1: the car, sheet by sheet
 
-Overview, Driver, Toggles, Power Unit, Tyres, Aero & Platform, Stint, Session & Setup and Lap Replay.
+Overview, Driver, Pedal Phases, Toggles, Power Unit, Tyres, Aero & Platform, Stint, Session & Setup and Lap Replay.
 
 ![FA26 V0.1: Overview](docs/images/fa26-overview.png)
 
@@ -56,6 +56,14 @@ Five sheets, each answering one question: Lap, Lap Corners, Stint, Stint Corners
 | ![Tyre Deg: Lap](docs/images/tyre-deg-lap.png) | ![Tyre Deg: Stint](docs/images/tyre-deg-stint.png) |
 | **Stint Corners** | **Corner Traces** |
 | ![Tyre Deg: Stint Corners](docs/images/tyre-deg-stint-corners.png) | ![Tyre Deg: Corner Traces](docs/images/tyre-deg-corner-traces.png) |
+
+### Optimum Corners: how much time is in the corners
+
+The best time through each corner across the laps you pick (whole stints, single laps or a lap-time range, any driver), against the fastest of them. It's corner by corner, from real laps, never stitched into a lap, and it adds up the **time to find**. Click a corner to see the reference and that corner's best lap, zoomed in. Two sheets: **Corners** (the table, a map shaded by time to find, racing lines) and **Corner Driver** (the FA26 Driver traces for the chosen corner). See [08 · Optimum corners](docs/08-laps-sectors-reports.md#optimum-corners).
+
+![Optimum Corners: Corners](docs/images/optimum-corners.png)
+
+![Optimum Corners: Corner Driver](docs/images/optimum-corner-driver.png)
 
 ---
 
@@ -261,7 +269,7 @@ A wear model fitted to Assetto Corsa's own grip channel across 35 stints (median
 
 ## Default workspaces
 
-Project-Trace ships with three built-in, **read-only default workspaces**: the **Starter** (the layout you see on first launch, described below), **FA26 V0.1**, the Formula Alpha 2026 layout (Overview, Driver, Toggles, Power Unit, Tyres, Aero & Platform, Stint, Session & Setup, Lap Replay), and **Tyre Deg**, tyre degradation in five sheets (Lap, Lap Corners, Stint, Stint Corners, Corner Traces). Your own workspace (**My Workspace**) starts as a copy of the Starter. If you edit a default, your change is saved into a new personal copy, so the defaults never change. To get the original back:
+Project-Trace ships with four built-in, **read-only default workspaces**: the **Starter** (the layout you see on first launch, described below), **FA26 V0.1**, the Formula Alpha 2026 layout (Overview, Driver, Pedal Phases, Toggles, Power Unit, Tyres, Aero & Platform, Stint, Session & Setup, Lap Replay), **Tyre Deg**, tyre degradation in five sheets (Lap, Lap Corners, Stint, Stint Corners, Corner Traces), and **Optimum Corners**, the time to find in each corner (Corners, Corner Driver). Your own workspace (**My Workspace**) starts as a copy of the Starter. If you edit a default, your change is saved into a new personal copy, so the defaults never change. To get the original back:
 
 - **Workspace → Revert Current Workspace to Starter**, or **Worksheet → Reset Worksheet to Starter Version** for one tab;
 - or simply switch to a default in the workspace menu (top bar or menu bar).
@@ -342,13 +350,13 @@ Project-Trace/
 │  └─ workers/        background CSV/.ld parsing
 ├─ tests/             parser, math engine and .ld↔CSV cross-check tests
 ├─ sample-data/       a real Telemetrick export to try
-├─ default-workspaces/ built-in read-only workspaces (FA26 V0.1, Tyre Deg)
+├─ default-workspaces/ built-in read-only workspaces (FA26 V0.1, Tyre Deg, Optimum Corners)
 ├─ default-tracks/    built-in track profiles (corners, splits, rotation), one .json per venue
 ├─ docs/              these guides + screenshots
 └─ scripts/           launchers, install check, dev server, screenshot automation, icon
 ```
 
-Useful commands: `npm test`, `npm run typecheck`, `npm run dev` (hot reload), and `npm run screenshots`, which captures every worksheet and runs end-to-end checks. `npm run doc-images` regenerates every image in `docs/images` from one real session: by default the latest COTA stint in `myTelemData/` (set `PT_DOC_SESSION` to use another). It covers the Starter's sheets and dialogs for the guides, and every sheet of FA26 V0.1 and Tyre Deg for this README.
+Useful commands: `npm test`, `npm run typecheck`, `npm run dev` (hot reload), and `npm run screenshots`, which captures every worksheet and runs end-to-end checks. `npm run doc-images` regenerates every image in `docs/images` from one real session: by default the latest COTA stint in `myTelemData/` (set `PT_DOC_SESSION` to use another). It covers the Starter's sheets and dialogs for the guides, and every sheet of FA26 V0.1, Tyre Deg and Optimum Corners for this README.
 
 ---
 

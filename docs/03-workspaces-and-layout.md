@@ -14,13 +14,14 @@ Everything you change is **saved automatically**, and almost everything can be *
 
 ## Default workspaces
 
-Project-Trace ships with three **read-only default workspaces**:
+Project-Trace ships with four **read-only default workspaces**:
 
 | Default | What it is |
 |---|---|
 | **Starter** | The general layout: Overview, Driver, Racing Lines, Tyres, Tyre Wear, Tyre Wear Detail, Brakes, Suspension, Aero, Engine & ERS, Lap Analysis, Session & Setup. |
-| **FA26 V0.1** | The Formula Alpha 2026 layout: Overview, Driver, Toggles, Power Unit, Tyres, Aero & Platform, Stint, Session & Setup, Lap Replay. |
+| **FA26 V0.1** | The Formula Alpha 2026 layout: Overview, Driver, Pedal Phases, Toggles, Power Unit, Tyres, Aero & Platform, Stint, Session & Setup, Lap Replay. |
 | **Tyre Deg** | Tyre degradation in five sheets: Lap, Lap Corners, Stint, Stint Corners, Corner Traces (see [14 · Tyre wear](14-tyre-wear.md)). |
+| **Optimum Corners** | The time to find in each corner, against the best of the laps you pick: Corners (table, time-to-find map, racing lines) and Corner Driver (the FA26 Driver traces for the chosen corner). See [08 · Optimum corners](08-laps-sectors-reports.md#optimum-corners). |
 
 - Defaults are rebuilt fresh on every launch, so they can never be lost or broken. They are marked *(default)* in the top bar.
 - On first launch you get **My Workspace**, a copy of the Starter that is yours to change.
@@ -41,6 +42,7 @@ Open it with **Workspace → Open Workspaces Folder**, the workspace menu in the
 - **Using someone else's views**: drop their workspace `.json` into this folder. It appears straight away (a notice tells you) and is listed in the workspace menu. Files without an id or with a duplicate id are given their own automatically.
 - **Sharing yours**: send the file from this folder (or use **Export Workspace…**).
 - **Renaming** a workspace renames its file; **deleting** it removes the file.
+- **Deleting a file here** (in Finder / Explorer) removes that workspace from the app straight away, with a notice. If it was the open one, the app switches to another of yours. It isn't written back.
 - Workspaces from older versions (kept in the hidden settings folder) are copied here once, automatically. The originals are left where they were.
 
 ## The top bar

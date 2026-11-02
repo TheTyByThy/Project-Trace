@@ -210,7 +210,7 @@ function SessionCard({ s }: { s: Session }) {
 }
 
 /** Quick ordering of the session cards: by date / time driven, or by best lap. Click again to reverse. */
-function SessionSortBar() {
+export function SessionSortBar() {
   const sessions = useStore((s) => s.sessions);
   const cur = currentSessionSort(sessions);
   const btn = (by: SessionSort, label: string, asc: string, desc: string) => {

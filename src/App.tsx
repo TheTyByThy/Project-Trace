@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { focusCorner, optimumData, setEligible, useOptimum } from './charts/OptimumView';
+import { focusCorner, optimumData, setEligible, unfocusCorner, useOptimum } from './charts/OptimumView';
 import { handleGlobalKey, handleMenuAction } from './actions';
 import { bindings } from './shortcuts';
 import { pt } from './core/bridge';
@@ -11,7 +11,6 @@ import {
   activeWorkspace,
   copyWorksheet,
   deleteWorksheet,
-  deleteWorkspace,
   saveCurrentWorkspace,
   saveWorkspaceAs,
   pasteWorksheet,
@@ -143,6 +142,11 @@ function installAutomation() {
         const others = ses.laps.filter((l) => l.complete && !l.invalid && lapKey({ sessionId: ses.id, lapIndex: l.index }) !== s.refKey).sort((a, b) => a.time - b.time);
         if (s.laps.length < 2 && others[0]) selectLap(lapKey({ sessionId: ses.id, lapIndex: others[0].index }), 'add');
         if (s.cursor == null) setCursor(1240);
+        // Optimum Corners sheets: the corner with the most time to find, in focus.
+        if (Object.values(activeSheet()?.components ?? {}).some((c) => c.type === 'optimum')) {
+          const d = optimumData();
+          if (d?.opt?.corners.length) focusCorner(d.opt, d.opt.corners.reduce((a, b) => ((b.gain || 0) > (a.gain || 0) ? b : a)));
+        }
       }
     },
     extras: () => [
@@ -192,9 +196,11 @@ function installAutomation() {
       'phases-4',
       'phases-4-delta',
       'phases-4-pct-delta',
+      'corner-straights',
       'optimum-corners',
       'optimum-driver',
       'optimum-dialog',
+      'optimum-unfocus',
       'invalid-counts',
       'invalid-excluded',
       'time-axis',
@@ -368,6 +374,15 @@ function installAutomation() {
           const ph = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'phases');
           if (ph) updateComponent(ph.id, { mode: name === 'phases-4' ? 'absolute' : 'delta', units: name === 'phases-4-pct-delta' ? 'pct' : 's' });
         }
+      } else if (name === 'corner-straights') {
+        // The first sheet with a Corner Report, straights shown (they're hidden by default).
+        const ws = activeWorkspace();
+        const i = ws.worksheets.findIndex((sh) => Object.values(sh.components).some((c) => c.type === 'corners'));
+        if (i >= 0) {
+          setActiveSheet(i);
+          const c = Object.values(activeSheet()?.components ?? {}).find((x) => x.type === 'corners');
+          if (c) updateComponent(c.id, { showStraights: true }, 'Show straights');
+        }
       } else if (name.startsWith('optimum-')) {
         // The Optimum Corners sheets (when the workspace has them): the corner with the most time to find in focus.
         useOptimum.setState({ dialogOwner: null });
@@ -380,6 +395,7 @@ function installAutomation() {
           setActiveSheet(sheet);
           const top = d.opt.corners.reduce((a, b) => ((b.gain || 0) > (a.gain || 0) ? b : a));
           focusCorner(d.opt, top);
+          if (name === 'optimum-unfocus') unfocusCorner();
           if (name === 'optimum-dialog') {
             const table = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'optimum' && (c.view ?? 'table') === 'table');
             if (table) useOptimum.setState({ dialogOwner: table.id });
@@ -508,7 +524,16 @@ function installAutomation() {
       const copy = activeWorkspace();
       ok(copy.name === 'Save As Check' && useStore.getState().workspaces.length === count0 + 1, 'Save as makes a named copy and switches to it');
       ok(savedToast() && (await onDisk(copy.id)), 'Save as shows the Saved pop-up and writes the file');
-      deleteWorkspace(copy.id);
+      // Its file deleted outside the app (as in Finder): the next folder sync drops it from the list and
+      // switches away from it, and nothing writes it back.
+      await pt().deleteWorkspace(copy.id);
+      await syncWorkspacesFromFolder();
+      await new Promise((r) => setTimeout(r, 900));
+      ok(
+        !useStore.getState().workspaces.some((w) => w.id === copy.id) && activeWorkspace().id !== copy.id && !(await onDisk(copy.id)),
+        'a workspace whose file was deleted in the folder disappears from the list',
+      );
+      ok(useStore.getState().workspaces.some((w) => w.id === mine), 'the other workspaces stay');
       setActiveWorkspace(mine);
       // A save that fails (here: a value that can't be sent to the main process) says so instead of doing nothing.
       clearToasts();

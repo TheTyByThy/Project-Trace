@@ -37,12 +37,15 @@ const FA26_COMPOUNDS: Record<number, string> = {
   6: 'Piorani Wet (WET)',
 };
 
-function compoundNames(s: Session): Record<number, string> | undefined {
-  return s.meta.enums?.['Tyres Compound'] ?? (/formula[\s_-]*alpha[\s_-]*2026/i.test(s.meta.vehicle ?? '') ? FA26_COMPOUNDS : undefined);
+function compoundNames(enums: Record<string, Record<number, string>> | undefined, vehicle: string | undefined): Record<number, string> | undefined {
+  return enums?.['Tyres Compound'] ?? (/formula[\s_-]*alpha[\s_-]*2026/i.test(vehicle ?? '') ? FA26_COMPOUNDS : undefined);
 }
 
-export function compoundFor(s: Session, index: number): Compound {
-  const raw = compoundNames(s)?.[index];
+export const compoundFor = (s: Session, index: number): Compound => compoundFromNames(index, s.meta.enums, s.meta.vehicle);
+
+/** A compound from the log's enumerations (and the car, for the known names) — no loaded session needed. */
+export function compoundFromNames(index: number, enums: Record<string, Record<number, string>> | undefined, vehicle: string | undefined): Compound {
+  const raw = compoundNames(enums, vehicle)?.[index];
   if (!raw) return { index, name: `Compound ${index}`, letter: String(index), short: `Compound ${index}`, color: '#8b93a1' };
   // "Piorani M (C2)" → shown as C2 (coloured as a medium); "Piorani Inter (INT)" → INT.
   const words = raw.replace(/\([^)]*\)\s*$/, '').trim().split(/\s+/);
