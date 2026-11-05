@@ -3,18 +3,15 @@
 
 import { formatDateTime, formatDuration, formatGameClock, formatLapTime, prettyCar, prettyTeam, prettyTrack } from '../core/format';
 import { fastestLap, theoreticalBest } from '../core/session';
-import { zoneForVenue } from '../core/timezones';
 import { pt } from '../core/bridge';
 import { sessionsWithSelection, setNote, updateComponent, useStore } from '../state/store';
 import type { DetailsConfig } from '../state/workspace';
 import type { Session } from '../core/types';
 
 function InfoTable({ s }: { s: Session }) {
-  const settings = useStore((st) => st.settings);
   const m = s.meta;
   const fl = fastestLap(s);
   const ideal = theoreticalBest(s);
-  const tz = zoneForVenue(m.venue, settings.trackZones, settings.gameClock);
   const tr = prettyTrack(m.venue);
   const rows: [string, React.ReactNode][] = [
     ['Track', `${tr.track}${tr.layout ? ` — ${tr.layout}` : ''}`],
@@ -22,7 +19,7 @@ function InfoTable({ s }: { s: Session }) {
     ['Livery / team', prettyTeam(m.details['Team']?.value) || '—'],
     ['Driver', m.driver || '—'],
     ['Saved', formatDateTime(m.savedAt, true)],
-    ['In-game time', m.gameTimeUtc ? `${formatGameClock(m.gameTimeUtc, tz, true)} (${tz === 'UTC' ? 'UTC' : tz.split('/').pop()?.replace('_', ' ')})` : '—'],
+    ['In-game time', m.gameTimeUtc ? `${formatGameClock(m.gameTimeUtc, true)} UTC` : '—'],
     ['Duration', formatDuration(s.duration)],
     ['Laps', `${s.laps.length} (${s.laps.filter((l) => l.complete).length} complete, ${s.laps.filter((l) => l.invalid).length} invalid)`],
     ['Fastest lap', fl ? `${formatLapTime(fl.time)} (lap ${fl.number}${fl.invalid ? ', invalid' : ''})` : '—'],

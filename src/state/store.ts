@@ -7,7 +7,7 @@ import { lapXRange, timeToX, xToTime } from '../core/axis';
 import { lapColor, type Theme } from '../core/colors';
 import { DEFAULT_CORNER_SETTINGS, type CornerSettings, type TrackCorner } from '../core/corners';
 import { applyMathChannels, type MathChannelDef, type MathConstant } from '../core/math/evaluate';
-import { applyChannelMasters, DEFAULT_CHANNEL_MASTERS, type ChannelMaster } from '../core/channelMasters';
+import { addDefaultFallbacks, applyChannelMasters, DEFAULT_CHANNEL_MASTERS, type ChannelMaster } from '../core/channelMasters';
 import { fastestLap, getLap, lapCounts, theoreticalBest } from '../core/session';
 import { lapKey, parseLapKey, type Lap, type Session, type XMode } from '../core/types';
 import { DEFAULT_UNITS, type UnitPrefs } from '../core/units';
@@ -60,8 +60,6 @@ export interface Settings {
   theme: Theme;
   /** click = MoTeC classic (drag zooms); scrub = drag moves the cursor, double-click-drag zooms; hover = follows the mouse. */
   cursorMode: 'click' | 'scrub' | 'hover';
-  gameClock: 'track' | 'utc';
-  trackZones: Record<string, string>;
   activeWorkspaceId: string;
   trackProfiles: Record<string, TrackProfile>;
   hideConstant: boolean;
@@ -97,8 +95,6 @@ export const DEFAULT_SETTINGS: Settings = {
   units: DEFAULT_UNITS,
   theme: 'dark',
   cursorMode: 'click',
-  gameClock: 'track',
-  trackZones: {},
   activeWorkspaceId: '',
   trackProfiles: {},
   hideConstant: false,
@@ -114,7 +110,7 @@ export const DEFAULT_SETTINGS: Settings = {
   shortcuts: {},
   live: DEFAULT_LIVE,
   channelMasters: DEFAULT_CHANNEL_MASTERS,
-  settingsVersion: 2,
+  settingsVersion: 4,
 };
 
 export const emptyTrackProfile = (): TrackProfile => ({ rotation: 0, mirror: false, sections: [], corners: [] });
@@ -746,8 +742,17 @@ export async function initApp() {
     channelMasters: Array.isArray(raw.channelMasters) ? raw.channelMasters : DEFAULT_CHANNEL_MASTERS,
     settingsVersion: DEFAULT_SETTINGS.settingsVersion,
   };
+  // The in-game clock is always shown in UTC: older versions' time-zone settings are dropped.
+  for (const k of ['gameClock', 'trackZones']) delete (settings as unknown as Record<string, unknown>)[k];
   // v2: smoothing is on by default at 50 ms (older settings files saved it switched off).
   if ((raw.settingsVersion ?? 1) < 2) settings.smoothing = { ...DEFAULT_SETTINGS.smoothing };
+  // v3: corners are padded 30 m before and after by default (was 20 m); values changed by hand stay.
+  if ((raw.settingsVersion ?? 1) < 3) {
+    if (settings.corners.before === 20) settings.corners.before = DEFAULT_CORNER_SETTINGS.before;
+    if (settings.corners.after === 20) settings.corners.after = DEFAULT_CORNER_SETTINGS.after;
+  }
+  // v4: the driver inputs have more fallbacks; a saved order stays first.
+  if ((raw.settingsVersion ?? 1) < 4) settings.channelMasters = addDefaultFallbacks(settings.channelMasters);
   // Track profiles: the built-ins (default-tracks/), overridden by the files in the Tracks folder. Older
   // versions kept them in settings.json — any track not in the folder yet is moved there once.
   builtInTracks = normalizeTracks(defaultTracks);

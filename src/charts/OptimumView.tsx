@@ -35,9 +35,32 @@ interface OptimumState {
   active: string | null;
   /** Which component shows the lap pop-up (so two on a sheet don't both open it). */
   dialogOwner: string | null;
+  /** Corners you unticked per track (by name): left out of the time to find. Every corner counts until you untick it. */
+  excluded: Record<string, string[]>;
 }
 
-export const useOptimum = create<OptimumState>(() => ({ byVenue: {}, sort: 'track', active: null, dialogOwner: null }));
+export const useOptimum = create<OptimumState>(() => ({ byVenue: {}, sort: 'track', active: null, dialogOwner: null, excluded: {} }));
+
+/** Tick or untick corners for the time to find (by hand only: nothing is left out automatically). */
+export function setCornersCounted(venue: string, names: string[], counted: boolean) {
+  useOptimum.setState((s) => {
+    const cur = new Set(s.excluded[venue] ?? []);
+    for (const n of names) counted ? cur.delete(n) : cur.add(n);
+    const excluded = { ...s.excluded };
+    if (cur.size) excluded[venue] = [...cur];
+    else delete excluded[venue];
+    return { excluded };
+  });
+}
+
+/** The corners left out at the reference's track, and the time to find over the ones that count. */
+function useCounted(o: Optimum) {
+  const venue = o.ref.session.meta.venue;
+  const off = new Set(useOptimum((s) => s.excluded[venue]) ?? []);
+  const counts = (c: OptimumCorner) => !off.has(c.seg.name);
+  const total = o.corners.reduce((a, c) => a + (counts(c) && Number.isFinite(c.gain) ? c.gain : 0), 0);
+  return { venue, off, counts, total };
+}
 
 export const setEligible = (venue: string, keys: string[] | null) =>
   useOptimum.setState((s) => {
@@ -112,7 +135,7 @@ export function focusCorner(o: Optimum, c: OptimumCorner) {
   selectLap(o.ref.key, 'replace');
   if (c.best && c.best.key !== o.ref.key) selectLap(c.best.key, 'add');
   setXMode('distance');
-  setZoom([c.seg.entry - 40, c.seg.exit + 40]);
+  setZoom([c.seg.entry, c.seg.exit]);
   setCursor(c.seg.apex);
 }
 
@@ -192,9 +215,13 @@ function OptimumTable({ d, o, onChoose }: { d: OptimumData; o: Optimum; onChoose
   const sc = convertUnit('kph', speedUnit) ?? { k: 1, b: 0 };
   const spd = (v: number | undefined) => (v != null && Number.isFinite(v) ? formatValue(v * sc.k + sc.b, 0) : '—');
   const multi = new Set(o.laps.map((l) => l.session)).size > 1;
-  const max = Math.max(1e-6, ...o.corners.map((c) => (Number.isFinite(c.gain) ? c.gain : 0)));
-  const found = o.corners.filter((c) => c.gain > 0.0005);
+  const { venue, off, counts, total } = useCounted(o);
+  const counted = o.corners.filter(counts);
+  const max = Math.max(1e-6, ...counted.map((c) => (Number.isFinite(c.gain) ? c.gain : 0)));
+  const found = counted.filter((c) => c.gain > 0.0005);
   const fromLaps = new Set(found.map((c) => c.best!.key)).size;
+  const all = o.corners.map((c) => c.seg.name);
+  const allState = counted.length === o.corners.length ? 'all' : counted.length ? 'some' : 'none';
   return (
     <div className="html-panel optimum">
       <div className="subtabs">
@@ -211,18 +238,31 @@ function OptimumTable({ d, o, onChoose }: { d: OptimumData; o: Optimum; onChoose
       </div>
       <div className="opt-summary">
         <div className="opt-total" title="What the reference lap loses to the best of the eligible laps, added up over every corner">
-          <b>{formatValue(o.total, 3)} s</b>
+          <b>{formatValue(total, 3)} s</b>
           <span>to find in the corners</span>
         </div>
         <div className="muted opt-sub">
           Reference <b style={{ color: 'var(--text)' }}>{lapName(o.ref, multi)}</b> {formatLapTime(o.ref.lap.time)}, the fastest of {o.laps.length} eligible lap
-          {o.laps.length === 1 ? '' : 's'}. {found.length} of {o.corners.length} corners were driven faster on another lap{found.length ? ` (${fromLaps} lap${fromLaps === 1 ? '' : 's'})` : ''}. Click a corner
-          to see how (click it again to leave it).
+          {o.laps.length === 1 ? '' : 's'}. {found.length} of {counted.length} counted corners were driven faster on another lap{found.length ? ` (${fromLaps} lap${fromLaps === 1 ? '' : 's'})` : ''}.
+          {off.size > 0 && (
+            <>
+              {' '}
+              <b style={{ color: 'var(--text)' }}>{off.size} left out</b> by you (
+              <a href="#" onClick={(e) => (e.preventDefault(), setCornersCounted(venue, all, true))}>
+                count all
+              </a>
+              ).
+            </>
+          )}{' '}
+          Untick a corner to leave it out (e.g. flat out with this deployment). Click a corner to see how (click it again to leave it).
         </div>
       </div>
       <table className="grid opt-table">
         <thead>
           <tr>
+            <th className="opt-check" title="Corners that count for the time to find: untick one to leave it out (all count by default)">
+              <TriCheck state={allState} onChange={(v) => setCornersCounted(venue, all, v)} title="Count every corner, or none" />
+            </th>
             <th className="l">Corner</th>
             <th title="The reference lap's time through the corner">Ref</th>
             <th title="The best time through the corner on any eligible lap">Best</th>
@@ -238,17 +278,21 @@ function OptimumTable({ d, o, onChoose }: { d: OptimumData; o: Optimum; onChoose
         <tbody>
           {sorted(o, sort).map((c) => {
             const refBest = c.best?.key === o.ref.key;
-            const f = Number.isFinite(c.gain) ? c.gain / max : 0;
+            const on = counts(c);
+            const f = on && Number.isFinite(c.gain) ? c.gain / max : 0;
             const bucket = BUCKETS.find((b) => b.key === c.seg.bucket)!;
             return (
               <tr
                 key={c.seg.name + c.seg.entry}
-                className={'click' + (active === c.seg.name ? ' sel' : '')}
+                className={'click' + (active === c.seg.name ? ' sel' : '') + (on ? '' : ' opt-off')}
                 onClick={() => toggleCorner(o, c)}
                 title={active === c.seg.name ? 'Click again to leave this corner' : undefined}
                 onMouseEnter={() => setHighlight({ entry: c.seg.entry, exit: c.seg.exit })}
                 onMouseLeave={() => setHighlight(null)}
               >
+                <td className="opt-check" onClick={(e) => e.stopPropagation()} title={on ? 'Counts for the time to find — untick to leave it out' : 'Left out of the time to find — tick to count it'}>
+                  <input type="checkbox" checked={on} onChange={(e) => setCornersCounted(venue, [c.seg.name], e.target.checked)} />
+                </td>
                 <td className="l" title={`${c.seg.entry.toFixed(0)}–${c.seg.exit.toFixed(0)} m · ${bucket.label}`}>
                   <span className={'bucket-chip ' + c.seg.bucket}>{bucket.short}</span>
                   <b>{c.seg.name}</b>
@@ -272,7 +316,7 @@ function OptimumTable({ d, o, onChoose }: { d: OptimumData; o: Optimum; onChoose
                   <span className="opt-bar">
                     <span style={{ width: `${f * 100}%` }} />
                   </span>
-                  <span className="num" style={{ color: c.gain > 0.0005 ? 'var(--loss)' : 'var(--text-3)' }}>
+                  <span className="num" style={{ color: on && c.gain > 0.0005 ? 'var(--loss)' : 'var(--text-3)' }}>
                     {Number.isFinite(c.gain) ? (c.gain > 0.0005 ? formatDelta(c.gain, 3) : '0.000') : '—'}
                   </span>
                 </td>
@@ -317,6 +361,7 @@ function OptimumPicker({ d, o, onChoose }: { d: OptimumData; o: Optimum; onChoos
   const active = useOptimum((s) => s.active);
   const multi = new Set(o.laps.map((l) => l.session)).size > 1;
   const list = o.corners;
+  const { counts, total } = useCounted(o);
   const i = Math.max(0, list.findIndex((c) => c.seg.name === active));
   const c = list[i];
   const go = (k: number) => focusCorner(o, list[(k + list.length) % list.length]);
@@ -330,6 +375,7 @@ function OptimumPicker({ d, o, onChoose }: { d: OptimumData; o: Optimum; onChoos
           <option key={x.seg.name + x.seg.entry} value={x.seg.name}>
             {x.seg.name}
             {x.gain > 0.0005 ? `  ${formatDelta(x.gain, 3)} s` : '  (ref is best)'}
+            {counts(x) ? '' : '  · not counted'}
           </option>
         ))}
       </select>
@@ -351,8 +397,8 @@ function OptimumPicker({ d, o, onChoose }: { d: OptimumData; o: Optimum; onChoos
         <span className="muted opt-picker-text">Pick a corner to zoom to it with its best lap</span>
       )}
       <span className="grow" />
-      <span className="muted opt-picker-text" title="Added up over every corner">
-        {formatValue(o.total, 3)} s to find
+      <span className="muted opt-picker-text" title="Added up over the corners that count (untick corners in the Corners table)">
+        {formatValue(total, 3)} s to find
       </span>
       <LapsButton d={d} onChoose={onChoose} />
     </div>
@@ -366,6 +412,8 @@ function OptimumMap({ o }: { o: Optimum }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hitsRef = useRef<{ x: number; y: number; c: OptimumCorner }[]>([]);
   const active = useOptimum((s) => s.active);
+  const { counts, off } = useCounted(o);
+  const offKey = [...off].join('|');
   const theme = useStore((s) => s.settings.theme);
   useStore((s) => s.settings.trackProfiles);
   useStore((s) => s.workingRotation);
@@ -429,7 +477,7 @@ function OptimumMap({ o }: { o: Optimum }) {
     ctx.stroke();
     // Each corner coloured by the time to find: purple where the reference is already the best, red
     // (stronger for more) where another lap was quicker.
-    const max = Math.max(1e-6, ...o.corners.map((c) => (Number.isFinite(c.gain) ? c.gain : 0)));
+    const max = Math.max(1e-6, ...o.corners.filter(counts).map((c) => (Number.isFinite(c.gain) ? c.gain : 0)));
     // Labels already placed, so a label that would overlap one moves up or down until it's clear.
     const boxes: { x0: number; x1: number; y0: number; y1: number }[] = [];
     const place = (cx: number, cy: number, tw: number): [number, number] => {
@@ -449,8 +497,10 @@ function OptimumMap({ o }: { o: Optimum }) {
       if (pts.length < 2) continue;
       const f = Number.isFinite(c.gain) ? c.gain / max : 0;
       const isActive = active === c.seg.name;
-      ctx.globalAlpha = c.gain > 0.0005 ? 0.35 + 0.65 * f : 0.85;
-      ctx.strokeStyle = c.gain > 0.0005 ? T.loss : best;
+      // A corner you left out is drawn plain grey.
+      const on = counts(c);
+      ctx.globalAlpha = !on ? 0.5 : c.gain > 0.0005 ? 0.35 + 0.65 * f : 0.85;
+      ctx.strokeStyle = !on ? T.text3 : c.gain > 0.0005 ? T.loss : best;
       ctx.lineWidth = isActive ? 9 : 6;
       ctx.beginPath();
       pts.forEach(([a, b], i) => (i ? ctx.lineTo(a, b) : ctx.moveTo(a, b)));
@@ -468,7 +518,8 @@ function OptimumMap({ o }: { o: Optimum }) {
     for (const { x: ax, y: ay, c } of hitsRef.current) {
       const isActive = active === c.seg.name;
       const apex = [ax, ay];
-      const label = c.gain > 0.0005 ? `${c.seg.name} ${formatValue(c.gain, 2)}` : c.seg.name;
+      const on = counts(c);
+      const label = on && c.gain > 0.0005 ? `${c.seg.name} ${formatValue(c.gain, 2)}` : c.seg.name;
       ctx.font = (isActive ? 'bold ' : '') + T.font;
       const tw = ctx.measureText(label).width;
       const [lx, ly] = place(Math.min(w - tw / 2 - 4, Math.max(tw / 2 + 4, apex[0])), Math.max(10, apex[1] - 15), tw);
@@ -477,24 +528,33 @@ function OptimumMap({ o }: { o: Optimum }) {
       ctx.globalAlpha = 0.85;
       ctx.fillRect(lx - tw / 2 - 3, ly - 8, tw + 6, 16);
       ctx.globalAlpha = 1;
-      ctx.fillStyle = c.gain > 0.0005 ? T.text : T.text2;
+      ctx.fillStyle = !on ? T.text3 : c.gain > 0.0005 ? T.text : T.text2;
       ctx.textAlign = 'center';
       ctx.fillText(label, lx, ly);
     }
-    // Legend.
+    // Legend: one swatch per colour, then the hint while there's room.
     ctx.font = T.font;
     ctx.textAlign = 'left';
     const y = h - legendH / 2;
-    ctx.fillStyle = T.loss;
-    ctx.fillRect(10, y - 4, 22, 8);
-    ctx.fillStyle = T.text2;
-    ctx.fillText('time to find (s; stronger = more)', 38, y);
-    const x2 = 38 + ctx.measureText('time to find (s; stronger = more)').width + 18;
-    ctx.fillStyle = best;
-    ctx.fillRect(x2, y - 4, 22, 8);
-    ctx.fillStyle = T.text2;
-    ctx.fillText('the reference is the best · click a corner (again to leave it)', x2 + 28, y);
-  }, [size, o, active, theme]); // eslint-disable-line react-hooks/exhaustive-deps
+    let x = 10;
+    const item = (color: string, text: string, alpha = 1) => {
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y - 4, 22, 8);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = T.text2;
+      ctx.fillText(text, x + 28, y);
+      x += 28 + ctx.measureText(text).width + 16;
+    };
+    item(T.loss, 'time to find (stronger = more)');
+    item(best, 'the reference is the best');
+    if (off.size) item(T.text3, 'left out', 0.5);
+    const hint = 'click a corner (again to leave it)';
+    if (x + ctx.measureText(hint).width < w - 8) {
+      ctx.fillStyle = T.text3;
+      ctx.fillText(hint, x, y);
+    }
+  }, [size, o, active, theme, offKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(draw, [draw]);
   return (

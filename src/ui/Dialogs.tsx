@@ -159,11 +159,6 @@ export function SettingsDialog() {
             `Display-only moving average for graph traces (also in the top bar${keyHint('toggle-smoothing') ? `; ${keyHint('toggle-smoothing')} toggles` : ''}). On by default at 50 ms. Reports always use raw data.`,
           )}
           {row(
-            'In-game clock',
-            seg(s.gameClock, [['track', 'Track local time'], ['utc', 'Raw UTC']], (v) => updateSettings({ gameClock: v })),
-            "CSP logs the sim clock as UTC. 'Track local' converts it to the circuit's time zone (editable per track in the session browser).",
-          )}
-          {row(
             'On launch',
             <label className="check">
               <input type="checkbox" checked={s.showBrowserOnLaunch} onChange={(e) => updateSettings({ showBrowserOnLaunch: e.target.checked })} />

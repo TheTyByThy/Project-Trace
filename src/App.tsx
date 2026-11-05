@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { focusCorner, optimumData, setEligible, unfocusCorner, useOptimum } from './charts/OptimumView';
+import { focusCorner, optimumData, setCornersCounted, setEligible, unfocusCorner, useOptimum } from './charts/OptimumView';
 import { handleGlobalKey, handleMenuAction } from './actions';
 import { bindings } from './shortcuts';
 import { pt } from './core/bridge';
@@ -201,6 +201,7 @@ function installAutomation() {
       'optimum-driver',
       'optimum-dialog',
       'optimum-unfocus',
+      'optimum-excluded',
       'invalid-counts',
       'invalid-excluded',
       'time-axis',
@@ -396,6 +397,9 @@ function installAutomation() {
           const top = d.opt.corners.reduce((a, b) => ((b.gain || 0) > (a.gain || 0) ? b : a));
           focusCorner(d.opt, top);
           if (name === 'optimum-unfocus') unfocusCorner();
+          // Two corners left out by hand (as for a flat-out corner with some deployments).
+          if (name === 'optimum-excluded') setCornersCounted(d.venue, d.opt.corners.slice(1, 3).map((c) => c.seg.name), false);
+          else setCornersCounted(d.venue, d.opt.corners.map((c) => c.seg.name), true);
           if (name === 'optimum-dialog') {
             const table = Object.values(activeSheet()?.components ?? {}).find((c) => c.type === 'optimum' && (c.view ?? 'table') === 'table');
             if (table) useOptimum.setState({ dialogOwner: table.id });

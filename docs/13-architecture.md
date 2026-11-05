@@ -35,7 +35,7 @@ src/
     stats.ts        range stats, polynomial fits, nice ticks, FFT
     units.ts        unit conversions and display preferences
     colors.ts       validated categorical palettes, ramps
-    format.ts, timezones.ts, channelMeta.ts, bridge.ts
+    format.ts, channelMeta.ts, bridge.ts
   state/
     store.ts        app state + actions: sessions, lap selection & colours, cursor/zoom, workspaces
                     (read-only Starter + copy-on-write), undo/redo history, track profiles, library

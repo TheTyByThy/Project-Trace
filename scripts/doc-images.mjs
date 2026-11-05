@@ -1,4 +1,4 @@
-// Regenerates the screenshots in docs/images from one real session (by default Tyler's latest COTA stint):
+// Regenerates the screenshots in docs/images from one real session (by default Martin's latest Imola stint):
 // the Starter workspace's sheets and dialogs for the guides, then every sheet of the built-in FA26 V0.1 and
 // Tyre Deg workspaces for the README.
 //   npm run doc-images
@@ -12,7 +12,7 @@ import { launchElectron, projectRoot } from './launch.mjs';
 
 const session =
   process.env.PT_DOC_SESSION ||
-  path.join(projectRoot, 'myTelemData', 'Tyler', 'COTA', '28102026-213602-Lewis Hamilton-vrc_formula_alpha_2026_csp-cota_2022-layout_f1_2024.ld');
+  path.join(projectRoot, 'myTelemData', 'Martin', '02112026-152444-lowerlaptime-vrc_formula_alpha_2026_csp-fn_imola-imola_f1_2025.ld');
 if (!fs.existsSync(session)) {
   console.error(`[doc-images] session not found: ${session}\nSet PT_DOC_SESSION to a .ld or .csv file.`);
   process.exit(1);

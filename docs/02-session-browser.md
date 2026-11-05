@@ -61,20 +61,14 @@ Each newly added session's fastest lap is overlaid automatically. Ctrl/⌘ + cli
 ### Details pane
 Selecting a row shows:
 - track, layout, car and livery, driver;
-- saved time, in-game time (local and UTC), duration;
+- saved time, in-game time (UTC), duration;
 - weather (sky, air and track temperature) and starting fuel;
 - **every lap time** in the file, with the best highlighted;
 - **Open**, **Add to comparison** and **Show file** buttons.
 
 ## In-game time of day
 
-Telemetrick records CSP's sim clock as a **UTC timestamp** (`UTC Time` channel). CSP already applies the circuit's time zone, so to show the clock you'd see in game, Project-Trace converts it back into the **track's local zone**.
-
-- Known circuits are recognised automatically: Singapore → *Asia/Singapore*, Suzuka → *Asia/Tokyo*, COTA → *America/Chicago*, Spa → *Europe/Brussels*, Hungaroring → *Europe/Budapest*, and ~40 more. Daylight saving follows the in-game date.
-- For fictional or unrecognised tracks the time shows in UTC. Choose the right zone in the details pane (**In-game clock time zone for this track**). The choice is remembered per track.
-- If you'd rather see the raw value, set **Settings → In-game clock → Raw UTC**.
-
-> Example: the sample Singapore session's clock reads 11:01 UTC, displayed as **19:01** Singapore time, the night-race slot.
+Telemetrick records CSP's sim clock as a **UTC timestamp** (`UTC Time` channel). Project-Trace always shows it **in UTC**, for every track, so times compare directly between circuits and drivers. There's no time-zone setting.
 
 ## Live updates
 

@@ -126,12 +126,12 @@ export function relativeTime(ms: number | null | undefined): string {
   return new Date(ms).toLocaleDateString();
 }
 
-/** Format an epoch-seconds in-game clock in a given IANA time zone ("UTC" for raw). */
-export function formatGameClock(epochSec: number | null | undefined, timeZone: string, withDate = false): string {
+/** Format an epoch-seconds in-game clock. Always UTC (the sim clock as logged), e.g. "14:05" or "26 Oct, 14:05". */
+export function formatGameClock(epochSec: number | null | undefined, withDate = false): string {
   if (epochSec == null || !Number.isFinite(epochSec)) return '—';
   try {
     return new Date(epochSec * 1000).toLocaleString(undefined, {
-      timeZone,
+      timeZone: 'UTC',
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,

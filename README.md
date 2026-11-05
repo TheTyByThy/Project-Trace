@@ -7,17 +7,64 @@ Runs on <b>Windows</b> and <b>macOS</b>. Free, offline, no account.</p>
 
 ![Overview worksheet](docs/images/overview.png)
 
-Project-Trace is a desktop data-analysis tool modelled on MoTeC i2 Pro. Point it at your Telemetrick export folder, pick a track, pick a session, and you get MoTeC's core tools:
+Project-Trace is a desktop data-analysis tool modelled on MoTeC i2 Pro, with analysis built for Assetto Corsa on top. Point it at your telemetry folder, pick a track, pick a session and start comparing laps. It opens Telemetrick CSV exports and MoTeC `.ld` logs, so your whole history is usable.
 
-- time/distance graphs with lap overlays and time variance
-- **bars** strips under the graphs: filled bars where a flag or condition (e.g. Brake Pos > 5) is true
-- track maps and GPS racing-line comparison
-- scatter plots, histograms and mixture maps
-- math channels
-- reports and gauges
-- fully customisable workspaces with undo/redo
+## Features
 
-It reads the CSV files Telemetrick writes, and also opens Telemetrick's MoTeC `.ld` logs, so your whole history is usable, not just recent CSV exports.
+Everything the app does, by area. Each area links to more detail further down.
+
+### Lap and stint analysis
+| Feature | What it tells you |
+|---|---|
+| **[Time / distance graphs](#time--distance-graphs-the-heart-of-motec)** | Any channels in stacked panes, with lap overlays, time variance, zoom, measuring and smoothing |
+| **[Lap and stint reports](#laps-sectors--reports)** | Lap, sector and ideal times, with stint and all-time bests marked |
+| **[Pedal Phases](#corners-and-time-where-the-lap-time-is)** | How much of each lap is braking, full throttle, part throttle, rolling and straights |
+| **[Lap Trend](#xy-charts)** | Any channel lap by lap through a stint, with fit lines, fuel-corrected pace and slow-lap filtering |
+| **[Lap playback](#laps-sectors--reports)** | Replay a lap at 0.25×–4× across every chart |
+| **Invalid laps** | Always marked, and count for bests by default; a per-stint toggle leaves them out |
+
+### Corners
+| Feature | What it tells you |
+|---|---|
+| **[Optimum Corners](#corners-and-time-where-the-lap-time-is)** | The time to find, corner by corner, against the best of the laps you pick, from one driver or several. Untick corners to leave them out |
+| **[Corner Report](#corners-and-time-where-the-lap-time-is)** | Time, minimum, entry and exit speed per corner and straight, for each lap |
+| **[Time Breakdown](#corners-and-time-where-the-lap-time-is)** | Time gained or lost in low, medium and high-speed corners and on the straights |
+| **[Track editor](#track-map-and-gps-track)** | Your corners, splits and rotation for each track, kept as files you can share. COTA, Hungaroring, Imola, Singapore, Montreal and Sepang are built in |
+
+### Tyres
+| Feature | What it tells you |
+|---|---|
+| **[Tyre wear model](#tyre-wear-where-the-rubber-goes)** | Rubber used per lap on each tyre, split into lock-up, wheelspin and cornering slide |
+| **Wear by corner and stint** | Which corners cost the most rubber, and stint averages between drivers |
+| **Wear trends** | Per lap, cumulative, or as a gap to a reference stint |
+| **Tyre compounds** | Compound badges on sessions, laps and reports, and in the session browser |
+| **[Tyres & Brakes panel](#instruments)** | Temperatures, pressures and loads at each corner of the car |
+
+### Track and line
+| Feature | What it tells you |
+|---|---|
+| **[Track Map](#track-map-and-gps-track)** | The circuit coloured by any channel, or by time gained and lost |
+| **[GPS Track](#track-map-and-gps-track)** | Racing lines of every selected lap, with how far each is from the reference |
+
+### Charts and data
+| Feature | What it tells you |
+|---|---|
+| **[Scatter / XY](#xy-charts)** | Any channel against another, with fit lines, R² and a G-G diagram |
+| **[Histograms, mixture maps, FFT](#xy-charts)** | Distributions, zones and frequency content |
+| **Bars** | Filled strips under the graphs where a condition is true, such as Brake Pos > 5 |
+| **[Math channels](#math-channels-just-like-motec)** | Your own channels with 60 MoTeC-style functions, plus 71 ready-made ones |
+| **[Master channels](#master-channels-one-workspace-for-every-log)** | One name filled from a priority list of sources, so workspaces work on every driver's logs |
+| **[Instruments](#instruments)** | Gauges, driver inputs and the full car setup sheet, with setups side by side |
+
+### Sessions and workspaces
+| Feature | What it tells you |
+|---|---|
+| **[Session browser](#session-browser-find-the-right-run-fast)** | Tracks and stints at a glance: laps, best lap, tyre, temperatures. Compare any number of stints |
+| **Live mode** | New exports open by themselves while you drive |
+| **Sort stints** | By date / time or best lap, in the sidebar and when picking laps |
+| **[Workspaces](#workspaces-worksheets-undo)** | Dockable, fully customisable layouts saved as files you can share. Three [ready-made ones](#three-ready-made-workspaces-for-the-formula-alpha-2026) for the Formula Alpha 2026 |
+| **Undo / redo** | For every change, including deleted components and corners |
+| **[Everyday tools](#quality-of-life)** | Command palette, rebindable shortcuts, unit choices, dark and light themes, CSV export, PDF printing |
 
 ## Download
 
@@ -31,7 +78,7 @@ To update, install the new version over the old one. Your workspaces and tracks 
 
 ## Three ready-made workspaces for the Formula Alpha 2026
 
-All three come built in. Pick them from the workspace menu in the top bar. The screenshots are a COTA stint on the C4 tyre.
+All three come built in. Pick them from the workspace menu in the top bar. The screenshots are a recent Imola stint.
 
 ### FA26 V0.1: the car, sheet by sheet
 
@@ -102,10 +149,11 @@ Your settings, track profiles and workspaces are shared between the installed ap
 ## Contents
 
 - [Download](#download)
-- [Two ready-made workspaces for the Formula Alpha 2026](#two-ready-made-workspaces-for-the-formula-alpha-2026)
+- [Features](#features): everything the app does
+- [Three ready-made workspaces for the Formula Alpha 2026](#three-ready-made-workspaces-for-the-formula-alpha-2026)
 - [Make it a real app](#make-it-a-real-app-mac-app--windows-exe)
 - [Quick start](#quick-start)
-- [What you can do](#what-you-can-do): a tour of every feature
+- [What you can do](#what-you-can-do): each feature in more detail
 - [Default workspaces](#default-workspaces)
 - [Documentation](#documentation): detailed guides per feature
 - [Building installers](#building-installers-exe--dmg)
@@ -156,12 +204,12 @@ No telemetry yet? Click **Bundled sample session** to explore a 6-lap Singapore 
 - **Track cards** with tidied names (`singapore_2020-layout_f1_2026` → **Singapore 2020 · F1 2026**). **Sort them** by last driven, name, number of sessions or oldest first.
 - **Session table** per track, showing:
   - when the file was **saved**;
-  - the **in-game time of day**, converted to the circuit's local time zone;
   - driver, car and livery;
-  - complete laps, **best lap** and **best valid lap**;
-  - duration, air/track temperature and size.
+  - the **tyre compound**;
+  - complete laps and **best lap**;
+  - air/track temperature and size.
 - **Compare as many sessions as you like**: tick sessions across folders (your stints, another driver's), then **Add to open**. Selections survive browsing, double-click adds by default, and an *Open now* list shows what's loaded.
-- A details pane with every lap time, plus **live folder watching**.
+- A details pane with every lap time, the **in-game time** (always UTC), duration and weather, plus **live folder watching**.
 - **Live mode**: leave Project-Trace open while you drive and each new export opens by itself the moment Telemetrick writes it, optionally only while your sim is running.
 
 → [Session browser guide](docs/02-session-browser.md)
@@ -214,9 +262,14 @@ No telemetry yet? Click **Bundled sample session** to explore a 6-lap Singapore 
 
 - MoTeC-compatible syntax: `'Ground Speed' [m/s]`, `choose()`, `derivative()`, `integrate(x, cond)`, `smooth()`, `stat_mean()`… **60 functions** in all.
 - Live validation with an error caret, a preview on the reference lap, and a click-to-insert function reference.
-- **30 ready-made channels**: damper velocities, aero balance, coasting, lock-ups and more.
+- **71 ready-made channels**: damper velocities, aero balance, coasting, lock-ups, tyre wear and more.
 
 → [Math channel guide](docs/07-math-channels.md)
+
+### Master channels: one workspace for every log
+Different exports name the same data differently. A master channel is one name filled from a **priority list** of sources: the first one a log has is used, then the next. Throttle, brake, steering, clutch, speed, gear and RPM all have fallbacks, so traces and the channels built on them work on any log. Edit the lists in **Settings → Master channels**, which also shows what each open session used.
+
+→ [Master channels guide](docs/12-settings-and-data.md#master-channels)
 
 ### Laps, sectors & reports
 ![Lap analysis](docs/images/lap-analysis.png)
@@ -224,14 +277,22 @@ No telemetry yet? Click **Bundled sample session** to explore a 6-lap Singapore 
 - **Exact lap and sector times** matching the game.
 - **Out, in, partial and invalid laps** flagged. Invalid laps still count for bests, purple sectors and the ideal lap unless you turn that off per stint.
 - **Lap report** (selected laps; sectors as times or **Δ to the reference**) and **stint report** (every lap of the selected stints, with the **ideal lap**). Bests fill the cell: green = stint best, purple = best of everything open.
-- **Channel report** (min/max/avg/std per lap) and a **corner report** built from your corners — ranges found from your braking and throttle (adjustable with sliders), each corner tagged low / medium / high speed, plus the straights between them.
+- **Channel report**: min, max, average and standard deviation per lap.
 - **Lap playback** (▶ / Space, 0.25×–4×), **PDF printout** of any worksheet (Ctrl/⌘+P), **fuel-corrected lap times**, a **grip envelope** on the G-G diagram, and a **Corner Radius** channel.
-- **Pedal phases**: each lap's time split into braking, full throttle, part throttle and rolling, plus the time on the straights. Shown in seconds or % of the lap, absolute or Δ to the reference, with several laps side by side.
-- **Optimum corners** (its own workspace): the best time through each corner across the laps you pick (whole stints, single laps or a lap-time range, any driver), against the fastest of them. Shows the time to find corner by corner from real laps, with a map of where it is and the Driver traces of the best lap in each corner.
-- **Sort stints** in the sidebar by date / time or best lap.
-- **Time breakdown**: time gained or lost against the reference in low, medium and high-speed corners and on the straights — the whole lap in four buckets. Side-by-side lap data is tinted in each lap's colour.
 
 → [Laps & reports guide](docs/08-laps-sectors-reports.md)
+
+### Corners and time: where the lap time is
+- **Corner report**: built from your corners, with ranges found from your braking and throttle (adjustable with sliders; 30 m either side by default). Each corner is tagged low, medium or high speed, and the straights between them are marked in slate. Click a corner to zoom to exactly its range.
+- **Time breakdown**: time gained or lost against the reference in low, medium and high-speed corners and on the straights, the whole lap in four buckets.
+- **Pedal phases**: each lap's time split into braking, full throttle, part throttle and rolling, plus the time on the straights. Shown in seconds or % of the lap, absolute or Δ to the reference, with several laps side by side.
+- **Optimum corners** (its own workspace): the best time through each corner across the laps you pick (whole stints, single laps, % of the fastest or a lap-time range, any driver), against the fastest of them.
+  - Corner by corner from real laps, never stitched into a lap, with the total **time to find**.
+  - A table with the delta and Δ minimum speed, and a map coloured by time to find.
+  - Click a corner to see the reference and that corner's best lap on the Driver traces.
+  - Untick corners to leave them out, for example ones that are flat out with your deployment.
+
+→ [Corner report](docs/08-laps-sectors-reports.md#corner-report) · [Optimum corners](docs/08-laps-sectors-reports.md#optimum-corners)
 
 ### Properties: everything in one pop-out
 ![Properties pop-out](docs/images/properties-graph.png)
@@ -264,6 +325,7 @@ A wear model fitted to Assetto Corsa's own grip channel across 35 stints (median
 - Units: km/h · mph · m/s, °C · °F, psi · bar · kPa. Dark and light themes.
 - Export the visible range to CSV, save screenshots, drag & drop files.
 - **Opens MoTeC `.ld` logs** as well as Telemetrick CSV, MoTeC CSV and generic CSV.
+- **Sort stints** in the sidebar by date / time or best lap.
 
 ---
 
@@ -296,7 +358,7 @@ Your workspaces are files in **Documents/Project-Trace/Workspaces**; see [03 · 
 | Guide | |
 |---|---|
 | [01 · Getting started](docs/01-getting-started.md) | Installation on Windows/macOS, first run, opening sessions |
-| [02 · Session browser](docs/02-session-browser.md) | Folders, track sorting, the session table, in-game time zones |
+| [02 · Session browser](docs/02-session-browser.md) | Folders, track sorting, the session table, in-game time (UTC) |
 | [03 · Workspaces & layout](docs/03-workspaces-and-layout.md) | Default workspaces, the workspaces folder, saving, menus, library, layout snapping, Properties pop-out, undo |
 | [04 · Time/distance graph](docs/04-time-distance-graph.md) | Panes, lap colours, J, Δ legends, cursor, zoom, smoothing |
 | [05 · Track Map & GPS Track](docs/05-track-map.md) | Colouring, line comparison, rotation dial, corners & sections |
@@ -356,7 +418,7 @@ Project-Trace/
 └─ scripts/           launchers, install check, dev server, screenshot automation, icon
 ```
 
-Useful commands: `npm test`, `npm run typecheck`, `npm run dev` (hot reload), and `npm run screenshots`, which captures every worksheet and runs end-to-end checks. `npm run doc-images` regenerates every image in `docs/images` from one real session: by default the latest COTA stint in `myTelemData/` (set `PT_DOC_SESSION` to use another). It covers the Starter's sheets and dialogs for the guides, and every sheet of FA26 V0.1, Tyre Deg and Optimum Corners for this README.
+Useful commands: `npm test`, `npm run typecheck`, `npm run dev` (hot reload), and `npm run screenshots`, which captures every worksheet and runs end-to-end checks. `npm run doc-images` regenerates every image in `docs/images` from one real session: by default a recent Imola stint in `myTelemData/` (set `PT_DOC_SESSION` to use another). Logs aren't in the repo, so the tests that need them skip by default; `PT_TEST_LOGS="<folder>;<folder>" npm test` runs them, and every feature, over any folders of logs. It covers the Starter's sheets and dialogs for the guides, and every sheet of FA26 V0.1, Tyre Deg and Optimum Corners for this README.
 
 ---
 
@@ -369,7 +431,6 @@ Useful commands: `npm test`, `npm run typecheck`, `npm run dev` (hot reload), an
 | macOS: launcher isn't executable / opens in a text editor | In Terminal: `cd` into the folder and run `bash start-mac.sh`. |
 | Window doesn't appear when started from a VS Code terminal | Use `npm start` (not `electron .`); it clears VS Code's `ELECTRON_RUN_AS_NODE`. |
 | I deleted something by accident | **Ctrl/⌘+Z** (Edit → Undo). For a whole tab: **Worksheet → Reset Worksheet to Starter Version**. |
-| The in-game time looks off by some hours | Pick the right zone for that track in the Session Browser's details pane, or **Settings → In-game clock → Raw UTC**. |
 | The track map is rotated or mirrored | Drag the dial ring, then **Save**; mirror in the Track editor (click the track name in the top bar) (both saved per track). |
 | A math channel says "n/a" | The session doesn't contain one of its input channels (normal for non-AC data). |
 

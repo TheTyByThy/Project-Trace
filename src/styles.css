@@ -2438,3 +2438,13 @@ table.grid tr.group-title td {
 .opt-dialog .session-sort {
   padding: 2px 0 0;
 }
+
+/* Optimum corners: the tick column, and corners left out of the time to find. */
+.opt-table .opt-check {
+  width: 26px;
+  padding-right: 0;
+  text-align: center;
+}
+.opt-table tr.opt-off td:not(.opt-check) {
+  opacity: 0.42;
+}

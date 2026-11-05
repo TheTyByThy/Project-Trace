@@ -4,7 +4,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { baseName, dirName, pt, type DirFile, type DirListing } from '../core/bridge';
 import { formatBytes, formatDateTime, formatDuration, formatGameClock, formatLapTime, prettyCar, prettyTeam, prettyTrack, relativeTime } from '../core/format';
-import { COMMON_ZONES, guessTrackZone, zoneForVenue } from '../core/timezones';
 import { summarizeFile, type SessionSummary } from '../state/loader';
 import { closeSession, openFiles, setDefaultTelemetryFolder, setTelemetryFolders, setUi, telemetryFolders, updateSettings, useStore } from '../state/store';
 import { openMenu, promptText } from './overlays';
@@ -233,8 +232,6 @@ export function SessionBrowser() {
   };
   const folderCount = new Set(selected.map((p) => normPath(dirName(p)))).size;
   const focused = focus ? summaries[focus] : null;
-  const venue = focused?.venue || rows.find((r) => r.venue)?.venue || '';
-  const tz = zoneForVenue(venue, settings.trackZones, settings.gameClock);
 
   const sortHead = (key: SortKey, label: string, cls = '') => (
     <th className={cls} style={{ cursor: 'pointer' }} onClick={() => setSort((s) => ({ key, dir: s.key === key ? ((-s.dir) as 1 | -1) : key === 'savedAt' ? -1 : 1 }))}>
@@ -543,10 +540,7 @@ export function SessionBrowser() {
                           <div>{formatDateTime(focused.savedAt, true)}</div>
                           <div className="k">In-game</div>
                           <div>
-                            {formatGameClock(focused.gameTimeUtc, tz, true)}
-                            <div className="muted" style={{ fontSize: 11 }}>
-                              UTC {formatGameClock(focused.gameTimeUtc, 'UTC')}
-                            </div>
+                            {formatGameClock(focused.gameTimeUtc, true)} <span className="muted">UTC</span>
                           </div>
                           <div className="k">Duration</div>
                           <div>{formatDuration(focused.duration)}</div>
@@ -558,26 +552,6 @@ export function SessionBrowser() {
                           <div className="k">Fuel</div>
                           <div>{focused.fuelStart != null ? `${focused.fuelStart.toFixed(1)} l at start` : '—'}</div>
                         </div>
-                        <label className="field">
-                          In-game clock time zone for this track
-                          <select
-                            className="input"
-                            value={settings.trackZones[focused.venue] ?? ''}
-                            onChange={(e) => {
-                              const z = { ...settings.trackZones };
-                              if (e.target.value) z[focused.venue] = e.target.value;
-                              else delete z[focused.venue];
-                              updateSettings({ trackZones: z });
-                            }}
-                          >
-                            <option value="">Auto ({guessTrackZone(focused.venue) ?? 'UTC'})</option>
-                            {COMMON_ZONES.map((zn) => (
-                              <option key={zn} value={zn}>
-                                {zn}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
                         <div className="section-title" style={{ padding: '6px 0 0' }}>
                           Lap times
                         </div>

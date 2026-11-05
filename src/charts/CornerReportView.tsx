@@ -163,7 +163,7 @@ export function CornerReportView({ config }: { config: CornersConfig }) {
                 className={'click' + (straight ? ' straight-row' : '')}
                 onClick={() => {
                   setXMode('distance');
-                  setZoom([g.entry - 40, g.exit + 40]);
+                  setZoom([g.entry, g.exit]);
                   setCursor(g.apex);
                   // Tyre Wear Wheels on any sheet follow the clicked corner.
                   setWearFocus({ name: g.name, entry: g.entry, exit: g.exit, venue: ref.session.meta.venue, source: config.id });

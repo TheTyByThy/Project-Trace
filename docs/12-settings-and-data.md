@@ -17,7 +17,6 @@ Open **Settings** with **Ctrl/⌘ + ,** or **File → Settings…** (also in the
 | Smoothing | Off (raw) · On + amount (30 ms – 1 s) | **on at 50 ms by default**; also in the top bar; **S** toggles |
 | Workspaces folder | — | where your workspace files live; **Open** shows it (see [03](03-workspaces-and-layout.md#the-workspaces-folder)) |
 | Tracks folder | — | one file per circuit: corners, splits, rotation; **Open** shows it (see [05](05-track-map.md#the-tracks-folder-sharing-tracks)) |
-| In-game clock | Track local time · Raw UTC | see [02](02-session-browser.md#in-game-time-of-day) |
 | On launch | open the session browser | |
 | Session browser double-click | Add to open · Replace | switch in the browser header; also applies to drag & drop |
 
@@ -36,7 +35,24 @@ Each **master channel** is one name that workspaces, graph traces, reports and m
 | Throttle Pedal | Throttle Pedal, Ext_Throttle Pedal | Throttle Pedal | Ext_Throttle Pedal |
 | Diff Entry | Diff Entry, Ext_Diff Entry | Diff Entry | Ext_Diff Entry |
 
-- **Defaults:** all 50 channels that differ between the two naming styles (checked on both drivers' COTA logs of 26/10), grouped as Throttle, Brakes, Differential, ERS, Engine & PU and Other. Throttle Pos and Brake Pos are included too, so you can choose what they come from.
+- **Defaults:** all 50 channels that differ between the two naming styles (checked on both drivers' COTA logs of 26/10), grouped as Throttle, Brakes, Differential, ERS, Engine & PU and Other, plus the driver inputs.
+- **The sources are a priority list.** The first one a log has is used; if it doesn't have that one, the next, and so on. The driver inputs have fallbacks that really are the same thing, nearest first, so every log gets them:
+
+| Master | Tries, in order (each also as its `Ext_` name) |
+|---|---|
+| Throttle Pedal | Throttle Pedal, Throttle Raw, Throttle Pos, then Throttle |
+| Throttle Raw | Throttle Raw, Throttle Pedal, Throttle Pos, then Throttle |
+| Throttle Pos | Throttle Pos, Throttle Pedal, Throttle Raw, then Throttle |
+| Brake Pos | Brake Pos, Brake Pedal, Brake Raw, then Brake |
+| Steering Angle | Steering Angle, then Steering Wheel Angle, Steering Pos, Steering |
+| Clutch Pos | Clutch Pos, Clutch Pedal, then Clutch |
+| Ground Speed | Ground Speed, then Speed, Vehicle Speed, GPS Speed |
+| Gear | Gear, then Gear Position, Current Gear |
+| Engine RPM | Engine RPM, then RPM, Engine Speed |
+
+  Pedal and Raw are almost identical (0.3% apart on average), while Throttle Pos is after the car's processing and differs for about 6% of a lap, so it comes last for the pedal channels. Brake Bias Base falls back to Brake Bias.
+- **Car-script channels have no fallback** beyond their `Ext_` name (Diff Entry, EB Setting, KERS Deploy MJ…). A log without them has no channel with the same meaning, so they stay "not in session" rather than showing something else.
+- Updating keeps your order: new fallbacks are added after your own list.
 - **Pick a different source** by putting it first. For example, *Throttle Pos* ← `Throttle Raw, Ext_Throttle Raw` makes every throttle trace and math channel that uses Throttle Pos read the raw throttle instead. Leave a master's own name first to keep the logged channel.
 - **Nothing found:** if a log has none of the sources, the channel is simply missing in that session, as before.
 - **Changes apply straight away** to the open sessions: traces redraw and math channels recalculate with no reload.
@@ -55,7 +71,7 @@ Your **workspaces** are in a visible folder so you can find, back up and share t
 
 | File | Contents |
 |---|---|
-| `settings.json` | settings, recent files, track sort, keyboard shortcuts and in-game time zones (track profiles are in **Documents/Project-Trace/Tracks**; see [05](05-track-map.md#the-tracks-folder-sharing-tracks)) |
+| `settings.json` | settings, recent files, track sort, keyboard shortcuts (track profiles are in **Documents/Project-Trace/Tracks**; see [05](05-track-map.md#the-tracks-folder-sharing-tracks)) |
 | `workspaces/` | only in older versions: workspaces are copied to the Documents folder once and the originals left here as a backup |
 | `worksheet-library.json` | worksheets you saved with *Worksheet → Save Worksheet to Library…* |
 | `session-notes.json` | your notes, keyed by session file name |

@@ -5,6 +5,7 @@ import * as path from 'node:path';
 import { parseLd, parseLdx } from '../src/core/ldParser';
 import { buildSession } from '../src/core/session';
 import { compoundFor, lapCompound, sessionCompounds } from '../src/core/compound';
+import { realLog } from './realLogs';
 
 const LDX = `<LDXFile><Maths Id="Local"><MathEnumerations>
   <MathEnumeration Name="Tyres Available">
@@ -35,7 +36,7 @@ describe('tyre compounds', () => {
   });
 
   // A real log: lowerlaptime's COTA run on the SS (C4).
-  const p = path.join(__dirname, '..', 'myTelemData', 'Martin', '26102026-194918-lowerlaptime-vrc_formula_alpha_2026_csp-cota_2022-layout_f1_2024.ld');
+  const p = realLog('26102026-194918-lowerlaptime-vrc_formula_alpha_2026_csp-cota_2022-layout_f1_2024.ld', 'Martin');
   it.skipIf(!fs.existsSync(p))('names the compound of a real stint', () => {
     const b = fs.readFileSync(p);
     const s = buildSession(parseLd(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer, path.basename(p), fs.readFileSync(p.replace(/\.ld$/, '.ldx'), 'utf8')), {

@@ -6,6 +6,7 @@ import { parseLd } from '../src/core/ldParser';
 import { buildSession } from '../src/core/session';
 import { applyChannelMasters, DEFAULT_CHANNEL_MASTERS } from '../src/core/channelMasters';
 import { lapPhases } from '../src/core/pedalPhases';
+import { realLog } from './realLogs';
 
 // The synthetic channels are 10 Hz and interpolated, so each pedal change is spread over one sample (0.1 s).
 const near = (v: number, want: number) => expect(Math.abs(v - want)).toBeLessThan(0.15);
@@ -44,7 +45,7 @@ describe('pedal phases', () => {
   });
 
   // A real lap: Tyler's COTA stint of 28/10.
-  const p = path.join(__dirname, '..', 'myTelemData', 'Tyler', 'COTA', '28102026-213602-Lewis Hamilton-vrc_formula_alpha_2026_csp-cota_2022-layout_f1_2024.ld');
+  const p = realLog('28102026-213602-Lewis Hamilton-vrc_formula_alpha_2026_csp-cota_2022-layout_f1_2024.ld', 'Tyler/COTA');
   it.skipIf(!fs.existsSync(p))('adds up to each real lap time', () => {
     const b = fs.readFileSync(p);
     const real = buildSession(parseLd(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer, path.basename(p), fs.readFileSync(p.replace(/\.ld$/, '.ldx'), 'utf8')), {

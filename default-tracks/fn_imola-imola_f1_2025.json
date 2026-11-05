@@ -1,0 +1,47 @@
+{
+  "venue": "fn_imola-imola_f1_2025",
+  "rotation": 0,
+  "mirror": false,
+  "sections": [],
+  "corners": [
+    {
+      "name": "T2+3",
+      "dist": 738,
+      "end": 850
+    },
+    {
+      "name": "T5+6",
+      "dist": 1393
+    },
+    {
+      "name": "T7",
+      "dist": 1710
+    },
+    {
+      "name": "T9",
+      "dist": 2338,
+      "end": 2430
+    },
+    {
+      "name": "T12",
+      "dist": 2849,
+      "end": 2940
+    },
+    {
+      "name": "T14+15",
+      "dist": 3353,
+      "end": 3480
+    },
+    {
+      "name": "T17",
+      "dist": 4118,
+      "end": 4180
+    },
+    {
+      "name": "T18",
+      "dist": 4256,
+      "start": 4180,
+      "end": 4380
+    }
+  ]
+}

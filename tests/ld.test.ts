@@ -7,10 +7,11 @@ import * as path from 'node:path';
 import { parseTelemetryCsv } from '../src/core/csvParser';
 import { parseLd, parseLdx } from '../src/core/ldParser';
 import { buildSession } from '../src/core/session';
+import { realLog } from './realLogs';
 
 const base = '24102026-152530-Lewis Hamilton-vrc_formula_alpha_2026_csp-singapore_2020-layout_f1_2026';
 const ldDir = path.join(os.homedir(), 'Documents', 'Assetto Corsa', 'apps', 'telemetrick', 'exported', 'Lewis Hamilton', 'vrc_formula_alpha_2026_csp', 'singapore_2020-layout_f1_2026');
-const ldPath = path.join(ldDir, base + '.ld');
+const ldPath = realLog(base + '.ld', ldDir);
 const csvPath = path.join(__dirname, '..', 'sample-data', base + '.csv');
 const available = fs.existsSync(ldPath) && fs.existsSync(ldPath.replace(/\.ld$/, '.ldx')) && fs.existsSync(csvPath);
 

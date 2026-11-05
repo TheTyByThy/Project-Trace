@@ -134,14 +134,14 @@ The corner report uses **the corners you define for the track**. Nothing is gene
 
 ### Corner ranges
 
-You only mark a corner's apex; its range comes from the **reference lap's driving**: from where you **leave full throttle** before the apex (lift or brake) to where you're **back at full throttle** after it. Ranges never reach past halfway to the neighbouring corners (or 400 m from the apex). A corner taken flat out is just the padding either side of the apex.
+You only mark a corner's apex; its range comes from the **reference lap's driving**: from where you **leave full throttle** before the apex (lift or brake) to where you're **back at full throttle** after it. Ranges never reach past halfway to the neighbouring corners (or 400 m from the apex), so back-to-back corners with no straight between them meet halfway instead of overlapping, padding included. A corner taken flat out is just the padding either side of the apex.
 
 Adjust how it's measured with the sliders in the **Track editor** (click the **track name** in the top bar, or **Edit corners & buckets** in the Time Breakdown):
 
 | Slider | Default | |
 |---|---|---|
-| **Before the lift / braking point** | 20 m | extends each corner earlier |
-| **After full throttle again** | 20 m | extends each corner later |
+| **Before the lift / braking point** | 30 m | extends each corner earlier |
+| **After full throttle again** | 30 m | extends each corner later |
 | **Full throttle at** | 98 % | the throttle that counts as "flat" |
 
 These apply to every track and update every report instantly. A corner given an **exact Start / End** in the Track editor keeps it. Without a throttle channel, a corner runs halfway to its neighbours (at most ±200 m). Everything that isn't inside a corner is a **straight** (named after its neighbours, e.g. *T3 → T4*; the first and last run to the start/finish line).
@@ -181,6 +181,8 @@ The **Optimum Corners** workspace (Workspace menu) answers: *how much time is th
 - order the stints with **Sort stints** (date / time or best lap, as in the sidebar; the two share one order).
 
 Out- and in-laps can't be ticked (they aren't full laps). The choice isn't saved: it resets when you restart.
+
+**Leave corners out** with the tick box at the start of each row (the one in the header ticks or unticks them all). Every corner counts by default and nothing is left out automatically. Untick a corner that's flat out with the deployment you ran, for example, and its time no longer goes into the time to find. Left-out rows are dimmed in the table and grey on the map, the summary says how many you left out (*count all* ticks them again), and the Corner Driver picker marks them *not counted*. You can still click a left-out corner to look at it. Like the lap choice, this resets when you restart.
 
 | Sheet | |
 |---|---|

@@ -8,6 +8,7 @@ import { applyChannelMasters, DEFAULT_CHANNEL_MASTERS } from '../src/core/channe
 import { DEFAULT_CORNER_SETTINGS } from '../src/core/corners';
 import { computeVariance, varianceAt } from '../src/core/axis';
 import { optimumCorners } from '../src/core/optimum';
+import { realLog } from './realLogs';
 
 describe('optimum corners', () => {
   // A 1000 m track with two corners (T1 in the first half, T2 in the second). Lap A (90 s) is quicker
@@ -62,7 +63,7 @@ describe('optimum corners', () => {
   });
 
   // Tyler's COTA stint of 28/10: each corner's gain matches the time variance between the laps across it.
-  const p = path.join(__dirname, '..', 'myTelemData', 'Tyler', 'COTA', '28102026-213602-Lewis Hamilton-vrc_formula_alpha_2026_csp-cota_2022-layout_f1_2024.ld');
+  const p = realLog('28102026-213602-Lewis Hamilton-vrc_formula_alpha_2026_csp-cota_2022-layout_f1_2024.ld', 'Tyler/COTA');
   it.skipIf(!fs.existsSync(p))('agrees with the time variance on a real stint', () => {
     const b = fs.readFileSync(p);
     const real = buildSession(parseLd(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer, path.basename(p), fs.readFileSync(p.replace(/\.ld$/, '.ldx'), 'utf8')), {

@@ -64,12 +64,12 @@
           "id": "cmvse078u1y4ss",
           "type": "corners",
           "metric": "time",
-          "showStraights": true
+          "showStraights": false
         },
         "cmvse078u2q0e5": {
           "id": "cmvse078u2q0e5",
           "type": "lapreport",
-          "split": "sections",
+          "split": "sectors",
           "showStats": true,
           "sectorMode": "delta"
         },
@@ -80,15 +80,14 @@
           "ramp": "gainloss",
           "customLow": "#1baf7a",
           "customHigh": "#e66767",
-          "showSectors": false,
-          "showCorners": false,
+          "showSectors": true,
+          "showCorners": true,
           "showZoom": true,
           "fitToZoom": true,
           "lineWidth": 4,
           "deltaSensitivity": 1,
           "deltaSmoothing": 32,
-          "showSplits": false,
-          "compareKey": "s4:2"
+          "showSplits": false
         },
         "cmvse078u4vcuq": {
           "id": "cmvse078u4vcuq",
@@ -97,7 +96,7 @@
           "fitToZoom": true,
           "followCursor": false,
           "showSectors": false,
-          "showCorners": false,
+          "showCorners": true,
           "showSplits": false
         }
       }
@@ -207,8 +206,8 @@
             }
           ],
           "showVariance": true,
-          "showSectors": false,
-          "showCorners": false,
+          "showSectors": true,
+          "showCorners": true,
           "yRange": "full",
           "title": "Driver channels",
           "varianceWeight": 0.8814421622983871,
@@ -220,14 +219,13 @@
           "colorBy": "delta",
           "ramp": "blue",
           "showSectors": false,
-          "showCorners": false,
+          "showCorners": true,
           "showZoom": true,
           "lineWidth": 4,
           "rotation": 0,
           "title": "Track map \u2014 speed",
           "deltaSensitivity": 1,
           "deltaSmoothing": 24,
-          "compareKey": "s3:4",
           "showSplits": false
         },
         "cmvse078ufsvb8": {
@@ -238,7 +236,7 @@
           "followCursor": false,
           "showRoad": true,
           "showSectors": false,
-          "showCorners": false,
+          "showCorners": true,
           "showSplits": false
         },
         "cmvse078ugsgku": {
@@ -281,8 +279,8 @@
           "laps": "all",
           "showLabels": true,
           "showAxis": false,
-          "showSectors": false,
-          "showCorners": false,
+          "showSectors": true,
+          "showCorners": true,
           "combined": true,
           "showSplits": false
         }
@@ -400,8 +398,8 @@
             }
           ],
           "showVariance": false,
-          "showSectors": false,
-          "showCorners": false,
+          "showSectors": true,
+          "showCorners": true,
           "yRange": "full",
           "title": "Toggles through the lap \u2014 diff, brake bias and migration, engine braking",
           "showSplits": true
@@ -412,7 +410,7 @@
           "colorBy": "delta",
           "ramp": "blue",
           "showSectors": false,
-          "showCorners": false,
+          "showCorners": true,
           "showZoom": true,
           "lineWidth": 4,
           "rotation": 0,
@@ -426,7 +424,7 @@
           "followCursor": false,
           "showRoad": true,
           "showSectors": false,
-          "showCorners": false
+          "showCorners": true
         }
       }
     },
@@ -519,8 +517,8 @@
             }
           ],
           "showVariance": false,
-          "showSectors": false,
-          "showCorners": false,
+          "showSectors": true,
+          "showCorners": true,
           "yRange": "full",
           "title": "Energy through the lap \u2014 battery, deploy and regen, MGU-K power",
           "showSplits": true
@@ -533,7 +531,7 @@
           "customLow": "#ffffff",
           "customHigh": "#d95926",
           "showSectors": false,
-          "showCorners": false,
+          "showCorners": true,
           "showZoom": true,
           "fitToZoom": true,
           "lineWidth": 4,
@@ -644,8 +642,8 @@
             }
           ],
           "showVariance": false,
-          "showSectors": false,
-          "showCorners": false,
+          "showSectors": true,
+          "showCorners": true,
           "yRange": "full",
           "title": "Tyre temperatures, pressures and brake temperatures",
           "showSplits": true
@@ -664,7 +662,7 @@
           "customLow": "#3987e5",
           "customHigh": "#ff0000",
           "showSectors": false,
-          "showCorners": false,
+          "showCorners": true,
           "showZoom": true,
           "fitToZoom": true,
           "lineWidth": 4,
@@ -768,8 +766,8 @@
             }
           ],
           "showVariance": false,
-          "showSectors": false,
-          "showCorners": false,
+          "showSectors": true,
+          "showCorners": true,
           "yRange": "full",
           "title": "Ride heights, rake and aero balance through the lap",
           "showSplits": true
@@ -1053,7 +1051,7 @@
             }
           ],
           "showVariance": true,
-          "showSectors": false,
+          "showSectors": true,
           "showCorners": true,
           "yRange": "full",
           "title": "Inputs",

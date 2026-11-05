@@ -276,7 +276,7 @@ export function TyreWearView({ config }: { config: TyreWearConfig }) {
                 onClick={() => {
                   if (isFocused(r.s)) return setWearFocus(null);
                   setXMode('distance');
-                  setZoom([r.s.entry - 40, r.s.exit + 40]);
+                  setZoom([r.s.entry, r.s.exit]);
                   setCursor(r.s.apex);
                   setWearFocus({ name: r.s.name, entry: r.s.entry, exit: r.s.exit, venue: ref.session.meta.venue, source: config.id });
                 }}

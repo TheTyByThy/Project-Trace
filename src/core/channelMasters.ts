@@ -2,8 +2,13 @@
 // first of its source channels that the log has. Different exports name the same data differently (a team-mate's
 // car-script channels come out as "Ext_Throttle Pedal", "Ext_Diff Entry"…, cut to 32 characters), so with
 // "Throttle Pedal" ← [Throttle Pedal, Ext_Throttle Pedal] every workspace works on both drivers' logs unchanged.
+//
+// The sources are a priority list. The driver inputs go on to the closest channels that really are the same
+// thing, so a log without the car-script channels still has a throttle trace (and everything built on it). The
+// car-script channels themselves have no such stand-in: no logged channel matches them, so they stay missing
+// rather than showing a different quantity under their name.
 
-import type { ChannelInfo, Session } from './types';
+import type { ChannelInfo, KeyChannels, Session } from './types';
 
 export interface ChannelMaster {
   /** The name everything else uses. */
@@ -80,10 +85,56 @@ const GROUPS: [string, string[]][] = [
   ],
 ];
 
-/** Every channel the FA26 car script logs under both names (checked on COTA 26/10: 50 channels, nothing else differs). */
-export const DEFAULT_CHANNEL_MASTERS: ChannelMaster[] = GROUPS.flatMap(([group, names]) =>
-  names.map((name) => ({ name, sources: [name, extName(name)], group })),
+const withExt = (names: string[]) => names.flatMap((n) => [n, extName(n)]);
+
+/**
+ * Masters with fallbacks past their own two names, nearest first. On the Imola logs of 02/11 Throttle Pedal and
+ * Throttle Raw differ by 0.3% on average, and Throttle Pos (after the car's processing) is over 5% from them for
+ * 6% of the lap, so Pedal and Raw stand in for each other first. Brake Bias reads the base bias (0.06% from it).
+ */
+const FALLBACKS: Record<string, string[]> = {
+  'Throttle Pos': [...withExt(['Throttle Pos', 'Throttle Pedal', 'Throttle Raw']), 'Throttle'],
+  'Throttle Pedal': [...withExt(['Throttle Pedal', 'Throttle Raw', 'Throttle Pos']), 'Throttle'],
+  'Throttle Raw': [...withExt(['Throttle Raw', 'Throttle Pedal', 'Throttle Pos']), 'Throttle'],
+  'Brake Pos': [...withExt(['Brake Pos', 'Brake Pedal', 'Brake Raw']), 'Brake'],
+  'Brake Bias Base': [...withExt(['Brake Bias Base']), 'Brake Bias'],
+  'Steering Angle': [...withExt(['Steering Angle']), 'Steering Wheel Angle', 'Steering Pos', 'Steering'],
+  'Clutch Pos': [...withExt(['Clutch Pos', 'Clutch Pedal']), 'Clutch'],
+  'Ground Speed': [...withExt(['Ground Speed']), 'Speed', 'Vehicle Speed', 'GPS Speed'],
+  Gear: [...withExt(['Gear']), 'Gear Position', 'Current Gear'],
+  'Engine RPM': [...withExt(['Engine RPM']), 'RPM', 'Engine Speed'],
+};
+
+/** The FA26 car script's channels (logged under both names: 50 channels on COTA 26/10), and the driver inputs. */
+export const DEFAULT_CHANNEL_MASTERS: ChannelMaster[] = [...GROUPS, ['Driver inputs', ['Ground Speed', 'Steering Angle', 'Clutch Pos', 'Gear', 'Engine RPM']] as [string, string[]]].flatMap(([group, names]) =>
+  names.map((name) => ({ name, sources: FALLBACKS[name] ?? [name, extName(name)], group })),
 );
+
+/**
+ * Bring saved masters up to date with the default fallbacks: new masters are added and new fallbacks go on the end
+ * of a saved list, so whatever order you chose still wins.
+ */
+export function addDefaultFallbacks(saved: ChannelMaster[]): ChannelMaster[] {
+  const out = saved.map((m) => ({ ...m, sources: [...m.sources] }));
+  for (const d of DEFAULT_CHANNEL_MASTERS) {
+    if (!FALLBACKS[d.name]) continue;
+    const m = out.find((x) => x.name === d.name);
+    if (!m) out.push({ ...d, sources: [...d.sources] });
+    else for (const src of d.sources) if (!m.sources.includes(src)) m.sources.push(src);
+  }
+  return out;
+}
+
+/** Key channels a master can fill when the log's own names weren't recognised (so corner ranges still see the pedals). */
+const KEY_MASTERS: [keyof KeyChannels, string][] = [
+  ['speed', 'Ground Speed'],
+  ['throttle', 'Throttle Pos'],
+  ['brake', 'Brake Pos'],
+  ['clutch', 'Clutch Pos'],
+  ['steering', 'Steering Angle'],
+  ['gear', 'Gear'],
+  ['rpm', 'Engine RPM'],
+];
 
 interface Applied {
   /** Master channels added to the session (they weren't logged under that name). */
@@ -92,6 +143,8 @@ interface Applied {
   shadowed: Map<string, ChannelInfo>;
   /** Master → the source used. */
   used: Record<string, string>;
+  /** Key channels a master filled, to clear when the masters change. */
+  keys: (keyof KeyChannels)[];
 }
 const applied = new WeakMap<Session, Applied>();
 
@@ -102,6 +155,7 @@ function restore(s: Session) {
   for (const n of a.added) s.channels.delete(n);
   for (const [n, ch] of a.shadowed) s.channels.set(n, ch);
   s.channelOrder = s.channelOrder.filter((n) => s.channels.has(n));
+  for (const k of a.keys) delete s.key[k];
   applied.delete(s);
 }
 
@@ -111,7 +165,7 @@ function restore(s: Session) {
  */
 export function applyChannelMasters(s: Session, masters: ChannelMaster[]) {
   restore(s);
-  const a: Applied = { added: [], shadowed: new Map(), used: {} };
+  const a: Applied = { added: [], shadowed: new Map(), used: {}, keys: [] };
   const logged = (n: string) => {
     const ch = s.channels.get(n);
     return ch && !ch.isMath ? ch : undefined;
@@ -133,6 +187,11 @@ export function applyChannelMasters(s: Session, masters: ChannelMaster[]) {
     s.channels.set(name, { ...ch, name });
     if (!s.channelOrder.includes(name)) s.channelOrder.push(name);
   }
+  for (const [key, name] of KEY_MASTERS)
+    if (!s.key[key] && a.used[name]) {
+      s.key[key] = name;
+      a.keys.push(key);
+    }
   applied.set(s, a);
 }
 

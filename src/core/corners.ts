@@ -41,7 +41,7 @@ export interface CornerSettings {
   highMin: number;
 }
 
-export const DEFAULT_CORNER_SETTINGS: CornerSettings = { before: 20, after: 20, fullThrottle: 98, lowMax: 110, highMin: 180 };
+export const DEFAULT_CORNER_SETTINGS: CornerSettings = { before: 30, after: 30, fullThrottle: 98, lowMax: 110, highMin: 180 };
 
 /** The lap a corner's range is detected on (the reference lap). */
 export interface CornerContext {
@@ -205,12 +205,14 @@ export function cornerMetrics(s: Session, lap: Lap, w: { entry: number; exit: nu
   if (!s.key.speed) return null;
   const ch = s.channels.get(s.key.speed)!;
   const conv = convertUnit(ch.unit || 'kph', 'kph') ?? { k: 1, b: 0 };
-  // Segments touching the start/finish line run from the lap's first / to its last sample.
+  // Segments touching the start/finish line run from the lap's first / to its last sample (a lap's measured
+  // distance can run a little past the track length, so the end of the track is the line too).
   const D = lap.distD;
+  const L = s.trackLength;
   let ta = crossingTime(lap, w.entry);
   let tb = crossingTime(lap, w.exit);
-  if (!Number.isFinite(ta) && D.length && w.entry <= D[0] + 1) ta = lap.start;
-  if (!Number.isFinite(tb) && D.length && lap.complete && w.exit >= D[D.length - 1] - 1) tb = lap.end;
+  if (D.length && (!Number.isFinite(ta) ? w.entry <= D[0] + 1 : w.entry <= 0)) ta = lap.start;
+  if (D.length && lap.complete && (!Number.isFinite(tb) ? w.exit >= D[D.length - 1] - 1 : L > 0 && w.exit >= L - 1e-6)) tb = lap.end;
   if (!Number.isFinite(ta) || !Number.isFinite(tb) || tb <= ta) return null;
   const i0 = Math.max(0, Math.floor((ta - ch.t0) * ch.rate));
   const i1 = Math.min(ch.n - 1, Math.ceil((tb - ch.t0) * ch.rate));
