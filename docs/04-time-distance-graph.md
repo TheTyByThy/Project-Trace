@@ -131,6 +131,8 @@ The graph's right-click menu is deliberately short: the two line toggles, *Add c
 ![Combined bars](images/bars-combined.png)
 - Mouse and keys work as on the graph: click for the cursor, drag to zoom, Shift + drag to measure, scroll to zoom, double-click to reset. X-axis labels are off by default so it sits seamlessly under the graph; switch them on in Properties if it stands alone.
 
+**Diff phase bar (FA26 V0.1, Toggles sheet).** The combined bar under the graph shows which diff setting the car is on, in the Diff Entry, Mid and Exit colours. It reads the **Diff Phase** math channel: **Entry** (red) at or below -0.5 G longitudinal, **Mid** (blue) between -0.5 and +0.5 G, **Exit / High speed** (green) above +0.5 G. Above 150 km/h it is always green, whatever the G, because the car uses one setting for exit and high speed.
+
 ## Exporting
 
 **Ctrl/⌘ + E** exports the visible range of the reference lap for every graph channel on the worksheet to CSV.

@@ -312,9 +312,25 @@
         "dir": "row",
         "children": [
           {
-            "kind": "leaf",
-            "id": "lmvse078u1e18aq",
-            "componentId": "cmvse078u1bul4s"
+            "kind": "split",
+            "id": "sdiffphasecol01",
+            "dir": "col",
+            "children": [
+              {
+                "kind": "leaf",
+                "id": "lmvse078u1e18aq",
+                "componentId": "cmvse078u1bul4s"
+              },
+              {
+                "kind": "leaf",
+                "id": "ldiffphasebars1",
+                "componentId": "cdiffphasebars1"
+              }
+            ],
+            "sizes": [
+              0.86,
+              0.14
+            ]
           },
           {
             "kind": "split",
@@ -402,6 +418,44 @@
           "showCorners": true,
           "yRange": "full",
           "title": "Toggles through the lap \u2014 diff, brake bias and migration, engine braking",
+          "showSplits": true
+        },
+        "cdiffphasebars1": {
+          "id": "cdiffphasebars1",
+          "type": "bars",
+          "title": "Diff phase",
+          "rows": [
+            {
+              "id": "rdiffphaseentry",
+              "channel": "Diff Phase",
+              "op": "eq",
+              "value": 1,
+              "label": "Entry",
+              "color": "#ff0000"
+            },
+            {
+              "id": "rdiffphasemid01",
+              "channel": "Diff Phase",
+              "op": "eq",
+              "value": 2,
+              "label": "Mid",
+              "color": "#3987e5"
+            },
+            {
+              "id": "rdiffphaseexit1",
+              "channel": "Diff Phase",
+              "op": "eq",
+              "value": 3,
+              "label": "Exit / High speed",
+              "color": "#199e70"
+            }
+          ],
+          "laps": "all",
+          "showLabels": true,
+          "showAxis": false,
+          "showSectors": true,
+          "showCorners": true,
+          "combined": true,
           "showSplits": true
         },
         "cmvsjz5j36c0fyl": {
@@ -1119,6 +1173,15 @@
       "unit": "deg/s",
       "dps": 0,
       "description": "How fast the driver turns the wheel; spikes show corrections.",
+      "enabled": true
+    },
+    {
+      "id": "mdiffphase00001",
+      "name": "Diff Phase",
+      "expr": "choose('Ground Speed' [km/h] > 150, 3, choose('CG Accel Longitudinal' <= -0.5, 1, choose('CG Accel Longitudinal' > 0.5, 3, 2)))",
+      "unit": "",
+      "dps": 0,
+      "description": "Which diff setting the car is using: 1 = Entry (longitudinal G at or below -0.5), 2 = Mid (between -0.5 and +0.5), 3 = Exit / High speed (above +0.5 G, or above 150 km/h whatever the G: the car shares one setting for both).",
       "enabled": true
     },
     {
